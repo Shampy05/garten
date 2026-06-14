@@ -5,15 +5,15 @@
       No data yet
     </div>
     <div v-for="(item, i) in rankings" :key="item.id"
-      class="flex items-center gap-2 py-1.5"
+      class="grid grid-cols-[24px_16px_80px_1fr_48px] gap-1 items-center py-1.5"
     >
-      <span class="text-xs font-bold text-gray-400 w-4 text-right flex-shrink-0">{{ i + 1 }}</span>
-      <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: item.color }"></div>
-      <span class="text-xs font-medium text-gray-700 flex-shrink-0 truncate max-w-[80px]">{{ item.name }}</span>
-      <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+      <span class="text-xs font-bold text-gray-400 text-right">{{ i + 1 }}</span>
+      <div class="w-2.5 h-2.5 rounded-full mx-auto" :style="{ backgroundColor: item.color }"></div>
+      <span class="text-xs font-medium text-gray-700 truncate">{{ item.name }}</span>
+      <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
         <div class="h-full rounded-full transition-all" :style="{ width: item.percent + '%', backgroundColor: item.color }"></div>
       </div>
-      <span class="text-xs text-gray-500 w-12 text-right flex-shrink-0">{{ item.hours }}h</span>
+      <span class="text-xs text-gray-500 text-right">{{ item.hours }}h</span>
     </div>
   </div>
 </template>
