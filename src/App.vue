@@ -72,10 +72,10 @@
               </button>
             </div>
           </div>
-          <div class="w-full bg-gray-100 rounded-full h-2">
-            <div class="h-2 rounded-full transition-all duration-500"
-              :class="goalProgress >= 100 ? 'bg-green-500' : 'bg-green-400'"
-              :style="{ width: goalProgress + '%' }"
+          <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden flex">
+            <div v-for="(seg, i) in goalSegments" :key="i"
+              class="h-2 transition-all duration-500 first:rounded-l-full last:rounded-r-full"
+              :style="{ width: seg.percent + '%', backgroundColor: seg.color }"
             ></div>
           </div>
           <div v-if="goalProgress >= 100" class="text-xs text-green-600 mt-1 font-medium">Goal reached!</div>
@@ -306,6 +306,38 @@ watch(weeklyGoal, (v) => { goalHours.value = v }, { immediate: true })
 const goalProgress = computed(() => {
   if (!goalHours.value || goalHours.value <= 0) return 0
   return Math.min((weekMinutes.value / (goalHours.value * 60)) * 100, 100)
+})
+
+const goalSegments = computed(() => {
+  if (!goalHours.value || goalHours.value <= 0 || weekMinutes.value === 0) return []
+  const now = new Date()
+  const day = now.getDay()
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1))
+  monday.setHours(0, 0, 0, 0)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  const from = localDateStr(monday)
+  const to = localDateStr(sunday)
+
+  const weekEntries = data.value.entries.filter(e => e.date >= from && e.date <= to)
+  const byLang = {}
+  for (const e of weekEntries) {
+    byLang[e.languageId] = (byLang[e.languageId] || 0) + e.hours * 60 + e.minutes
+  }
+
+  const total = Object.values(byLang).reduce((s, v) => s + v, 0)
+  const filledPct = Math.min((total / (goalHours.value * 60)) * 100, 100)
+
+  return Object.entries(byLang)
+    .sort((a, b) => b[1] - a[1])
+    .map(([langId, mins]) => {
+      const lang = data.value.languages.find(l => l.id === langId)
+      return {
+        color: lang ? lang.color : '#16a34a',
+        percent: (mins / total) * filledPct
+      }
+    })
 })
 
 const saveGoalInput = () => {
