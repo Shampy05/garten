@@ -32,10 +32,21 @@
 <script setup>
 import { computed } from 'vue'
 
+function localDateStr(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 const props = defineProps({
   entries: {
     type: Array,
     required: true
+  },
+  languages: {
+    type: Array,
+    default: () => []
   },
   filter: {
     type: Object,
@@ -45,8 +56,10 @@ const props = defineProps({
 
 const activeFilterLabel = computed(() => {
   if (!props.filter.language) return 'All Languages'
-  if (props.filter.types.length === 0) return props.filter.language
-  return `${props.filter.language} (${props.filter.types.join(', ')})`
+  const lang = props.languages.find(l => l.id === props.filter.language)
+  const name = lang ? lang.name : props.filter.language
+  if (props.filter.types.length === 0) return name
+  return `${name} (${props.filter.types.join(', ')})`
 })
 
 const currentStreak = computed(() => {
@@ -72,17 +85,19 @@ const currentStreak = computed(() => {
 
 const totalHoursThisWeek = computed(() => {
   const now = new Date()
-  const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000)
-  
-  const weekEntries = props.entries.filter(entry => {
-    const entryDate = new Date(entry.date)
-    return entryDate >= weekAgo
-  })
-  
-  const totalMinutes = weekEntries.reduce((sum, entry) => {
-    return sum + (entry.hours * 60 + entry.minutes)
-  }, 0)
-  
+  const day = now.getDay()
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1))
+  monday.setHours(0, 0, 0, 0)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  const from = localDateStr(monday)
+  const to = localDateStr(sunday)
+
+  const totalMinutes = props.entries
+    .filter(e => e.date >= from && e.date <= to)
+    .reduce((sum, e) => sum + e.hours * 60 + e.minutes, 0)
+
   return (totalMinutes / 60).toFixed(1)
 })
 
