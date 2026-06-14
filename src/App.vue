@@ -223,6 +223,7 @@
 import { ref, computed, watch, provide } from 'vue'
 import { useAuth } from './composables/useAuth.js'
 import { useStorage } from './composables/useStorage.js'
+import { localDateStr } from './lib/date.js'
 import AuthScreen from './components/AuthScreen.vue'
 import LanguageSetup from './components/LanguageSetup.vue'
 import LogForm from './components/LogForm.vue'
@@ -387,13 +388,6 @@ const navigateView = (direction) => {
       break
   }
   viewDate.value = d
-}
-
-function localDateStr(date) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
 }
 
 const addEntry = (entry) => { storageAddEntry(entry) }
