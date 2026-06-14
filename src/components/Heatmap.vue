@@ -233,12 +233,30 @@ const getCellColor = (day) => {
     return getColorAtIntensity(topColor, day.totalMinutes)
   }
 
-  const secondId = entries[1][0]
-  const secondLang = props.languages.find(l => l.id === secondId)
-  const secondColor = secondLang ? secondLang.color : '#16a34a'
   const top = getColorAtIntensity(topColor, day.totalMinutes)
-  const second = getColorAtIntensity(secondColor, day.totalMinutes)
-  return `linear-gradient(135deg, ${top} 50%, ${second} 50%)`
+
+  if (entries.length === 2) {
+    const secondId = entries[1][0]
+    const secondLang = props.languages.find(l => l.id === secondId)
+    const secondColor = secondLang ? secondLang.color : '#16a34a'
+    const second = getColorAtIntensity(secondColor, day.totalMinutes)
+    return `linear-gradient(135deg, ${top} 50%, ${second} 50%)`
+  }
+
+  const stops = []
+  const count = Math.min(entries.length, 3)
+  const pct = 100 / count
+  for (let i = 0; i < count; i++) {
+    const langId = entries[i][0]
+    const lang = props.languages.find(l => l.id === langId)
+    const c = lang ? lang.color : '#16a34a'
+    const col = getColorAtIntensity(c, day.totalMinutes)
+    const start = i * pct
+    const end = (i + 1) * pct
+    stops.push(`${col} ${start}%`)
+    if (i < count - 1) stops.push(`${col} ${end}%`)
+  }
+  return `linear-gradient(135deg, ${stops.join(', ')})`
 }
 
 const getCellStyle = (day) => {

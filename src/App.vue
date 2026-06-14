@@ -81,30 +81,23 @@
           <div
             v-for="entry in recentEntries"
             :key="entry.id"
-            class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+            class="flex flex-wrap items-center gap-1 p-3 bg-gray-50 rounded-lg"
           >
-            <div class="flex items-center gap-3">
-              <div
-                class="w-3 h-3 rounded-full"
-                :style="{ backgroundColor: getLanguageColor(entry.languageId) }"
-              ></div>
-              <div>
-                <span class="font-medium text-gray-700">{{ getLanguageName(entry.languageId) }}</span>
-                <span class="text-gray-500 mx-2">{{ entry.type }}</span>
-                <span class="text-sm text-gray-400">{{ entry.date }}</span>
-              </div>
-            </div>
-            <div class="flex items-center gap-3">
-              <span class="text-sm font-medium text-gray-600">
-                {{ entry.hours }}h {{ entry.minutes }}m
-              </span>
-              <button
-                @click="deleteEntry(entry.id)"
-                class="text-red-500 hover:text-red-700 text-sm"
-              >
-                Delete
-              </button>
-            </div>
+            <div class="w-3 h-3 rounded-full flex-shrink-0"
+              :style="{ backgroundColor: getLanguageColor(entry.languageId) }"
+            ></div>
+            <span class="font-medium text-gray-700 text-sm">{{ getLanguageName(entry.languageId) }}</span>
+            <span class="text-gray-500 text-sm">{{ entry.type }}</span>
+            <span class="text-xs text-gray-400">{{ entry.date }}</span>
+            <span class="text-sm font-medium text-gray-600 ml-auto">
+              {{ entry.hours }}h {{ entry.minutes }}m
+            </span>
+            <button
+              @click="deleteEntry(entry.id)"
+              class="text-red-500 hover:text-red-700 text-xs"
+            >
+              Delete
+            </button>
           </div>
 
           <div v-if="recentEntries.length === 0" class="text-center py-8 text-gray-400">
