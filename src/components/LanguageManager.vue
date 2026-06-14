@@ -70,6 +70,10 @@
                 {{ lang.name[0].toUpperCase() }}
               </div>
               <span class="font-bold text-white drop-shadow-sm">{{ lang.name }}</span>
+              <button @click.stop="$emit('delete-language', lang.id)"
+                class="ml-auto w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white/80 hover:text-white transition-colors text-xs"
+                title="Remove language"
+              >✕</button>
             </div>
             <div class="flex items-center justify-center" :style="{ backgroundColor: lang.color + '08' }">
               <div class="w-full border-t-2 border-dashed mx-3" :style="{ borderColor: lang.color + '30' }"></div>
@@ -114,7 +118,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['add-language', 'close'])
+const emit = defineEmits(['add-language', 'delete-language', 'close'])
 
 const existingNames = computed(() => props.languages.map(l => l.name))
 

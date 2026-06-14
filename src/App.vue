@@ -150,6 +150,7 @@
       :languages="data.languages"
       :visible="showLangManager"
       @add-language="addLanguage"
+      @delete-language="deleteLanguage"
       @close="showLangManager = false"
     />
   </div>
@@ -173,7 +174,7 @@ import Leaderboard from './components/Leaderboard.vue'
 const { user, loading: authLoading, signIn, signUp, signOut } = useAuth()
 provide('auth', { signIn, signUp })
 
-const { data, loaded, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteEntry: storageDeleteEntry } = useStorage()
+const { data, loaded, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry } = useStorage()
 
 const setupActive = ref(false)
 
@@ -263,6 +264,7 @@ function localDateStr(date) {
 
 const addEntry = (entry) => { storageAddEntry(entry) }
 const addLanguage = (language) => { storageAddLanguage(language) }
+const deleteLanguage = (langId) => { storageDeleteLanguage(langId) }
 const deleteEntry = (id) => { storageDeleteEntry(id) }
 
 const getLanguageName = (languageId) => {
