@@ -25,7 +25,7 @@
         <div class="flex items-start justify-between mb-4">
           <div>
             <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-1">Garten</h1>
-            <p class="text-sm sm:text-base text-gray-600">Cultivate your language learning habits, one day at a time.</p>
+            <p class="text-sm sm:text-base text-gray-600">Track your language learning progress.</p>
           </div>
           <div class="flex items-center gap-2">
             <button
