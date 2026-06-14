@@ -150,6 +150,12 @@
         :view-date="viewDate"
       />
 
+      <!-- Activity Breakdown -->
+      <ActivityBreakdown
+        :entries="filteredEntries"
+        :languages="data.languages"
+      />
+
       <!-- Recent Entries -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mt-6">
         <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Sessions</h3>
@@ -240,6 +246,7 @@ import FilterBar from './components/FilterBar.vue'
 import TimeframeSelector from './components/TimeframeSelector.vue'
 import Heatmap from './components/Heatmap.vue'
 import InsightCard from './components/InsightCard.vue'
+import ActivityBreakdown from './components/ActivityBreakdown.vue'
 import Leaderboard from './components/Leaderboard.vue'
 import EditSession from './components/EditSession.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
