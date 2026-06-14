@@ -105,6 +105,7 @@
       <!-- Stats -->
       <StatsCard
         :entries="filteredEntries"
+        :languages="data.languages"
         :filter="activeFilter"
       />
 
