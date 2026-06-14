@@ -33,7 +33,7 @@
         <div class="flex gap-3">
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">Color</label>
-            <input v-model="newLang.color" type="color" class="w-10 h-10 rounded cursor-pointer" />
+            <input v-model="color" type="color" class="w-10 h-10 rounded cursor-pointer" />
           </div>
           <div class="flex-1">
             <label class="block text-xs font-medium text-gray-600 mb-1">Activity Types</label>
@@ -46,7 +46,7 @@
                 :class="selectedTypes.includes(type)
                   ? 'text-white border-transparent'
                   : 'text-gray-500 bg-gray-50 border-gray-200 hover:border-gray-300'"
-                :style="selectedTypes.includes(type) ? { backgroundColor: newLang.color, borderColor: newLang.color } : {}"
+                :style="selectedTypes.includes(type) ? { backgroundColor: color, borderColor: color } : {}"
               >
                 {{ type }}
               </button>
@@ -85,7 +85,7 @@
 import { ref, computed } from 'vue'
 import LanguageAutocomplete from './LanguageAutocomplete.vue'
 import { ACTIVITY_TYPES } from '../lib/types.js'
-import { randomColor } from '../lib/color.js'
+import { useLanguageForm } from '../composables/useLanguageForm.js'
 
 const props = defineProps({
   languages: { type: Array, required: true }
@@ -94,45 +94,19 @@ const props = defineProps({
 const emit = defineEmits(['add-language', 'done'])
 
 const existingNames = computed(() => props.languages.map(l => l.name))
-
 const showForm = ref(false)
-const selectedLanguage = ref(null)
-const newLang = ref({ color: randomColor() })
-const selectedTypes = ref(['reading'])
-const autocompleteRef = ref(null)
-
-function onLanguageSelect(name) {
-  selectedLanguage.value = name
-}
-
-function toggleType(type) {
-  const i = selectedTypes.value.indexOf(type)
-  if (i === -1) {
-    selectedTypes.value.push(type)
-  } else if (selectedTypes.value.length > 1) {
-    selectedTypes.value.splice(i, 1)
-  }
-}
+const { selectedLanguage, color, selectedTypes, autocompleteRef, onLanguageSelect, toggleType, getLanguageData, reset } = useLanguageForm(existingNames)
 
 function saveLanguage() {
-  if (!selectedLanguage.value) return
-  emit('add-language', {
-    name: selectedLanguage.value,
-    color: newLang.value.color,
-    types: [...selectedTypes.value]
-  })
-  selectedLanguage.value = null
-  newLang.value = { color: randomColor() }
-  selectedTypes.value = ['reading']
-  autocompleteRef.value?.clear()
+  const data = getLanguageData()
+  if (!data) return
+  emit('add-language', data)
+  reset()
   showForm.value = false
 }
 
 function cancelForm() {
-  selectedLanguage.value = null
-  newLang.value = { color: randomColor() }
-  selectedTypes.value = ['reading']
-  autocompleteRef.value?.clear()
+  reset()
   showForm.value = false
 }
 </script>

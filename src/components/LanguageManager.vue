@@ -31,7 +31,7 @@
             <div class="flex gap-3">
               <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">Color</label>
-                <input v-model="newLanguage.color" type="color" class="w-10 h-10 rounded cursor-pointer" />
+                <input v-model="color" type="color" class="w-10 h-10 rounded cursor-pointer" />
               </div>
               <div class="flex-1">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Activity Types</label>
@@ -44,7 +44,7 @@
                     :class="selectedTypes.includes(type)
                       ? 'text-white border-transparent'
                       : 'text-gray-500 bg-gray-50 border-gray-200 hover:border-gray-300'"
-                    :style="selectedTypes.includes(type) ? { backgroundColor: newLanguage.color, borderColor: newLanguage.color } : {}"
+                    :style="selectedTypes.includes(type) ? { backgroundColor: color, borderColor: color } : {}"
                   >
                     {{ type }}
                   </button>
@@ -116,7 +116,7 @@ import { ref, computed } from 'vue'
 import LanguageAutocomplete from './LanguageAutocomplete.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import { ACTIVITY_TYPES } from '../lib/types.js'
-import { randomColor } from '../lib/color.js'
+import { useLanguageForm } from '../composables/useLanguageForm.js'
 
 const props = defineProps({
   languages: {
@@ -132,14 +132,8 @@ const props = defineProps({
 const emit = defineEmits(['add-language', 'delete-language', 'close'])
 
 const existingNames = computed(() => props.languages.map(l => l.name))
-
 const showAddForm = ref(false)
-const selectedLanguage = ref(null)
-const newLanguage = ref({
-  color: randomColor()
-})
-const selectedTypes = ref(['reading'])
-const autocompleteRef = ref(null)
+const { selectedLanguage, color, selectedTypes, autocompleteRef, onLanguageSelect, toggleType, getLanguageData, reset } = useLanguageForm(existingNames)
 
 const deleteTarget = ref(null)
 const showDeleteConfirm = ref(false)
@@ -162,32 +156,11 @@ function executeDelete() {
   showDeleteConfirm.value = false
 }
 
-function onLanguageSelect(name) {
-  selectedLanguage.value = name
-}
-
-function toggleType(type) {
-  const i = selectedTypes.value.indexOf(type)
-  if (i === -1) {
-    selectedTypes.value.push(type)
-  } else if (selectedTypes.value.length > 1) {
-    selectedTypes.value.splice(i, 1)
-  }
-}
-
 const addLanguage = () => {
-  if (!selectedLanguage.value) return
-
-  emit('add-language', {
-    name: selectedLanguage.value,
-    color: newLanguage.value.color,
-    types: [...selectedTypes.value]
-  })
-
-  selectedLanguage.value = null
-  newLanguage.value = { color: randomColor() }
-  selectedTypes.value = ['reading']
-  autocompleteRef.value?.clear()
+  const data = getLanguageData()
+  if (!data) return
+  emit('add-language', data)
+  reset()
   showAddForm.value = false
 }
 </script>
