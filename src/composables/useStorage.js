@@ -146,7 +146,7 @@ export function useStorage() {
     }
     clearCache(userId.value)
     const idx = data.value.languages.findIndex(l => l.id === langId)
-    if (idx !== -1) data.value.languages[idx] = { ...data.value.languages[idx], ...updates }
+    if (idx !== -1) data.value.languages = data.value.languages.map(l => l.id === langId ? { ...l, ...updates } : l)
   }
 
   const deleteEntry = async (id) => {

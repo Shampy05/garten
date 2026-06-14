@@ -39,6 +39,7 @@
             class="flex-1 aspect-square rounded-md cursor-pointer relative overflow-hidden"
             :class="{
               'opacity-0 pointer-events-none': !day.inRange,
+              'border-2 border-blue-500': day.date === todayStr,
               'ring-2 ring-yellow-400/70 shadow-[0_0_8px_rgba(250,204,21,0.25)]': day.inRange && streakDaysSet.has(day.date)
             }"
             :style="day.inRange ? { backgroundColor: dayBgColor(day) } : { background: 'transparent' }"
@@ -56,7 +57,6 @@
               <span class="absolute top-0.5 left-1 text-[9px] font-medium text-gray-500/60 leading-none select-none z-10">
                 {{ getDayNumber(day) }}
               </span>
-              <span v-if="day.date === todayStr" class="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-gray-800 z-10"></span>
             </div>
           </div>
         </div>
@@ -85,6 +85,7 @@
                   class="rounded-sm cursor-pointer relative overflow-hidden"
                   :class="{
                     'opacity-0 pointer-events-none': !day.inRange,
+                    'border-2 border-blue-500': day.date === todayStr,
                     'ring-1 ring-yellow-400/70 shadow-[0_0_4px_rgba(250,204,21,0.2)]': day.inRange && streakDaysSet.has(day.date)
                   }"
                   :style="day.inRange ? { backgroundColor: dayBgColor(day), width: cellSizeQ + 'px', height: cellSizeQ + 'px' } : { width: cellSizeQ + 'px', height: cellSizeQ + 'px', background: 'transparent' }"
@@ -102,7 +103,6 @@
                     <span class="absolute top-px left-0.5 text-[6px] font-medium text-gray-500/60 leading-none select-none z-10">
                       {{ getDayNumber(day) }}
                     </span>
-                    <span v-if="day.date === todayStr" class="absolute bottom-px right-px w-1 h-1 rounded-full bg-gray-800 z-10"></span>
                   </div>
                 </div>
               </div>
@@ -130,6 +130,7 @@
                 class="garden-cell w-3 h-3 rounded-[1px] cursor-pointer relative overflow-hidden"
                 :class="{
                   'opacity-0 pointer-events-none': !day.inRange,
+                  'border border-blue-500': day.date === todayStr,
                   'ring-[0.5px] ring-yellow-400/70': day.inRange && streakDaysSet.has(day.date)
                 }"
                 :style="day.inRange ? { backgroundColor: day.totalMinutes > 0 ? dayBgColor(day) : '#f3f4f6' } : { background: 'transparent' }"
@@ -143,7 +144,6 @@
                     :style="color ? { backgroundColor: color } : {}"
                   ></div>
                 </div>
-                <span v-if="day.date === todayStr" class="absolute bottom-px right-px w-[3px] h-[3px] rounded-full bg-gray-800 z-10"></span>
               </div>
             </div>
           </div>
@@ -258,8 +258,8 @@ const dayBgColor = (day) => {
   if (!useMosaic.value) {
     const lang = props.filter.language
       ? props.languages.find(l => l.id === props.filter.language)
-      : props.languages[0]
-    return getColorAtIntensity(lang ? lang.color : '#16a34a', day.totalMinutes)
+      : activeLanguages.value[0]
+    return getColorAtIntensity(lang?.color || '#16a34a', day.totalMinutes)
   }
   return '#f3f4f6'
 }
@@ -307,9 +307,10 @@ const getDayNumber = (day) => {
 }
 
 const colorLevels = computed(() => {
-  const isFiltered = !!props.filter.language
-  const language = isFiltered ? props.languages.find(l => l.id === props.filter.language) : null
-  const baseColor = language ? language.color : '#16a34a'
+  const lang = props.filter.language
+    ? props.languages.find(l => l.id === props.filter.language)
+    : activeLanguages.value[0]
+  const baseColor = lang?.color || '#16a34a'
   return [
     '#f3f4f6',
     adjustColor(baseColor, 0.15), adjustColor(baseColor, 0.25),
