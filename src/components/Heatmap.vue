@@ -38,7 +38,7 @@
               <span class="absolute top-0.5 left-1 text-[9px] font-medium text-gray-500/60 leading-none select-none">
                 {{ getDayNumber(day) }}
               </span>
-              <div v-if="day.totalMinutes > 0" class="absolute bottom-0 left-0 right-0 h-[3px] flex rounded-b-sm overflow-hidden">
+              <div v-if="day.totalMinutes > 0" class="absolute bottom-0 left-0 right-0 h-[5px] flex rounded-b-sm overflow-hidden">
                 <div v-for="(seg, si) in getStackBars(day)" :key="si"
                   class="h-full"
                   :style="{ width: seg.percent + '%', backgroundColor: seg.color }"
@@ -92,7 +92,7 @@
                     <span class="absolute top-0.5 left-1 text-[8px] font-medium text-gray-500/60 leading-none select-none">
                       {{ getDayNumber(day) }}
                     </span>
-                    <div v-if="day.totalMinutes > 0" class="absolute bottom-0 left-0 right-0 h-[2px] flex rounded-b-sm overflow-hidden">
+                    <div v-if="day.totalMinutes > 0" class="absolute bottom-0 left-0 right-0 h-[5px] flex rounded-b-sm overflow-hidden">
                       <div v-for="(seg, si) in getStackBars(day)" :key="si"
                         class="h-full"
                         :style="{ width: seg.percent + '%', backgroundColor: seg.color }"
@@ -240,7 +240,7 @@ const getCellColor = (day) => {
     const secondLang = props.languages.find(l => l.id === secondId)
     const secondColor = secondLang ? secondLang.color : '#16a34a'
     const second = getColorAtIntensity(secondColor, day.totalMinutes)
-    return `linear-gradient(135deg, ${top} 50%, ${second} 50%)`
+    return `linear-gradient(90deg, ${top} 50%, ${second} 50%)`
   }
 
   const stops = []
@@ -256,7 +256,7 @@ const getCellColor = (day) => {
     stops.push(`${col} ${start}%`)
     if (i < count - 1) stops.push(`${col} ${end}%`)
   }
-  return `linear-gradient(135deg, ${stops.join(', ')})`
+  return `linear-gradient(90deg, ${stops.join(', ')})`
 }
 
 const getCellStyle = (day) => {

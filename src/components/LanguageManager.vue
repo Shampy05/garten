@@ -1,87 +1,108 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-6">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-lg font-semibold text-gray-800">Languages</h3>
-      <button 
-        @click="showAddForm = !showAddForm"
-        class="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg transition-colors"
-      >
-        {{ showAddForm ? 'Cancel' : '+ Add Language' }}
-      </button>
-    </div>
-    
-    <div v-if="showAddForm" class="mb-4 p-4 bg-gray-50 rounded-lg">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Language Name</label>
-          <input 
-            v-model="newLanguage.name"
-            type="text"
-            placeholder="e.g., French"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+  <Teleport to="body">
+    <div v-if="visible" class="fixed inset-0 z-50 flex items-start justify-center pt-12 sm:pt-24 px-4">
+      <div class="absolute inset-0 bg-black/20 backdrop-blur-sm" @click="$emit('close')"></div>
+
+      <div class="relative bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-md max-h-[70vh] overflow-y-auto z-10">
+        <!-- Header -->
+        <div class="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between rounded-t-2xl">
+          <h2 class="text-lg font-bold text-gray-900">Language Seeds</h2>
           <div class="flex items-center gap-2">
-            <input 
-              v-model="newLanguage.color"
-              type="color"
-              class="w-10 h-10 rounded cursor-pointer"
-            />
-            <span class="text-sm text-gray-600">{{ newLanguage.color }}</span>
+            <button @click="showAddForm = !showAddForm"
+              class="text-sm text-green-600 hover:text-green-700 font-medium transition-colors"
+            >
+              + New Seed
+            </button>
+            <button @click="$emit('close')"
+              class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors text-sm"
+            >
+              ✕
+            </button>
           </div>
         </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Activity Types</label>
-          <input 
-            v-model="typesInput"
-            type="text"
-            placeholder="reading, grammar, vocabulary"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
+
+        <!-- Add Language Form -->
+        <div v-if="showAddForm" class="border-b border-gray-100 px-5 py-4 bg-gray-50/50">
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Language Name</label>
+              <input v-model="newLanguage.name" type="text" placeholder="e.g., French"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              />
+            </div>
+            <div class="flex gap-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Color</label>
+                <input v-model="newLanguage.color" type="color" class="w-10 h-10 rounded cursor-pointer" />
+              </div>
+              <div class="flex-1">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Activity Types</label>
+                <input v-model="typesInput" type="text" placeholder="reading, grammar, vocabulary"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                />
+              </div>
+            </div>
+            <button @click="addLanguage"
+              class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition-colors text-sm font-medium"
+            >
+              Add Seed
+            </button>
+          </div>
+        </div>
+
+        <!-- Language Seed Packets -->
+        <div class="px-5 py-4 space-y-3">
+          <div v-for="lang in languages" :key="lang.id"
+            class="rounded-xl overflow-hidden border-2 transition-all hover:shadow-md"
+            :style="{ borderColor: lang.color + '40' }"
+          >
+            <div class="px-4 py-3 flex items-center gap-3" :style="{ backgroundColor: lang.color }">
+              <div class="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center text-white font-bold text-base shadow-inner">
+                {{ lang.name[0].toUpperCase() }}
+              </div>
+              <span class="font-bold text-white drop-shadow-sm">{{ lang.name }}</span>
+            </div>
+            <div class="flex items-center justify-center" :style="{ backgroundColor: lang.color + '08' }">
+              <div class="w-full border-t-2 border-dashed mx-3" :style="{ borderColor: lang.color + '30' }"></div>
+            </div>
+            <div class="px-4 py-3" :style="{ backgroundColor: lang.color + '04' }">
+              <div class="text-[10px] text-gray-400 mb-1.5 font-semibold uppercase tracking-widest">Activity Types</div>
+              <div class="flex flex-wrap gap-1.5">
+                <span v-for="type in lang.types" :key="type"
+                  class="text-xs px-2.5 py-1 rounded-full font-medium"
+                  :style="{ backgroundColor: lang.color + '15', color: lang.color }"
+                >
+                  {{ type }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="languages.length === 0" class="text-center py-8 text-gray-400">
+            <p class="text-sm">No language seeds yet.</p>
+            <p class="text-xs mt-1">Click "+ New Seed" to add your first language.</p>
+          </div>
         </div>
       </div>
-      
-      <button 
-        @click="addLanguage"
-        class="mt-3 w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition-colors"
-      >
-        Add Language
-      </button>
     </div>
-    
-    <div class="flex flex-wrap gap-2">
-      <div 
-        v-for="lang in languages" 
-        :key="lang.id"
-        class="flex items-center gap-2 px-3 py-2 rounded-lg border"
-        :style="{ borderColor: lang.color, backgroundColor: lang.color + '10' }"
-      >
-        <div 
-          class="w-3 h-3 rounded-full"
-          :style="{ backgroundColor: lang.color }"
-        ></div>
-        <span class="text-sm font-medium text-gray-700">{{ lang.name }}</span>
-        <span class="text-xs text-gray-500">({{ lang.types.join(', ') }})</span>
-      </div>
-    </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 
 const props = defineProps({
   languages: {
     type: Array,
     required: true
+  },
+  visible: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['add-language'])
+const emit = defineEmits(['add-language', 'close'])
 
 const showAddForm = ref(false)
 const newLanguage = ref({
@@ -93,15 +114,15 @@ const typesInput = ref('reading, grammar, vocabulary')
 
 const addLanguage = () => {
   if (!newLanguage.value.name.trim()) return
-  
+
   const types = typesInput.value.split(',').map(t => t.trim()).filter(t => t)
-  
+
   emit('add-language', {
     name: newLanguage.value.name.trim(),
     color: newLanguage.value.color,
     types: types.length > 0 ? types : ['reading']
   })
-  
+
   newLanguage.value = { name: '', color: '#8b5cf6', types: ['reading', 'grammar', 'vocabulary'] }
   typesInput.value = 'reading, grammar, vocabulary'
   showAddForm.value = false
