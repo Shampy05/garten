@@ -9,7 +9,8 @@ function toSnake(entry) {
     language_id: entry.languageId,
     type: entry.type,
     hours: entry.hours,
-    minutes: entry.minutes
+    minutes: entry.minutes,
+    notes: entry.notes || null
   }
 }
 
@@ -20,7 +21,8 @@ function toCamel(row) {
     languageId: row.language_id,
     type: row.type,
     hours: row.hours,
-    minutes: row.minutes
+    minutes: row.minutes,
+    notes: row.notes || null
   }
 }
 
@@ -147,12 +149,28 @@ export function useStorage() {
     data.value.entries = data.value.entries.filter(e => e.id !== id)
   }
 
+  const updateEntry = async (entry) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+    if (!userId) return
+
+    const { error } = await supabase.from('entries').update(toSnake(entry)).eq('id', entry.id).eq('user_id', userId)
+    if (error) {
+      console.error('Failed to update entry:', error)
+      return
+    }
+    clearCache(userId)
+    const idx = data.value.entries.findIndex(e => e.id === entry.id)
+    if (idx !== -1) data.value.entries[idx] = toCamel(toSnake(entry))
+  }
+
   return {
     data,
     loaded,
     addEntry,
     addLanguage,
     deleteLanguage,
-    deleteEntry
+    deleteEntry,
+    updateEntry
   }
 }

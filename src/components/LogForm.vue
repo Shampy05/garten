@@ -144,6 +144,13 @@
               class="text-sm text-right border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-500 w-40"
             />
           </div>
+          <div class="border-t border-gray-200/60"></div>
+          <div>
+            <span class="text-sm text-gray-500">Notes (optional)</span>
+            <textarea v-model="entry.notes" rows="2" placeholder="What did you study?"
+              class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            ></textarea>
+          </div>
         </div>
         <div class="flex gap-3 mt-4">
           <button @click="step--" class="px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">← Back</button>
@@ -180,7 +187,8 @@ const entry = ref({
   type: '',
   hours: 0,
   minutes: 30,
-  date: today
+  date: today,
+  notes: ''
 })
 
 const presets = [
@@ -227,7 +235,7 @@ const selectPreset = (preset) => {
 }
 
 const reset = () => {
-  entry.value = { languageId: '', type: '', hours: 0, minutes: 30, date: today }
+  entry.value = { languageId: '', type: '', hours: 0, minutes: 30, date: today, notes: '' }
   activePreset.value = null
   step.value = 0
 }
