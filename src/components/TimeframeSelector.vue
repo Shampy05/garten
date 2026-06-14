@@ -1,12 +1,12 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-    <div class="flex items-center justify-between">
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-6">
+    <div class="flex flex-wrap items-center justify-center sm:justify-between gap-2">
       <div class="flex items-center gap-2">
         <button
           v-for="mode in modes"
           :key="mode.value"
           @click="$emit('mode-change', mode.value)"
-          class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+          class="px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all"
           :class="viewMode === mode.value ? 'bg-green-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
         >
           {{ mode.label }}
@@ -23,7 +23,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <span class="text-sm font-semibold text-gray-800 min-w-[140px] text-center select-none">
+        <span class="text-sm font-semibold text-gray-800 text-center select-none">
           {{ dateLabel }}
         </span>
         <button

@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-6">
     <div class="flex flex-wrap items-center gap-2">
       <span class="text-sm font-medium text-gray-600 mr-2">Filter:</span>
       

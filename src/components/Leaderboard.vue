@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
     <h4 class="text-sm font-semibold text-gray-800 mb-3">Language Leaderboard</h4>
     <div v-if="rankings.length === 0" class="text-xs text-gray-400 text-center py-4">
       No data yet

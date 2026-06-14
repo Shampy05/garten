@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-6">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-semibold text-gray-800">Garden Stats</h3>
       <div class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">

@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-semibold text-gray-800">Your Garden</h3>
       <div class="flex items-center gap-4 text-sm">
@@ -46,7 +46,7 @@
               </div>
             </div>
             <div v-if="hoveredDay && hoveredDay.date === day.date && hoveredDay.inRange"
-              class="absolute left-1/2 transform -translate-x-1/2 z-50 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap pointer-events-auto"
+              class="absolute left-1/2 transform -translate-x-1/2 z-50 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg pointer-events-auto max-w-[90vw]"
               :class="wi < 2 ? 'top-full mt-1' : 'bottom-full mb-1'"
             >
               <div class="font-semibold">{{ day.date }}</div>
@@ -66,7 +66,7 @@
     <!-- Quarter View -->
     <div v-if="viewMode === 'quarter'" class="overflow-x-auto">
       <div class="flex gap-8 justify-center">
-        <div v-for="(monthData, mi) in quarterMonths" :key="mi" class="flex-shrink-0">
+        <div v-for="(monthData, mi) in quarterMonths" :key="mi" class="flex-shrink-0 min-w-0">
           <div class="text-sm font-medium text-gray-600 mb-2 text-center">{{ monthData.label }}</div>
           <div class="flex gap-1">
             <div class="flex flex-col gap-1 mr-1">
@@ -100,7 +100,7 @@
                     </div>
                   </div>
                   <div v-if="hoveredDay && hoveredDay.date === day.date && hoveredDay.inRange"
-                    class="absolute left-1/2 transform -translate-x-1/2 z-50 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap pointer-events-auto"
+                    class="absolute left-1/2 transform -translate-x-1/2 z-50 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg pointer-events-auto max-w-[90vw]"
                     :class="wi < 2 ? 'top-full mt-1' : 'bottom-full mb-1'"
                   >
                     <div class="font-semibold">{{ day.date }}</div>
@@ -122,7 +122,7 @@
 
     <!-- Year View -->
     <div v-if="viewMode === 'year'" class="overflow-x-auto">
-      <div class="min-w-max">
+      <div class="w-full">
         <div class="flex gap-1">
           <div class="flex flex-col gap-1 mr-2">
             <div class="h-3"></div>
@@ -141,7 +141,7 @@
                 @mouseleave="hoveredDay = null"
               >
                 <div v-if="hoveredDay && hoveredDay.date === day.date"
-                  class="absolute left-1/2 transform -translate-x-1/2 z-50 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap pointer-events-auto"
+                  class="absolute left-1/2 transform -translate-x-1/2 z-50 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg pointer-events-auto max-w-[90vw]"
                   :class="wi < 2 ? 'top-full mt-1' : 'bottom-full mb-1'"
                 >
                   <div class="font-semibold">{{ day.date }}</div>

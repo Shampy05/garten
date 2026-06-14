@@ -75,7 +75,7 @@
       />
 
       <!-- Recent Entries -->
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mt-6">
         <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Sessions</h3>
         <div class="space-y-2">
           <div
