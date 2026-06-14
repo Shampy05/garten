@@ -2,16 +2,24 @@
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-semibold text-gray-800">Your Garden</h3>
-      <div class="flex items-center gap-4 text-sm">
-        <div class="flex items-center gap-1">
-          <span class="text-gray-500">Less</span>
+      <div class="flex items-center gap-2 text-sm flex-wrap">
+        <div v-if="filter.language" class="flex items-center gap-1">
+          <span class="text-gray-500 text-xs">Less</span>
           <div class="flex gap-1">
             <div v-for="(level, index) in colorLevels" :key="index"
               class="rounded-sm"
               :style="{ backgroundColor: level, width: '12px', height: '12px' }"
             ></div>
           </div>
-          <span class="text-gray-500">More</span>
+          <span class="text-gray-500 text-xs">More</span>
+        </div>
+        <div v-else class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-xs text-gray-400">Active:</span>
+          <span v-for="(lang, i) in activeLanguages" :key="lang.id" class="flex items-center gap-1">
+            <span class="w-2.5 h-2.5 rounded-sm inline-block flex-shrink-0" :style="{ backgroundColor: lang.color }"></span>
+            <span class="text-xs text-gray-500">{{ lang.name }}</span>
+            <span v-if="i < activeLanguages.length - 1" class="text-gray-300">·</span>
+          </span>
         </div>
       </div>
     </div>
@@ -28,24 +36,33 @@
         </div>
         <div v-for="(week, wi) in weeks" :key="wi" class="flex gap-1 mb-1">
           <div v-for="(day, di) in week" :key="di"
-            class="flex-1 aspect-square rounded-md cursor-pointer relative"
-            :class="{ 'opacity-0 pointer-events-none': !day.inRange }"
-            :style="day.inRange ? getCellStyle(day) : { background: 'transparent' }"
+            class="flex-1 aspect-square rounded-md cursor-pointer relative overflow-hidden"
+            :class="{
+              'opacity-0 pointer-events-none': !day.inRange,
+              'ring-2 ring-yellow-400/70 shadow-[0_0_8px_rgba(250,204,21,0.25)]': day.inRange && streakDaysSet.has(day.date)
+            }"
+            :style="day.inRange ? { backgroundColor: '#f3f4f6' } : { background: 'transparent' }"
             @mouseenter="day.inRange && showTooltip(day, $event)"
             @mouseleave="hideTooltip()"
           >
-            <div v-if="day.inRange" class="absolute inset-0 overflow-hidden rounded-md pointer-events-none">
-              <span class="absolute top-0.5 left-1 text-[9px] font-medium text-gray-500/60 leading-none select-none">
+            <div v-if="day.inRange" class="absolute inset-0 pointer-events-none">
+              <div v-if="day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-5 grid-rows-5 gap-[1.5px] p-[2px]">
+                <div v-for="(color, si) in getMosaicGrid(day)" :key="si"
+                  class="rounded-[1.5px]"
+                  :class="color ? '' : 'invisible'"
+                  :style="color ? { backgroundColor: color } : {}"
+                ></div>
+              </div>
+              <span class="absolute top-0.5 left-1 text-[9px] font-medium text-gray-500/60 leading-none select-none z-10">
                 {{ getDayNumber(day) }}
               </span>
-              <div v-if="day.totalMinutes > 0" class="absolute bottom-0 left-0 right-0 h-[5px] flex rounded-b-sm overflow-hidden">
+              <div v-if="day.totalMinutes > 0" class="absolute bottom-0 left-0 right-0 h-[5px] flex rounded-b-sm overflow-hidden z-10">
                 <div v-for="(seg, si) in getStackBars(day)" :key="si"
                   class="h-full"
                   :style="{ width: seg.percent + '%', backgroundColor: seg.color }"
                 ></div>
               </div>
             </div>
-
           </div>
         </div>
       </div>
@@ -229,6 +246,28 @@ const getStackBars = (day) => {
   })
 }
 
+const getMosaicGrid = (day) => {
+  if (day.totalMinutes === 0) return []
+  const maxSquares = 25
+  const filled = Math.min(Math.ceil(day.totalMinutes / 5), maxSquares)
+  const groups = getLanguageActivities(day)
+  const entries = Object.entries(groups).sort((a, b) => b[1] - a[1])
+  const totalMins = Object.values(groups).reduce((s, v) => s + v, 0)
+  const colors = []
+  let remaining = filled
+  for (const [langId, mins] of entries) {
+    if (remaining <= 0) break
+    const lang = props.languages.find(l => l.id === langId)
+    const color = lang ? lang.color : '#16a34a'
+    const count = Math.max(1, Math.round((mins / totalMins) * filled))
+    const actual = Math.min(count, remaining)
+    for (let j = 0; j < actual; j++) colors.push(color)
+    remaining -= actual
+  }
+  while (colors.length < maxSquares) colors.push(null)
+  return colors
+}
+
 const getCellColor = (day) => {
   if (day.totalMinutes === 0) return '#f3f4f6'
 
@@ -292,6 +331,27 @@ const colorLevels = computed(() => {
   const language = isFiltered ? props.languages.find(l => l.id === props.filter.language) : null
   const baseColor = language ? language.color : '#16a34a'
   return ['#f3f4f6', adjustColor(baseColor, 0.2), adjustColor(baseColor, 0.4), adjustColor(baseColor, 0.7), baseColor]
+})
+
+const streakDaysSet = computed(() => {
+  const dates = [...new Set(props.entries.map(e => e.date))].sort()
+  const inStreak = new Set()
+  let current = []
+  for (let i = 0; i < dates.length; i++) {
+    if (i === 0 || daysBetween(dates[i - 1], dates[i]) === 1) {
+      current.push(dates[i])
+    } else {
+      if (current.length >= 3) current.forEach(d => inStreak.add(d))
+      current = [dates[i]]
+    }
+  }
+  if (current.length >= 3) current.forEach(d => inStreak.add(d))
+  return inStreak
+})
+
+const activeLanguages = computed(() => {
+  const activeIds = new Set(props.entries.map(e => e.languageId))
+  return props.languages.filter(l => activeIds.has(l.id))
 })
 
 function localDateStr(date) {
@@ -398,4 +458,6 @@ const formatTime = (minutes) => {
   const m = minutes % 60
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
+
+const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000)
 </script>
