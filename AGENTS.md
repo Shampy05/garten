@@ -25,6 +25,12 @@ All data operations go through the `useStorage` composable which maps between JS
 - `languages`: Array of { id, name, color, types[] } — stored as-is in Supabase
 - `entries`: Array of { id, date, languageId, type, hours, minutes } — `languageId` maps to `language_id` in DB
 
+## Data Caching
+
+Supabase reads are cached in localStorage with a 30-second TTL (`src/lib/cache.js`). On page load, cached data is served instantly and no API call is made. Cache is invalidated on every mutation (add/delete entry, add language). This minimizes Supabase reads on the free tier.
+
+Entries older than 2 years are not fetched — the heatmap only displays data within that window.
+
 ## Color Scheme
 
 - Combined view (no filter): Cells show mosaic tiles — a 5×5 (month), 3×3 (quarter), or 2×2 (year) grid of colored squares distributed proportionally by language. Background is `#f3f4f6`.

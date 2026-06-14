@@ -1,0 +1,138 @@
+<template>
+  <div class="min-h-screen bg-gray-50 p-4 sm:p-8 flex items-start justify-center">
+    <div class="w-full max-w-md pt-8 sm:pt-16">
+      <h1 class="text-3xl font-bold text-gray-900">Welcome to Garten</h1>
+      <p class="text-gray-500 mt-1 mb-8">Add the languages you're learning to get started.</p>
+
+      <div v-if="languages.length > 0" class="space-y-2 mb-6">
+        <div
+          v-for="lang in languages"
+          :key="lang.id"
+          class="flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-gray-200"
+        >
+          <div class="w-4 h-4 rounded-full flex-shrink-0" :style="{ backgroundColor: lang.color }"></div>
+          <span class="font-medium text-gray-800 text-sm">{{ lang.name }}</span>
+          <span class="text-xs text-gray-400 ml-2">{{ lang.types.join(', ') }}</span>
+        </div>
+      </div>
+
+      <div v-if="!showForm">
+        <button
+          @click="showForm = true"
+          class="w-full py-3 px-4 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
+        >
+          + Add a language
+        </button>
+      </div>
+
+      <div v-else class="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Language</label>
+          <LanguageAutocomplete ref="autocompleteRef" :exclude="existingNames" @select="onLanguageSelect" />
+        </div>
+        <div class="flex gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Color</label>
+            <input v-model="newLang.color" type="color" class="w-10 h-10 rounded cursor-pointer" />
+          </div>
+          <div class="flex-1">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Activity Types</label>
+            <div class="flex flex-wrap gap-1.5 mt-1">
+              <button
+                v-for="type in ACTIVITY_TYPES"
+                :key="type"
+                @click="toggleType(type)"
+                class="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
+                :class="selectedTypes.includes(type)
+                  ? 'text-white border-transparent'
+                  : 'text-gray-500 bg-gray-50 border-gray-200 hover:border-gray-300'"
+                :style="selectedTypes.includes(type) ? { backgroundColor: newLang.color, borderColor: newLang.color } : {}"
+              >
+                {{ type }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button
+            @click="cancelForm"
+            class="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="saveLanguage"
+            :disabled="!selectedLanguage"
+            class="flex-1 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+
+      <button
+        @click="$emit('done')"
+        :disabled="languages.length === 0"
+        class="w-full mt-6 py-3 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        {{ languages.length === 0 ? 'Add at least one language' : `Continue with ${languages.length} language${languages.length > 1 ? 's' : ''}` }}
+      </button>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue'
+import LanguageAutocomplete from './LanguageAutocomplete.vue'
+import { ACTIVITY_TYPES } from '../lib/types.js'
+import { randomColor } from '../lib/color.js'
+
+const props = defineProps({
+  languages: { type: Array, required: true }
+})
+
+const emit = defineEmits(['add-language', 'done'])
+
+const existingNames = computed(() => props.languages.map(l => l.name))
+
+const showForm = ref(false)
+const selectedLanguage = ref(null)
+const newLang = ref({ color: randomColor() })
+const selectedTypes = ref(['reading'])
+const autocompleteRef = ref(null)
+
+function onLanguageSelect(name) {
+  selectedLanguage.value = name
+}
+
+function toggleType(type) {
+  const i = selectedTypes.value.indexOf(type)
+  if (i === -1) {
+    selectedTypes.value.push(type)
+  } else if (selectedTypes.value.length > 1) {
+    selectedTypes.value.splice(i, 1)
+  }
+}
+
+function saveLanguage() {
+  if (!selectedLanguage.value) return
+  emit('add-language', {
+    name: selectedLanguage.value,
+    color: newLang.value.color,
+    types: [...selectedTypes.value]
+  })
+  selectedLanguage.value = null
+  newLang.value = { color: randomColor() }
+  selectedTypes.value = ['reading']
+  autocompleteRef.value?.clear()
+  showForm.value = false
+}
+
+function cancelForm() {
+  selectedLanguage.value = null
+  newLang.value = { color: randomColor() }
+  selectedTypes.value = ['reading']
+  autocompleteRef.value?.clear()
+  showForm.value = false
+}
+</script>

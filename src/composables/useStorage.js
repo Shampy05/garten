@@ -1,15 +1,6 @@
-import { ref, onMounted } from 'vue'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  'https://dyhipotqmnfylpigffiq.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5aGlwb3RxbW5meWxwaWdmZmlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0MDk5ODAsImV4cCI6MjA5Njk4NTk4MH0.282sR2tpkTwnh5emDk72coOaQTIbVV0O-gh28-FDoY4'
-)
-
-const defaultLanguages = [
-  { id: 'english', name: 'English', color: '#3b82f6', types: ['reading'] },
-  { id: 'german', name: 'German', color: '#f59e0b', types: ['reading', 'grammar', 'vocabulary'] }
-]
+import { ref, onMounted, onUnmounted } from 'vue'
+import { supabase } from '../lib/supabase.js'
+import { getCached, setCache, clearCache } from '../lib/cache.js'
 
 function toSnake(entry) {
   return {
@@ -33,65 +24,110 @@ function toCamel(row) {
   }
 }
 
+function twoYearsAgo() {
+  const d = new Date()
+  d.setFullYear(d.getFullYear() - 2)
+  return d.toISOString().split('T')[0]
+}
+
 export function useStorage() {
   const data = ref({ languages: [], entries: [] })
   const loaded = ref(false)
 
-  onMounted(async () => {
+  const loadData = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+    if (!userId) {
+      data.value = { languages: [], entries: [] }
+      loaded.value = false
+      return
+    }
+
+    const cached = getCached(userId)
+    if (cached) {
+      data.value = cached
+      loaded.value = true
+      return
+    }
+
     const [langRes, entryRes] = await Promise.all([
-      supabase.from('languages').select('*').order('id'),
-      supabase.from('entries').select('*').order('date', { ascending: false })
+      supabase.from('languages').select('*').eq('user_id', userId).order('id'),
+      supabase.from('entries').select('*').eq('user_id', userId).gte('date', twoYearsAgo()).order('date', { ascending: false })
     ])
 
-    let languages = langRes.data || []
-    if (languages.length === 0) {
-      for (const lang of defaultLanguages) {
-        await supabase.from('languages').upsert(lang)
-      }
-      languages = defaultLanguages
-    }
-
-    data.value = {
-      languages,
+    const fresh = {
+      languages: langRes.data || [],
       entries: (entryRes.data || []).map(toCamel)
     }
+    setCache(userId, fresh)
+    data.value = fresh
     loaded.value = true
+  }
+
+  onMounted(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') loadData()
+      else if (event === 'SIGNED_OUT') {
+        data.value = { languages: [], entries: [] }
+        loaded.value = false
+      }
+    })
+    onUnmounted(() => subscription.unsubscribe())
   })
 
   const addEntry = async (entry) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+    if (!userId) return
+
     const newEntry = {
       ...entry,
       id: Date.now().toString(36) + Math.random().toString(36).substr(2)
     }
-    const { error } = await supabase.from('entries').insert(toSnake(newEntry))
+    const { error } = await supabase.from('entries').insert({
+      ...toSnake(newEntry),
+      user_id: userId
+    })
     if (error) {
       console.error('Failed to add entry:', error)
       return
     }
+    clearCache(userId)
     data.value.entries.push(newEntry)
   }
 
   const addLanguage = async (language) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+    if (!userId) return
+
     const newLang = {
       ...language,
-      id: language.name.toLowerCase().replace(/\s+/g, '-')
+      id: language.name.toLowerCase().replace(/\s+/g, '-'),
+      user_id: userId
     }
     const { error } = await supabase.from('languages').upsert(newLang)
     if (error) {
       console.error('Failed to add language:', error)
       return
     }
+    clearCache(userId)
     if (!data.value.languages.find(l => l.id === newLang.id)) {
       data.value.languages.push(newLang)
     }
   }
 
   const deleteEntry = async (id) => {
-    const { error } = await supabase.from('entries').delete().eq('id', id)
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+    if (!userId) return
+
+    const { error } = await supabase.from('entries').delete().eq('id', id).eq('user_id', userId)
     if (error) {
       console.error('Failed to delete entry:', error)
       return
     }
+    clearCache(userId)
     data.value.entries = data.value.entries.filter(e => e.id !== id)
   }
 

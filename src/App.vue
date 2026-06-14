@@ -1,5 +1,18 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div v-if="authLoading" class="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div class="text-center">
+      <div class="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+      <p class="text-gray-500">Loading your garden...</p>
+    </div>
+  </div>
+  <AuthScreen v-else-if="!user" />
+  <LanguageSetup
+    v-else-if="setupActive"
+    :languages="data.languages"
+    @add-language="addLanguage"
+    @done="finishSetup"
+  />
+  <div v-else class="min-h-screen bg-gray-50">
     <div v-if="!loaded" class="flex items-center justify-center min-h-screen">
       <div class="text-center">
         <div class="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -14,16 +27,25 @@
             <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-1">Garten</h1>
             <p class="text-sm sm:text-base text-gray-600">Cultivate your language learning habits, one day at a time.</p>
           </div>
-          <button
-            @click="showLangManager = !showLangManager"
-            class="w-10 h-10 rounded-xl bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm flex items-center justify-center text-gray-500 hover:text-gray-700 transition-all flex-shrink-0"
-            title="Manage Languages"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-            </svg>
-          </button>
+          <div class="flex items-center gap-2">
+            <button
+              @click="signOut"
+              class="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              title="Sign Out"
+            >
+              Sign out
+            </button>
+            <button
+              @click="showLangManager = !showLangManager"
+              class="w-10 h-10 rounded-xl bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm flex items-center justify-center text-gray-500 hover:text-gray-700 transition-all flex-shrink-0"
+              title="Manage Languages"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div class="flex items-center gap-3 mb-4">
@@ -134,8 +156,11 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, provide } from 'vue'
+import { useAuth } from './composables/useAuth.js'
 import { useStorage } from './composables/useStorage.js'
+import AuthScreen from './components/AuthScreen.vue'
+import LanguageSetup from './components/LanguageSetup.vue'
 import LogForm from './components/LogForm.vue'
 import StatsCard from './components/StatsCard.vue'
 import LanguageManager from './components/LanguageManager.vue'
@@ -145,7 +170,22 @@ import Heatmap from './components/Heatmap.vue'
 import InsightCard from './components/InsightCard.vue'
 import Leaderboard from './components/Leaderboard.vue'
 
+const { user, loading: authLoading, signIn, signUp, signOut } = useAuth()
+provide('auth', { signIn, signUp })
+
 const { data, loaded, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteEntry: storageDeleteEntry } = useStorage()
+
+const setupActive = ref(false)
+
+watch([loaded, data], () => {
+  if (loaded.value && data.value.languages.length === 0 && data.value.entries.length === 0) {
+    setupActive.value = true
+  }
+})
+
+const finishSetup = () => {
+  setupActive.value = false
+}
 
 const activeFilter = ref({ language: null, types: [] })
 const viewMode = ref('month')

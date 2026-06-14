@@ -25,10 +25,8 @@
         <div v-if="showAddForm" class="border-b border-gray-100 px-5 py-4 bg-gray-50/50">
           <div class="space-y-3">
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">Language Name</label>
-              <input v-model="newLanguage.name" type="text" placeholder="e.g., French"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
-              />
+              <label class="block text-xs font-medium text-gray-600 mb-1">Language</label>
+              <LanguageAutocomplete ref="autocompleteRef" :exclude="existingNames" @select="onLanguageSelect" />
             </div>
             <div class="flex gap-3">
               <div>
@@ -37,13 +35,24 @@
               </div>
               <div class="flex-1">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Activity Types</label>
-                <input v-model="typesInput" type="text" placeholder="reading, grammar, vocabulary"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
-                />
+                <div class="flex flex-wrap gap-1.5 mt-1">
+                  <button
+                    v-for="type in ACTIVITY_TYPES"
+                    :key="type"
+                    @click="toggleType(type)"
+                    class="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
+                    :class="selectedTypes.includes(type)
+                      ? 'text-white border-transparent'
+                      : 'text-gray-500 bg-gray-50 border-gray-200 hover:border-gray-300'"
+                    :style="selectedTypes.includes(type) ? { backgroundColor: newLanguage.color, borderColor: newLanguage.color } : {}"
+                  >
+                    {{ type }}
+                  </button>
+                </div>
               </div>
             </div>
-            <button @click="addLanguage"
-              class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition-colors text-sm font-medium"
+            <button @click="addLanguage" :disabled="!selectedLanguage"
+              class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
             >
               Add Seed
             </button>
@@ -89,7 +98,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import LanguageAutocomplete from './LanguageAutocomplete.vue'
+import { ACTIVITY_TYPES } from '../lib/types.js'
+import { randomColor } from '../lib/color.js'
 
 const props = defineProps({
   languages: {
@@ -104,27 +116,42 @@ const props = defineProps({
 
 const emit = defineEmits(['add-language', 'close'])
 
+const existingNames = computed(() => props.languages.map(l => l.name))
+
 const showAddForm = ref(false)
+const selectedLanguage = ref(null)
 const newLanguage = ref({
-  name: '',
-  color: '#8b5cf6',
-  types: ['reading', 'grammar', 'vocabulary']
+  color: randomColor()
 })
-const typesInput = ref('reading, grammar, vocabulary')
+const selectedTypes = ref(['reading'])
+const autocompleteRef = ref(null)
+
+function onLanguageSelect(name) {
+  selectedLanguage.value = name
+}
+
+function toggleType(type) {
+  const i = selectedTypes.value.indexOf(type)
+  if (i === -1) {
+    selectedTypes.value.push(type)
+  } else if (selectedTypes.value.length > 1) {
+    selectedTypes.value.splice(i, 1)
+  }
+}
 
 const addLanguage = () => {
-  if (!newLanguage.value.name.trim()) return
-
-  const types = typesInput.value.split(',').map(t => t.trim()).filter(t => t)
+  if (!selectedLanguage.value) return
 
   emit('add-language', {
-    name: newLanguage.value.name.trim(),
+    name: selectedLanguage.value,
     color: newLanguage.value.color,
-    types: types.length > 0 ? types : ['reading']
+    types: [...selectedTypes.value]
   })
 
-  newLanguage.value = { name: '', color: '#8b5cf6', types: ['reading', 'grammar', 'vocabulary'] }
-  typesInput.value = 'reading, grammar, vocabulary'
+  selectedLanguage.value = null
+  newLanguage.value = { color: randomColor() }
+  selectedTypes.value = ['reading']
+  autocompleteRef.value?.clear()
   showAddForm.value = false
 }
 </script>

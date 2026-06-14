@@ -60,5 +60,9 @@ This app was refined by researching patterns from Duolingo, GitHub, Forest, Stre
 Sessions are stored in Supabase as atomic entries:
 - `date`
 - `language_id` (references `languages.id`)
-- `type` (reading, grammar, vocabulary)
+- `type` (reading, grammar, vocabulary, listening, speaking, writing, pronunciation)
 - `hours` & `minutes`
+
+## Performance
+
+Supabase data is cached in localStorage with a 30-second TTL. On page refresh, cached data is served immediately — no API call is made unless the cache has expired. The cache is invalidated after any mutation (logging a session, adding a language, deleting an entry). Entries older than 2 years are not fetched.
