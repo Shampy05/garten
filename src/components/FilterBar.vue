@@ -6,7 +6,7 @@
       <button
         @click="selectLanguage(null)"
         class="px-3 py-1.5 rounded-full text-sm font-medium transition-all"
-        :class="!selectedLanguage ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        :class="!selectedLanguage ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
       >
         All Languages
       </button>

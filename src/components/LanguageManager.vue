@@ -83,7 +83,7 @@
               <div class="flex flex-wrap gap-1.5">
                 <span v-for="type in lang.types" :key="type"
                   class="text-xs px-2.5 py-1 rounded-full font-medium"
-                  :style="{ backgroundColor: lang.color + '15', color: lang.color }"
+                  :style="{ backgroundColor: lang.color + '30', color: lang.color }"
                 >
                   {{ type }}
                 </span>
