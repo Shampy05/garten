@@ -214,6 +214,8 @@
       @confirm="executeDelete"
       @cancel="cancelDelete"
     />
+
+    <Toast />
   </div>
 </template>
 
@@ -233,6 +235,7 @@ import InsightCard from './components/InsightCard.vue'
 import Leaderboard from './components/Leaderboard.vue'
 import EditSession from './components/EditSession.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
+import Toast from './components/Toast.vue'
 
 const { user, loading: authLoading, signIn, signUp, signOut } = useAuth()
 provide('auth', { signIn, signUp })
