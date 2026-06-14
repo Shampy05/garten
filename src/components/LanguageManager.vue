@@ -70,15 +70,20 @@
                 {{ lang.name[0].toUpperCase() }}
               </div>
               <span class="font-bold text-white drop-shadow-sm">{{ lang.name }}</span>
-              <input type="color" :value="lang.color"
-                @input="updateColor(lang, $event.target.value)"
-                class="w-6 h-6 rounded cursor-pointer border-2 border-white/30 ml-1"
-                title="Change color"
-              />
-              <button @click.stop="confirmDeleteLanguage(lang)"
-                class="ml-auto w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white/80 hover:text-white transition-colors text-xs"
-                title="Remove language"
-              >✕</button>
+              <div class="ml-auto flex items-center gap-1.5">
+                <div class="flex gap-1">
+                  <button v-for="c in PALETTE" :key="c"
+                    @click="updateColor(lang, c)"
+                    class="w-5 h-5 rounded-full border-2 transition-all"
+                    :class="c === lang.color ? 'border-white scale-125' : 'border-white/30 hover:border-white/60'"
+                    :style="{ backgroundColor: c }"
+                  ></button>
+                </div>
+                <button @click.stop="confirmDeleteLanguage(lang)"
+                  class="w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white/80 hover:text-white transition-colors text-xs ml-1"
+                  title="Remove language"
+                >✕</button>
+              </div>
             </div>
             <div class="flex items-center justify-center" :style="{ backgroundColor: lang.color + '08' }">
               <div class="w-full border-t-2 border-dashed mx-3" :style="{ borderColor: lang.color + '30' }"></div>
@@ -121,6 +126,7 @@ import { ref, computed } from 'vue'
 import LanguageAutocomplete from './LanguageAutocomplete.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import { ACTIVITY_TYPES } from '../lib/types.js'
+import { PALETTE } from '../lib/color.js'
 import { useLanguageForm } from '../composables/useLanguageForm.js'
 
 const props = defineProps({
