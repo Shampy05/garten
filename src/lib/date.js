@@ -27,3 +27,20 @@ export function getYearRange(date) {
   const end = new Date(date.getFullYear(), 11, 31)
   return { start, end }
 }
+
+export function currentStreak(dates) {
+  if (dates.length === 0) return 0
+  const sorted = [...new Set(dates)].sort().reverse()
+  let streak = 0
+  let checkDate = new Date()
+  for (const dateStr of sorted) {
+    const entryDate = new Date(dateStr)
+    const diffDays = Math.floor((checkDate - entryDate) / (1000 * 60 * 60 * 24))
+    if (diffDays === streak) {
+      streak++
+    } else if (diffDays > streak) {
+      break
+    }
+  }
+  return streak
+}
