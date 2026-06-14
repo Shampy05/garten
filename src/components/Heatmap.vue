@@ -63,7 +63,7 @@
     </div>
 
     <!-- Quarter View -->
-    <div v-if="viewMode === 'quarter'" class="overflow-x-auto">
+    <div v-if="viewMode === 'quarter'" class="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div class="flex gap-8 justify-center">
         <div v-for="(monthData, mi) in quarterMonths" :key="mi" class="flex-shrink-0 min-w-0">
           <div class="text-sm font-medium text-gray-600 mb-2 text-center">{{ monthData.label }}</div>
@@ -111,7 +111,7 @@
     </div>
 
     <!-- Year View -->
-    <div v-if="viewMode === 'year'" class="overflow-x-auto">
+    <div v-if="viewMode === 'year'" class="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div class="w-full">
         <div class="flex gap-1">
           <div class="flex flex-col gap-1 mr-2">
@@ -270,16 +270,26 @@ const getMosaicGrid = (day, gridSize = 5) => {
   let filled = Math.min(Math.ceil(day.totalMinutes / (gridSize === 2 ? 30 : gridSize === 3 ? 15 : 5)), maxSquares)
   if (filled >= maxSquares - 1) filled = maxSquares
   const totalMins = Object.values(groups).reduce((s, v) => s + v, 0)
+
+  const allocation = entries.map(([langId, mins]) => {
+    const exact = (mins / totalMins) * filled
+    return { langId, exact, floor: Math.floor(exact), remainder: exact - Math.floor(exact) }
+  })
+
+  let sum = allocation.reduce((s, a) => s + a.floor, 0)
+  const sorted = [...allocation].sort((a, b) => b.remainder - a.remainder)
+  let ri = 0
+  while (sum < filled && ri < sorted.length) {
+    sorted[ri].floor++
+    sum++
+    ri++
+  }
+
   const colors = []
-  let remaining = filled
-  for (const [langId, mins] of entries) {
-    if (remaining <= 0) break
-    const lang = props.languages.find(l => l.id === langId)
+  for (const a of allocation) {
+    const lang = props.languages.find(l => l.id === a.langId)
     const color = lang ? lang.color : '#16a34a'
-    const count = Math.max(1, Math.round((mins / totalMins) * filled))
-    const actual = Math.min(count, remaining)
-    for (let j = 0; j < actual; j++) colors.push(color)
-    remaining -= actual
+    for (let j = 0; j < a.floor; j++) colors.push(color)
   }
   while (colors.length < maxSquares) colors.push(null)
   return colors

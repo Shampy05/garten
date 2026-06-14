@@ -52,7 +52,7 @@
       />
 
       <!-- Heatmap + Leaderboard -->
-      <div class="flex flex-col lg:flex-row gap-6 mt-6">
+      <div class="flex flex-col lg:flex-row lg:items-start gap-6 mt-6">
         <div class="flex-1 min-w-0">
           <Heatmap
             :entries="filteredEntries"

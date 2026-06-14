@@ -30,10 +30,15 @@
         <div class="text-lg font-bold text-gray-800">{{ busiestDay }}</div>
         <div class="text-[10px] text-gray-400">{{ busiestDayHours }}h logged</div>
       </div>
-      <div v-if="topLanguage" class="bg-gray-50 rounded-lg p-3">
+      <div v-if="topLanguage && languageCount > 1" class="bg-gray-50 rounded-lg p-3">
         <div class="text-xs text-gray-500 mb-1">Top language</div>
         <div class="text-lg font-bold" :style="{ color: topLanguage.color }">{{ topLanguage.name }}</div>
         <div class="text-[10px] text-gray-400">{{ topLanguage.hours }}h</div>
+      </div>
+      <div v-if="languageCount === 1" class="bg-gray-50 rounded-lg p-3">
+        <div class="text-xs text-gray-500 mb-1">Sessions</div>
+        <div class="text-lg font-bold text-gray-800">{{ sessionCount }}</div>
+        <div class="text-[10px] text-gray-400">logged this {{ periodLabel }}</div>
       </div>
     </div>
   </div>
@@ -103,6 +108,8 @@ const languageCount = computed(() => {
   const ids = new Set(periodEntries.value.map(e => e.languageId))
   return ids.size
 })
+
+const sessionCount = computed(() => periodEntries.value.length)
 
 const dailyAvg = computed(() => {
   const uniqueDays = new Set(periodEntries.value.map(e => e.date)).size
