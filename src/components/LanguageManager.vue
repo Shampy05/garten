@@ -70,7 +70,7 @@
                 {{ lang.name[0].toUpperCase() }}
               </div>
               <span class="font-bold text-white drop-shadow-sm">{{ lang.name }}</span>
-              <button @click.stop="$emit('delete-language', lang.id)"
+              <button @click.stop="confirmDeleteLanguage(lang)"
                 class="ml-auto w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white/80 hover:text-white transition-colors text-xs"
                 title="Remove language"
               >✕</button>
@@ -99,11 +99,22 @@
       </div>
     </div>
   </Teleport>
+
+  <ConfirmDialog
+    :visible="showDeleteConfirm"
+    title="Delete language?"
+    :message="`This will permanently remove ${deleteTarget?.name} and all its logged sessions. This cannot be undone.`"
+    confirm-label="Delete"
+    danger
+    @confirm="executeDelete"
+    @cancel="cancelDelete"
+  />
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import LanguageAutocomplete from './LanguageAutocomplete.vue'
+import ConfirmDialog from './ConfirmDialog.vue'
 import { ACTIVITY_TYPES } from '../lib/types.js'
 import { randomColor } from '../lib/color.js'
 
@@ -129,6 +140,27 @@ const newLanguage = ref({
 })
 const selectedTypes = ref(['reading'])
 const autocompleteRef = ref(null)
+
+const deleteTarget = ref(null)
+const showDeleteConfirm = ref(false)
+
+function confirmDeleteLanguage(lang) {
+  deleteTarget.value = lang
+  showDeleteConfirm.value = true
+}
+
+function cancelDelete() {
+  deleteTarget.value = null
+  showDeleteConfirm.value = false
+}
+
+function executeDelete() {
+  if (deleteTarget.value) {
+    emit('delete-language', deleteTarget.value.id)
+  }
+  deleteTarget.value = null
+  showDeleteConfirm.value = false
+}
 
 function onLanguageSelect(name) {
   selectedLanguage.value = name

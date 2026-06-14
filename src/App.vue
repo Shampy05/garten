@@ -175,7 +175,7 @@
               <p v-if="entry.notes" class="text-xs text-gray-400 truncate flex-1">{{ entry.notes }}</p>
               <div class="flex items-center gap-2 ml-auto flex-shrink-0">
                 <button @click="openEdit(entry)" class="text-gray-400 hover:text-gray-600 text-xs">Edit</button>
-                <button @click="deleteEntry(entry.id)" class="text-red-400 hover:text-red-600 text-xs">Delete</button>
+                <button @click="confirmDeleteEntry(entry)" class="text-red-400 hover:text-red-600 text-xs">Delete</button>
               </div>
             </div>
           </div>
@@ -203,6 +203,16 @@
       @save="saveEdit"
       @close="editingVisible = false; editingEntry = null"
     />
+
+    <ConfirmDialog
+      :visible="showDeleteConfirm"
+      title="Delete session?"
+      message="This will permanently remove this logged session. This cannot be undone."
+      confirm-label="Delete"
+      danger
+      @confirm="executeDelete"
+      @cancel="cancelDelete"
+    />
   </div>
 </template>
 
@@ -221,6 +231,7 @@ import Heatmap from './components/Heatmap.vue'
 import InsightCard from './components/InsightCard.vue'
 import Leaderboard from './components/Leaderboard.vue'
 import EditSession from './components/EditSession.vue'
+import ConfirmDialog from './components/ConfirmDialog.vue'
 
 const { user, loading: authLoading, signIn, signUp, signOut } = useAuth()
 provide('auth', { signIn, signUp })
@@ -245,6 +256,8 @@ const viewDate = ref(new Date())
 const showLangManager = ref(false)
 const editingEntry = ref(null)
 const editingVisible = ref(false)
+const deleteTarget = ref(null)
+const showDeleteConfirm = ref(false)
 
 const filteredEntries = computed(() => {
   return data.value.entries.filter(entry => {
@@ -385,6 +398,10 @@ const deleteLanguage = (langId) => { storageDeleteLanguage(langId) }
 const deleteEntry = (id) => { storageDeleteEntry(id) }
 const openEdit = (entry) => { editingEntry.value = entry; editingVisible.value = true }
 const saveEdit = (entry) => { storageUpdateEntry(entry); editingVisible.value = false; editingEntry.value = null }
+
+const confirmDeleteEntry = (entry) => { deleteTarget.value = entry; showDeleteConfirm.value = true }
+const cancelDelete = () => { deleteTarget.value = null; showDeleteConfirm.value = false }
+const executeDelete = () => { if (deleteTarget.value) storageDeleteEntry(deleteTarget.value.id); deleteTarget.value = null; showDeleteConfirm.value = false }
 
 const getLanguageName = (languageId) => {
   const lang = data.value.languages.find(l => l.id === languageId)
