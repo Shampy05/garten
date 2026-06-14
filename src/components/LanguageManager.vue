@@ -33,8 +33,9 @@
               <div class="flex gap-1.5 mt-1">
                 <button v-for="c in PALETTE" :key="c"
                   @click="color = c"
+                  :disabled="usedColors.has(c) && c !== color"
                   class="w-8 h-8 rounded-full border-2 transition-all"
-                  :class="c === color ? 'border-gray-800 scale-110' : 'border-gray-200 hover:border-gray-400'"
+                  :class="c === color ? 'border-gray-800 scale-110' : usedColors.has(c) && c !== color ? 'border-gray-200 opacity-30 cursor-not-allowed' : 'border-gray-200 hover:border-gray-400'"
                   :style="{ backgroundColor: c }"
                 ></button>
               </div>
@@ -79,8 +80,9 @@
                 <div class="flex gap-1">
                   <button v-for="c in PALETTE" :key="c"
                     @click="updateColor(lang, c)"
+                    :disabled="usedColors.has(c) && c !== lang.color"
                     class="w-5 h-5 rounded-full border-2 transition-all"
-                    :class="c === lang.color ? 'border-white scale-125' : 'border-white/30 hover:border-white/60'"
+                    :class="c === lang.color ? 'border-white scale-125' : usedColors.has(c) && c !== lang.color ? 'border-white/10 opacity-30 cursor-not-allowed' : 'border-white/30 hover:border-white/60'"
                     :style="{ backgroundColor: c }"
                   ></button>
                 </div>
@@ -149,6 +151,7 @@ const emit = defineEmits(['add-language', 'delete-language', 'update-language', 
 
 const existingNames = computed(() => props.languages.map(l => l.name))
 const existingColors = computed(() => props.languages.map(l => l.color))
+const usedColors = computed(() => new Set(existingColors.value.map(c => c?.toLowerCase())))
 const showAddForm = ref(false)
 const { selectedLanguage, color, selectedTypes, autocompleteRef, onLanguageSelect, toggleType, getLanguageData, reset } = useLanguageForm(existingColors)
 

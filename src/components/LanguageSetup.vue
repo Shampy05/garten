@@ -35,8 +35,9 @@
           <div class="flex gap-1.5 mt-1">
             <button v-for="c in PALETTE" :key="c"
               @click="color = c"
+              :disabled="usedColors.has(c) && c !== color"
               class="w-8 h-8 rounded-full border-2 transition-all"
-              :class="c === color ? 'border-gray-800 scale-110' : 'border-gray-200 hover:border-gray-400'"
+              :class="c === color ? 'border-gray-800 scale-110' : usedColors.has(c) && c !== color ? 'border-gray-200 opacity-30 cursor-not-allowed' : 'border-gray-200 hover:border-gray-400'"
               :style="{ backgroundColor: c }"
             ></button>
           </div>
@@ -101,6 +102,7 @@ const emit = defineEmits(['add-language', 'done'])
 
 const existingNames = computed(() => props.languages.map(l => l.name))
 const existingColors = computed(() => props.languages.map(l => l.color))
+const usedColors = computed(() => new Set(existingColors.value.map(c => c?.toLowerCase())))
 const showForm = ref(false)
 const { selectedLanguage, color, selectedTypes, autocompleteRef, onLanguageSelect, toggleType, getLanguageData, reset } = useLanguageForm(existingColors)
 
