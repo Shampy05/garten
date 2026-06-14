@@ -56,12 +56,6 @@
               <span class="absolute top-0.5 left-1 text-[9px] font-medium text-gray-500/60 leading-none select-none z-10">
                 {{ getDayNumber(day) }}
               </span>
-              <div v-if="day.totalMinutes > 0" class="absolute bottom-0 left-0 right-0 h-[5px] flex rounded-b-sm overflow-hidden z-10">
-                <div v-for="(seg, si) in getStackBars(day)" :key="si"
-                  class="h-full"
-                  :style="{ width: seg.percent + '%', backgroundColor: seg.color }"
-                ></div>
-              </div>
             </div>
           </div>
         </div>
@@ -107,12 +101,6 @@
                     <span class="absolute top-px left-0.5 text-[6px] font-medium text-gray-500/60 leading-none select-none z-10">
                       {{ getDayNumber(day) }}
                     </span>
-                    <div v-if="day.totalMinutes > 0" class="absolute bottom-0 left-0 right-0 h-[2px] flex z-10">
-                      <div v-for="(seg, si) in getStackBars(day)" :key="si"
-                        class="h-full"
-                        :style="{ width: seg.percent + '%', backgroundColor: seg.color }"
-                      ></div>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -224,7 +212,7 @@ const hideTooltip = () => {
   tooltip.value = null
 }
 
-const dayLabels = ['Mon', 'Wed', 'Fri']
+const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const fullDayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const dayLabelSizeQ = 16
 const cellSizeQ = 25
@@ -254,22 +242,19 @@ const getLanguageActivities = (day) => {
   return groups
 }
 
-const getStackBars = (day) => {
-  if (day.totalMinutes === 0) return []
-  const groups = getLanguageActivities(day)
-  const total = Object.values(groups).reduce((s, v) => s + v, 0)
-  return Object.entries(groups).map(([id, mins]) => {
-    const lang = props.languages.find(l => l.id === id)
-    return { color: lang ? lang.color : '#16a34a', percent: (mins / total) * 100 }
-  })
-}
-
 const getMosaicGrid = (day, gridSize = 5) => {
   if (day.totalMinutes === 0) return []
   const maxSquares = gridSize * gridSize
-  const filled = Math.min(Math.ceil(day.totalMinutes / (gridSize === 2 ? 30 : gridSize === 3 ? 15 : 5)), maxSquares)
   const groups = getLanguageActivities(day)
   const entries = Object.entries(groups).sort((a, b) => b[1] - a[1])
+
+  if (entries.length === 1) {
+    const lang = props.languages.find(l => l.id === entries[0][0])
+    const color = lang ? lang.color : '#16a34a'
+    return Array(maxSquares).fill(getColorAtIntensity(color, day.totalMinutes))
+  }
+
+  const filled = Math.min(Math.ceil(day.totalMinutes / (gridSize === 2 ? 30 : gridSize === 3 ? 15 : 5)), maxSquares)
   const totalMins = Object.values(groups).reduce((s, v) => s + v, 0)
   const colors = []
   let remaining = filled
