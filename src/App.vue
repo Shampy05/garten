@@ -184,6 +184,13 @@
           <div v-if="recentEntries.length === 0" class="text-center py-8 text-gray-400">
             No sessions yet. Start planting your first seed!
           </div>
+          <button
+            v-if="recentEntries.length < data.value.entries.length"
+            @click="recentLimit += 10"
+            class="w-full py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            Show more
+          </button>
         </div>
       </div>
     </div>
@@ -272,10 +279,11 @@ const filteredEntries = computed(() => {
   })
 })
 
+const recentLimit = ref(10)
 const recentEntries = computed(() => {
   return [...data.value.entries]
     .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 10)
+    .slice(0, recentLimit.value)
 })
 
 const todayStreak = computed(() => {
