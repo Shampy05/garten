@@ -28,7 +28,7 @@
     <div v-if="viewMode === 'month'" class="flex justify-center">
       <div class="w-full max-w-[770px]">
         <div class="flex gap-1 mb-1">
-          <div v-for="day in fullDayLabels" :key="day"
+          <div v-for="day in dayLabels" :key="day"
             class="flex-1 text-xs text-gray-400 text-center py-1 font-medium"
           >
             {{ day }}
@@ -70,7 +70,7 @@
           <div class="flex gap-1">
             <div class="flex flex-col gap-1 mr-1">
               <div :style="{ height: dayLabelSizeQ + 'px' }"></div>
-              <div v-for="day in fullDayLabels" :key="day"
+              <div v-for="day in dayLabels" :key="day"
                 class="text-xs text-gray-400 flex items-center"
                 :style="{ height: cellSizeQ + 'px' }"
               >
@@ -215,7 +215,6 @@ const hideTooltip = () => {
 }
 
 const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const fullDayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const dayLabelSizeQ = 16
 const cellSizeQ = 25
 
