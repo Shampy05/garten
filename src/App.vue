@@ -119,23 +119,28 @@
           <div
             v-for="entry in recentEntries"
             :key="entry.id"
-            class="flex flex-wrap items-center gap-1 p-3 bg-gray-50 rounded-lg"
+            class="p-3 bg-gray-50 rounded-lg"
           >
-            <div class="w-3 h-3 rounded-full flex-shrink-0"
-              :style="{ backgroundColor: getLanguageColor(entry.languageId) }"
-            ></div>
-            <span class="font-medium text-gray-700 text-sm">{{ getLanguageName(entry.languageId) }}</span>
-            <span class="text-gray-500 text-sm">{{ entry.type }}</span>
-            <span class="text-xs text-gray-400">{{ entry.date }}</span>
-            <span class="text-sm font-medium text-gray-600 ml-auto">
-              {{ entry.hours }}h {{ entry.minutes }}m
-            </span>
-            <button
-              @click="deleteEntry(entry.id)"
-              class="text-red-500 hover:text-red-700 text-xs"
-            >
-              Delete
-            </button>
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-3 rounded-full flex-shrink-0"
+                :style="{ backgroundColor: getLanguageColor(entry.languageId) }"
+              ></div>
+              <span class="font-medium text-gray-700 text-sm">{{ getLanguageName(entry.languageId) }}</span>
+              <span class="text-gray-400 text-xs">·</span>
+              <span class="text-gray-500 text-xs capitalize">{{ entry.type }}</span>
+              <span class="text-gray-400 text-xs">·</span>
+              <span class="text-gray-400 text-xs">{{ entry.date }}</span>
+              <span class="text-sm font-medium text-gray-600 ml-auto mr-2">
+                {{ entry.hours }}h {{ entry.minutes }}m
+              </span>
+            </div>
+            <div class="flex items-center gap-3 mt-1.5 pl-5">
+              <p v-if="entry.notes" class="text-xs text-gray-400 truncate flex-1">{{ entry.notes }}</p>
+              <div class="flex items-center gap-2 ml-auto flex-shrink-0">
+                <button @click="openEdit(entry)" class="text-gray-400 hover:text-gray-600 text-xs">Edit</button>
+                <button @click="deleteEntry(entry.id)" class="text-red-400 hover:text-red-600 text-xs">Delete</button>
+              </div>
+            </div>
           </div>
 
           <div v-if="recentEntries.length === 0" class="text-center py-8 text-gray-400">
@@ -152,6 +157,14 @@
       @add-language="addLanguage"
       @delete-language="deleteLanguage"
       @close="showLangManager = false"
+    />
+
+    <EditSession
+      :entry="editingEntry"
+      :languages="data.languages"
+      :visible="editingVisible"
+      @save="saveEdit"
+      @close="editingVisible = false; editingEntry = null"
     />
   </div>
 </template>
@@ -170,11 +183,12 @@ import TimeframeSelector from './components/TimeframeSelector.vue'
 import Heatmap from './components/Heatmap.vue'
 import InsightCard from './components/InsightCard.vue'
 import Leaderboard from './components/Leaderboard.vue'
+import EditSession from './components/EditSession.vue'
 
 const { user, loading: authLoading, signIn, signUp, signOut } = useAuth()
 provide('auth', { signIn, signUp })
 
-const { data, loaded, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry } = useStorage()
+const { data, loaded, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry } = useStorage()
 
 const setupActive = ref(false)
 
@@ -192,6 +206,8 @@ const activeFilter = ref({ language: null, types: [] })
 const viewMode = ref('month')
 const viewDate = ref(new Date())
 const showLangManager = ref(false)
+const editingEntry = ref(null)
+const editingVisible = ref(false)
 
 const filteredEntries = computed(() => {
   return data.value.entries.filter(entry => {
@@ -266,6 +282,8 @@ const addEntry = (entry) => { storageAddEntry(entry) }
 const addLanguage = (language) => { storageAddLanguage(language) }
 const deleteLanguage = (langId) => { storageDeleteLanguage(langId) }
 const deleteEntry = (id) => { storageDeleteEntry(id) }
+const openEdit = (entry) => { editingEntry.value = entry; editingVisible.value = true }
+const saveEdit = (entry) => { storageUpdateEntry(entry); editingVisible.value = false; editingEntry.value = null }
 
 const getLanguageName = (languageId) => {
   const lang = data.value.languages.find(l => l.id === languageId)
