@@ -1,10 +1,10 @@
 <template>
-  <div class="mb-6">
+  <div>
     <!-- Collapsed state -->
-    <div v-if="step === 0" class="text-center">
+    <div v-if="step === 0">
       <button
         @click="step = 1"
-        class="inline-flex items-center gap-2 px-8 py-3.5 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-all font-medium shadow-sm hover:shadow-md active:scale-[0.98]"
+        class="w-full flex items-center justify-center gap-2 px-8 py-3.5 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-all font-medium shadow-sm hover:shadow-md active:scale-[0.98]"
       >
         <span>🌱</span>
         <span>Log a session</span>

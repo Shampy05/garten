@@ -7,29 +7,41 @@
       </div>
     </div>
     <div v-else class="max-w-6xl mx-auto px-4 py-8">
-      <!-- Header -->
-      <div class="flex items-start justify-between mb-8">
-        <div>
-          <h1 class="text-4xl font-bold text-gray-900 mb-2">Garten</h1>
-          <p class="text-gray-600">Cultivate your language learning habits, one day at a time.</p>
+      <!-- Garden Status Card -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-6">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-1">Garten</h1>
+            <p class="text-sm sm:text-base text-gray-600">Cultivate your language learning habits, one day at a time.</p>
+          </div>
+          <button
+            @click="showLangManager = !showLangManager"
+            class="w-10 h-10 rounded-xl bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm flex items-center justify-center text-gray-500 hover:text-gray-700 transition-all flex-shrink-0"
+            title="Manage Languages"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
         </div>
-        <button
-          @click="showLangManager = !showLangManager"
-          class="w-10 h-10 rounded-xl bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm flex items-center justify-center text-gray-500 hover:text-gray-700 transition-all flex-shrink-0"
-          title="Manage Languages"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-        </button>
-      </div>
 
-      <!-- Log Form -->
-      <LogForm
-        :languages="data.languages"
-        @add-entry="addEntry"
-      />
+        <div class="flex items-center gap-3 mb-4">
+          <span v-if="todayStreak > 0"
+            class="inline-flex items-center gap-1 text-sm font-medium text-orange-600 bg-orange-50 px-2.5 py-1 rounded-full"
+          >
+            {{ todayStreak }} day streak
+          </span>
+          <span class="text-sm text-gray-500">
+            {{ todayMinutes > 0 ? `${todayMinutes}m studied today` : 'Ready to plant today\'s seed?' }}
+          </span>
+        </div>
+
+        <LogForm
+          :languages="data.languages"
+          @add-entry="addEntry"
+        />
+      </div>
 
       <!-- Stats -->
       <StatsCard
@@ -43,17 +55,15 @@
         @filter-change="updateFilter"
       />
 
-      <!-- Timeframe Selector -->
-      <TimeframeSelector
-        :view-mode="viewMode"
-        :view-date="viewDate"
-        @mode-change="updateViewMode"
-        @navigate="navigateView"
-      />
-
       <!-- Heatmap + Leaderboard -->
-      <div class="flex flex-col lg:flex-row lg:items-start gap-6 mt-6">
+      <div class="flex flex-col lg:flex-row lg:items-start gap-6">
         <div class="flex-1 min-w-0">
+          <TimeframeSelector
+            :view-mode="viewMode"
+            :view-date="viewDate"
+            @mode-change="updateViewMode"
+            @navigate="navigateView"
+          />
           <Heatmap
             :entries="filteredEntries"
             :languages="data.languages"
@@ -156,13 +166,36 @@ const recentEntries = computed(() => {
     .slice(0, 10)
 })
 
+const todayStreak = computed(() => {
+  if (data.value.entries.length === 0) return 0
+  const sortedDates = [...new Set(data.value.entries.map(e => e.date))].sort().reverse()
+  let streak = 0
+  let checkDate = new Date()
+  for (const dateStr of sortedDates) {
+    const entryDate = new Date(dateStr)
+    const diffDays = Math.floor((checkDate - entryDate) / (1000 * 60 * 60 * 24))
+    if (diffDays === streak) {
+      streak++
+    } else if (diffDays > streak) {
+      break
+    }
+  }
+  return streak
+})
+
+const todayMinutes = computed(() => {
+  const today = localDateStr(new Date())
+  const todayEntries = data.value.entries.filter(e => e.date === today)
+  return todayEntries.reduce((sum, e) => sum + e.hours * 60 + e.minutes, 0)
+})
+
 const updateFilter = (filter) => {
   activeFilter.value = filter
 }
 
 const updateViewMode = (mode) => {
   viewMode.value = mode
-  viewDate.value = new Date() // Reset to current when changing mode
+  viewDate.value = new Date()
 }
 
 const navigateView = (direction) => {
@@ -179,6 +212,13 @@ const navigateView = (direction) => {
       break
   }
   viewDate.value = d
+}
+
+function localDateStr(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 const addEntry = (entry) => { storageAddEntry(entry) }

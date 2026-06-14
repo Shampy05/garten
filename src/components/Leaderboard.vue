@@ -1,41 +1,24 @@
 <template>
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
-    <h4 class="text-sm font-semibold text-gray-800 mb-3">Language Activity</h4>
+    <h4 class="text-xs font-semibold text-gray-800 mb-3">Top Languages</h4>
     <div v-if="rankings.length === 0" class="text-xs text-gray-400 text-center py-4">
       No data yet
     </div>
     <div v-for="(item, i) in rankings" :key="item.id"
-      class="pb-2 mb-2 border-b border-gray-100 last:border-0 last:pb-0 last:mb-0"
+      class="flex items-center gap-2 py-2 border-b border-gray-100 last:border-0"
     >
-      <div class="flex items-center gap-1.5 mb-1">
-        <span class="text-xs w-5 text-right flex-shrink-0">
-          {{ i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1 }}
-        </span>
-        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: item.color }"></span>
-        <span class="text-xs font-medium text-gray-700 truncate flex-1 min-w-0">{{ item.name }}</span>
-        <span v-if="item.streak > 0"
-          class="text-xs flex items-center gap-0.5 text-orange-500 font-medium flex-shrink-0"
-          :title="item.streak + ' day streak'"
-        >
-          <span>🔥</span>
-          <span>{{ item.streak }}</span>
-        </span>
-        <span class="text-xs font-semibold text-gray-600 w-10 text-right flex-shrink-0">{{ item.hours }}h</span>
-      </div>
-
-      <div class="flex items-center gap-0.5 ml-7 mb-1">
-        <div v-for="(dot, idx) in item.last7" :key="idx"
-          class="w-2 h-2 rounded-[1.5px]"
-          :class="dot.active ? '' : 'bg-gray-200'"
-          :style="dot.active ? { backgroundColor: item.color } : {}"
-          :title="dot.date"
-        ></div>
-        <span class="text-[10px] text-gray-400 ml-1.5 whitespace-nowrap">· {{ item.daysActive }} {{ item.daysActive === 1 ? 'day' : 'days' }}</span>
-      </div>
-
-      <div class="h-1 bg-gray-100 rounded-full overflow-hidden ml-7">
-        <div class="h-full rounded-full transition-all" :style="{ width: item.percent + '%', backgroundColor: item.color }"></div>
-      </div>
+      <span class="text-xs font-medium text-gray-400 w-5 text-right flex-shrink-0">
+        {{ i + 1 }}
+      </span>
+      <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: item.color }"></span>
+      <span class="text-xs font-medium text-gray-700 truncate flex-1 min-w-0">{{ item.name }}</span>
+      <span v-if="item.streak > 0"
+        class="text-xs font-medium text-orange-500 flex-shrink-0"
+        :title="item.streak + ' day streak'"
+      >
+        {{ item.streak }}d
+      </span>
+      <span class="text-xs font-semibold text-gray-600 w-10 text-right flex-shrink-0">{{ item.hours }}h</span>
     </div>
   </div>
 </template>
@@ -89,16 +72,6 @@ const periodEntries = computed(() => {
   return props.entries.filter(e => e.date >= range.start && e.date <= range.end)
 })
 
-const last7Days = computed(() => {
-  const days = []
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date()
-    d.setDate(d.getDate() - i)
-    days.push(localDateStr(d))
-  }
-  return days
-})
-
 const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000)
 
 const currentStreak = (dates) => {
@@ -132,17 +105,11 @@ const rankings = computed(() => {
         color: lang ? lang.color : '#16a34a',
         hours: +(mins / 60).toFixed(1),
         minutes: mins,
-        last7: last7Days.value.map(d => ({ date: d, active: langDates.has(d) })),
-        streak: currentStreak(langDates),
-        daysActive: langDates.size
+        streak: currentStreak(langDates)
       }
     })
     .sort((a, b) => b.minutes - a.minutes)
 
-  const maxMinutes = sorted.length > 0 ? sorted[0].minutes : 0
-  return sorted.map(item => ({
-    ...item,
-    percent: maxMinutes > 0 ? (item.minutes / maxMinutes) * 100 : 0
-  }))
+  return sorted
 })
 </script>
