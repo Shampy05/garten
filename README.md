@@ -4,45 +4,44 @@ A personal language learning tracker inspired by GitHub contribution heatmaps. T
 
 ## Features
 
-- **Visual Heatmap**: 52-week garden grid showing your daily learning intensity
-- **Multi-Language Support**: Track English, German, French, Welsh, Urdu, Spanish, and any custom languages you add
-- **Granular Tracking**: Log specific activity types (Reading, Grammar, Vocabulary) per language
+- **Visual Heatmap**: Month, quarter, and year views with a colorful mosaic — each cell shows the dominant language(s) studied that day with diagonal splits for multiple languages
+- **Language Stack Bars**: Tiny proportional bars inside cells showing each language's share of the day's time
+- **Multi-Language Support**: Track any language with custom colors and activity types
 - **Smart Filtering**: View combined progress or drill down to specific languages and activity types
+- **Insight Card**: Auto-generated narrative — top language, longest streak, weekend/weekday bias
+- **Language Leaderboard**: Ranked sidebar showing hours per language in the current period
 - **Time-Based**: Track hours and minutes for accurate progress measurement
-- **Persistent Storage**: localStorage for now, backend-ready for future migration
+- **Persistent Storage**: Supabase (PostgreSQL) backend — data persists across devices
 
 ## Tech Stack
 
-- Vue 3 (Composition API)
+- Vue 3 (Composition API + `<script setup>`)
 - Vite
 - Tailwind CSS
-- localStorage persistence
+- Supabase
 
 ## Getting Started
 
 ```bash
 npm install
-npm run dev
+npm run dev        # Vite dev server
+npm run build      # Production build to dist/
 ```
+
+The Supabase anon key is embedded in the client bundle. For production, set up proper Row Level Security policies and consider an auth flow.
 
 ## Deployment
 
+Deploys automatically to GitHub Pages on push to `main` via `.github/workflows/deploy.yml`.
+
 ```bash
-npm run build
-# Deploy dist/ folder to GitHub Pages
+git push origin main
 ```
 
 ## Data Structure
 
-Sessions are stored as atomic entries:
-- date
-- languageId
-- type (reading, grammar, vocabulary)
-- hours & minutes
-
-## Future Roadmap
-
-- [ ] Backend API with real database
-- [ ] Mobile PWA support
-- [ ] Data export/import
-- [ ] Streak goals and notifications
+Sessions are stored in Supabase as atomic entries:
+- `date`
+- `language_id` (references `languages.id`)
+- `type` (reading, grammar, vocabulary)
+- `hours` & `minutes`

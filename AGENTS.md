@@ -2,14 +2,15 @@
 
 ## Project Context
 
-This is a Vue 3 + Vite SPA deployed to GitHub Pages. It uses localStorage for data persistence and follows a component-based architecture.
+This is a Vue 3 + Vite SPA deployed to GitHub Pages. It uses Supabase (PostgreSQL) for data persistence and follows a component-based architecture.
 
 ## Tech Stack Rules
 
 - **Vue 3 Composition API** with `<script setup>` syntax
 - **Tailwind CSS** for all styling
 - **No external charting libraries** — the heatmap is built with custom CSS grid
-- **localStorage** via composable (`useStorage.js`) for all data persistence
+- **Supabase** via `@supabase/supabase-js` for all data persistence
+- Components are responsive: `p-3 sm:p-6` pattern on cards, `flex-wrap` on mobile
 
 ## Component Patterns
 
@@ -20,13 +21,13 @@ This is a Vue 3 + Vite SPA deployed to GitHub Pages. It uses localStorage for da
 
 ## Data Model
 
-All data operations must go through the `useStorage` composable:
-- `languages`: Array of { id, name, color, types[] }
-- `entries`: Array of { id, date, languageId, type, hours, minutes }
+All data operations go through the `useStorage` composable which maps between JS camelCase and DB snake_case:
+- `languages`: Array of { id, name, color, types[] } — stored as-is in Supabase
+- `entries`: Array of { id, date, languageId, type, hours, minutes } — `languageId` maps to `language_id` in DB
 
 ## Color Scheme
 
-- Combined view: Green scale (`#f3f4f6` → `#14532d`)
+- Combined view (mosaic): Dominant language color(s) with intensity based on total minutes. Up to 3 languages shown as multi-stop diagonals.
 - Language-specific: Use language.color with 4 intensity levels
 - Empty cells: `#f3f4f6`
 
@@ -34,10 +35,14 @@ All data operations must go through the `useStorage` composable:
 
 - Log form: Always visible at top, search-box style
 - Filters: Horizontal chip bar, multi-select for types
-- Stats: Cards beside heatmap on desktop, stacked on mobile
+- Stats: Cards below log form
+- Heatmap + Leaderboard side-by-side on desktop, stacked on mobile
+- Insight card between heatmap and recent sessions
+- Tooltips use `max-w-[90vw]` to prevent overflow on mobile
 
 ## Deployment
 
 - Build output goes to `dist/`
-- Configure base path in `vite.config.js` for GitHub Pages
+- GitHub Pages via Actions workflow (`.github/workflows/deploy.yml`)
+- `base: './'` in vite.config.js for relative paths
 - Never commit `dist/` to git (add to .gitignore)
