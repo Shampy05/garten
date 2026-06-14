@@ -117,6 +117,22 @@ export function useStorage() {
     }
   }
 
+  const deleteLanguage = async (langId) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+    if (!userId) return
+
+    await supabase.from('entries').delete().eq('language_id', langId).eq('user_id', userId)
+    const { error } = await supabase.from('languages').delete().eq('id', langId).eq('user_id', userId)
+    if (error) {
+      console.error('Failed to delete language:', error)
+      return
+    }
+    clearCache(userId)
+    data.value.entries = data.value.entries.filter(e => e.languageId !== langId)
+    data.value.languages = data.value.languages.filter(l => l.id !== langId)
+  }
+
   const deleteEntry = async (id) => {
     const { data: { session } } = await supabase.auth.getSession()
     const userId = session?.user?.id
@@ -136,6 +152,7 @@ export function useStorage() {
     loaded,
     addEntry,
     addLanguage,
+    deleteLanguage,
     deleteEntry
   }
 }
