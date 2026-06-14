@@ -94,8 +94,9 @@ const props = defineProps({
 const emit = defineEmits(['add-language', 'done'])
 
 const existingNames = computed(() => props.languages.map(l => l.name))
+const existingColors = computed(() => props.languages.map(l => l.color))
 const showForm = ref(false)
-const { selectedLanguage, color, selectedTypes, autocompleteRef, onLanguageSelect, toggleType, getLanguageData, reset } = useLanguageForm(existingNames)
+const { selectedLanguage, color, selectedTypes, autocompleteRef, onLanguageSelect, toggleType, getLanguageData, reset } = useLanguageForm(existingColors)
 
 function saveLanguage() {
   const data = getLanguageData()

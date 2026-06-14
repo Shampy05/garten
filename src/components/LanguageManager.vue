@@ -70,6 +70,11 @@
                 {{ lang.name[0].toUpperCase() }}
               </div>
               <span class="font-bold text-white drop-shadow-sm">{{ lang.name }}</span>
+              <input type="color" :value="lang.color"
+                @input="updateColor(lang, $event.target.value)"
+                class="w-6 h-6 rounded cursor-pointer border-2 border-white/30 ml-1"
+                title="Change color"
+              />
               <button @click.stop="confirmDeleteLanguage(lang)"
                 class="ml-auto w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white/80 hover:text-white transition-colors text-xs"
                 title="Remove language"
@@ -129,11 +134,12 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['add-language', 'delete-language', 'close'])
+const emit = defineEmits(['add-language', 'delete-language', 'update-language', 'close'])
 
 const existingNames = computed(() => props.languages.map(l => l.name))
+const existingColors = computed(() => props.languages.map(l => l.color))
 const showAddForm = ref(false)
-const { selectedLanguage, color, selectedTypes, autocompleteRef, onLanguageSelect, toggleType, getLanguageData, reset } = useLanguageForm(existingNames)
+const { selectedLanguage, color, selectedTypes, autocompleteRef, onLanguageSelect, toggleType, getLanguageData, reset } = useLanguageForm(existingColors)
 
 const deleteTarget = ref(null)
 const showDeleteConfirm = ref(false)
@@ -141,6 +147,10 @@ const showDeleteConfirm = ref(false)
 function confirmDeleteLanguage(lang) {
   deleteTarget.value = lang
   showDeleteConfirm.value = true
+}
+
+function updateColor(lang, newColor) {
+  emit('update-language', { id: lang.id, color: newColor })
 }
 
 function cancelDelete() {

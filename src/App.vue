@@ -207,6 +207,7 @@
       :visible="showLangManager"
       @add-language="addLanguage"
       @delete-language="deleteLanguage"
+      @update-language="updateLanguage"
       @close="showLangManager = false"
     />
 
@@ -255,7 +256,7 @@ import Toast from './components/Toast.vue'
 const { user, loading: authLoading, signIn, signUp, signOut, resetPassword } = useAuth()
 provide('auth', { signIn, signUp, resetPassword })
 
-const { data, loaded, weeklyGoal, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, saveGoal } = useStorage()
+const { data, loaded, weeklyGoal, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, updateLanguage: storageUpdateLanguage, saveGoal } = useStorage()
 
 const setupActive = ref(false)
 
@@ -393,6 +394,7 @@ const navigateView = (direction) => {
 const addEntry = (entry) => { storageAddEntry(entry) }
 const addLanguage = (language) => { storageAddLanguage(language) }
 const deleteLanguage = (langId) => { storageDeleteLanguage(langId) }
+const updateLanguage = (data) => { storageUpdateLanguage(data.id, { color: data.color }) }
 const deleteEntry = (id) => { storageDeleteEntry(id) }
 const openEdit = (entry) => { editingEntry.value = entry; editingVisible.value = true }
 const saveEdit = (entry) => { storageUpdateEntry(entry); editingVisible.value = false; editingEntry.value = null }

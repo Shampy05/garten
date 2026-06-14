@@ -1,9 +1,9 @@
-import { ref, computed } from 'vue'
-import { randomColor } from '../lib/color.js'
+import { ref } from 'vue'
+import { nextColor } from '../lib/color.js'
 
-export function useLanguageForm(existingNames) {
+export function useLanguageForm(existingColors) {
   const selectedLanguage = ref(null)
-  const color = ref(randomColor())
+  const color = ref(nextColor(existingColors.value || []))
   const selectedTypes = ref(['reading'])
   const autocompleteRef = ref(null)
 
@@ -31,7 +31,7 @@ export function useLanguageForm(existingNames) {
 
   function reset() {
     selectedLanguage.value = null
-    color.value = randomColor()
+    color.value = nextColor(existingColors.value || [])
     selectedTypes.value = ['reading']
     autocompleteRef.value?.clear()
   }

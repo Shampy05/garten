@@ -39,8 +39,7 @@
             class="flex-1 aspect-square rounded-md cursor-pointer relative overflow-hidden"
             :class="{
               'opacity-0 pointer-events-none': !day.inRange,
-              'ring-2 ring-yellow-400/70 shadow-[0_0_8px_rgba(250,204,21,0.25)]': day.inRange && streakDaysSet.has(day.date),
-              'ring-2 ring-blue-400/70': day.inRange && day.date === todayStr
+              'ring-2 ring-yellow-400/70 shadow-[0_0_8px_rgba(250,204,21,0.25)]': day.inRange && streakDaysSet.has(day.date)
             }"
             :style="day.inRange ? { backgroundColor: dayBgColor(day) } : { background: 'transparent' }"
             @mouseenter="day.inRange && showTooltip(day, $event)"
@@ -57,6 +56,7 @@
               <span class="absolute top-0.5 left-1 text-[9px] font-medium text-gray-500/60 leading-none select-none z-10">
                 {{ getDayNumber(day) }}
               </span>
+              <span v-if="day.date === todayStr" class="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-gray-800 z-10"></span>
             </div>
           </div>
         </div>
@@ -85,8 +85,7 @@
                   class="rounded-sm cursor-pointer relative overflow-hidden"
                   :class="{
                     'opacity-0 pointer-events-none': !day.inRange,
-                    'ring-1 ring-yellow-400/70 shadow-[0_0_4px_rgba(250,204,21,0.2)]': day.inRange && streakDaysSet.has(day.date),
-                    'ring-1 ring-blue-400/70': day.inRange && day.date === todayStr
+                    'ring-1 ring-yellow-400/70 shadow-[0_0_4px_rgba(250,204,21,0.2)]': day.inRange && streakDaysSet.has(day.date)
                   }"
                   :style="day.inRange ? { backgroundColor: dayBgColor(day), width: cellSizeQ + 'px', height: cellSizeQ + 'px' } : { width: cellSizeQ + 'px', height: cellSizeQ + 'px', background: 'transparent' }"
                   @mouseenter="day.inRange && showTooltip(day, $event)"
@@ -103,6 +102,7 @@
                     <span class="absolute top-px left-0.5 text-[6px] font-medium text-gray-500/60 leading-none select-none z-10">
                       {{ getDayNumber(day) }}
                     </span>
+                    <span v-if="day.date === todayStr" class="absolute bottom-px right-px w-1 h-1 rounded-full bg-gray-800 z-10"></span>
                   </div>
                 </div>
               </div>
@@ -130,8 +130,7 @@
                 class="garden-cell w-3 h-3 rounded-[1px] cursor-pointer relative overflow-hidden"
                 :class="{
                   'opacity-0 pointer-events-none': !day.inRange,
-                  'ring-[0.5px] ring-yellow-400/70': day.inRange && streakDaysSet.has(day.date),
-                  'ring-[0.5px] ring-blue-400/70': day.inRange && day.date === todayStr
+                  'ring-[0.5px] ring-yellow-400/70': day.inRange && streakDaysSet.has(day.date)
                 }"
                 :style="day.inRange ? { backgroundColor: day.totalMinutes > 0 ? dayBgColor(day) : '#f3f4f6' } : { background: 'transparent' }"
                 @mouseenter="day.inRange && showTooltip(day, $event)"
@@ -144,6 +143,7 @@
                     :style="color ? { backgroundColor: color } : {}"
                   ></div>
                 </div>
+                <span v-if="day.date === todayStr" class="absolute bottom-px right-px w-[3px] h-[3px] rounded-full bg-gray-800 z-10"></span>
               </div>
             </div>
           </div>
@@ -178,6 +178,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { localDateStr, daysBetween, getMonthRange, getQuarterRange, getYearRange } from '../lib/date.js'
+import { toHexColor } from '../lib/color.js'
 
 const props = defineProps({
   entries: { type: Array, required: true },
@@ -222,7 +223,8 @@ const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const dayLabelSizeQ = 16
 const cellSizeQ = 25
 
-const adjustColor = (hex, intensity) => {
+const adjustColor = (color, intensity) => {
+  const hex = toHexColor(color)
   const r = parseInt(hex.slice(1, 3), 16)
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)

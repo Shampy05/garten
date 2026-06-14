@@ -136,6 +136,19 @@ export function useStorage() {
     data.value.languages = data.value.languages.filter(l => l.id !== langId)
   }
 
+  const updateLanguage = async (langId, updates) => {
+    if (!userId.value) return
+
+    const { error } = await supabase.from('languages').update(updates).eq('id', langId).eq('user_id', userId.value)
+    if (error) {
+      toast.error('Failed to update language. Please try again.')
+      return
+    }
+    clearCache(userId.value)
+    const idx = data.value.languages.findIndex(l => l.id === langId)
+    if (idx !== -1) Object.assign(data.value.languages[idx], updates)
+  }
+
   const deleteEntry = async (id) => {
     if (!userId.value) return
 
@@ -181,6 +194,7 @@ export function useStorage() {
     deleteLanguage,
     deleteEntry,
     updateEntry,
+    updateLanguage,
     saveGoal
   }
 }
