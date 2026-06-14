@@ -56,7 +56,6 @@
                   </button>
                 </div>
               </div>
-            </div>
             <button @click="addLanguage" :disabled="!selectedLanguage"
               class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
             >
