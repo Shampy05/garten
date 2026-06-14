@@ -173,6 +173,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { localDateStr, daysBetween, getMonthRange, getQuarterRange, getYearRange } from '../lib/date.js'
 
 const props = defineProps({
   entries: { type: Array, required: true },
@@ -391,13 +392,6 @@ const activeLanguages = computed(() => {
   return props.languages.filter(l => activeIds.has(l.id))
 })
 
-function localDateStr(date) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
-
 function generateWeeks(startDate, endDate) {
   const alignedStart = new Date(startDate)
   const dayOfWeek = alignedStart.getDay()
@@ -430,25 +424,6 @@ function generateWeeks(startDate, endDate) {
 
   if (currentWeek.length > 0) weeks.push(currentWeek)
   return weeks
-}
-
-function getMonthRange(date) {
-  const start = new Date(date.getFullYear(), date.getMonth(), 1)
-  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0)
-  return { start, end }
-}
-
-function getQuarterRange(date) {
-  const q = Math.floor(date.getMonth() / 3)
-  const start = new Date(date.getFullYear(), q * 3, 1)
-  const end = new Date(date.getFullYear(), q * 3 + 3, 0)
-  return { start, end }
-}
-
-function getYearRange(date) {
-  const start = new Date(date.getFullYear(), 0, 1)
-  const end = new Date(date.getFullYear(), 11, 31)
-  return { start, end }
 }
 
 const dateRange = computed(() => {
@@ -495,6 +470,4 @@ const formatTime = (minutes) => {
   const m = minutes % 60
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
-
-const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000)
 </script>

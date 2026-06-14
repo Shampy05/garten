@@ -46,6 +46,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { localDateStr, getMonthRange, getQuarterRange, getYearRange } from '../lib/date.js'
 
 const props = defineProps({
   entries: { type: Array, required: true },
@@ -54,38 +55,16 @@ const props = defineProps({
   viewDate: { type: Date, default: () => new Date() }
 })
 
-function localDateStr(date) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
-
 const dateRange = computed(() => {
   const d = props.viewDate
+  let range
   switch (props.viewMode) {
-    case 'month': {
-      const start = new Date(d.getFullYear(), d.getMonth(), 1)
-      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
-      return { start: localDateStr(start), end: localDateStr(end) }
-    }
-    case 'quarter': {
-      const q = Math.floor(d.getMonth() / 3)
-      const start = new Date(d.getFullYear(), q * 3, 1)
-      const end = new Date(d.getFullYear(), q * 3 + 3, 0)
-      return { start: localDateStr(start), end: localDateStr(end) }
-    }
-    case 'year': {
-      const start = new Date(d.getFullYear(), 0, 1)
-      const end = new Date(d.getFullYear(), 11, 31)
-      return { start: localDateStr(start), end: localDateStr(end) }
-    }
-    default: {
-      const start = new Date(d.getFullYear(), d.getMonth(), 1)
-      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
-      return { start: localDateStr(start), end: localDateStr(end) }
-    }
+    case 'month': range = getMonthRange(d); break
+    case 'quarter': range = getQuarterRange(d); break
+    case 'year': range = getYearRange(d); break
+    default: range = getMonthRange(d)
   }
+  return { start: localDateStr(range.start), end: localDateStr(range.end) }
 })
 
 const periodEntries = computed(() => {
