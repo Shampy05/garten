@@ -34,13 +34,53 @@ All data operations go through the `useStorage` composable which maps between JS
 
 ## UI Patterns
 
-- Log form: Collapsed to single button, expands to 4-step stepper
-- Language manager: Gear icon in header opens modal with seed packet cards
-- Filters: Horizontal chip bar, multi-select for types
-- Heatmap + Leaderboard side-by-side on desktop, stacked on mobile
-- Leaderboard shows medals, streak fire, 7-day frequency dots, days active
-- Insight card between heatmap and recent sessions
-- Tooltips: Teleported to body, fixed positioning, scroll-dismiss
+- **Garden Status Card (App.vue)**: The header is a single `bg-white rounded-xl border shadow-sm` card containing:
+  - Title + tagline on the left, gear icon for settings on the right
+  - Status line: streak pill (orange bg, plain number + "day streak") + today-minutes text
+  - LogForm CTA below the status line (full-width button on all breakpoints)
+  - This grouping follows the Gestalt proximity principle — title, motivation, and action are visually connected.
+
+- **Log form**: Collapsed to a full-width button, expands to 4-step stepper (language → type → duration → confirm). Button is `w-full flex items-center justify-center` (no longer centered/floating). The expanded form renders inside the same header card.
+
+- **Language manager**: Gear icon in the top-right of the header card opens a modal with seed packet language cards.
+
+- **Filters**: Horizontal chip bar below stats, multi-select for types.
+
+- **TimeframeSelector**: Renders inside the heatmap column (left side of flex layout), NOT at full page width. Has its own card with `mb-6`.
+
+- **Heatmap + Leaderboard**: Side-by-side on desktop (`lg:flex-row`), stacked on mobile (`flex-col`). The TimeframeSelector sits above the Heatmap inside the left column.
+
+- **Leaderboard (single-line rows)**: Each language row is one horizontal flex line. No emojis (medals or fire), no 7-day frequency dots, no proportional bar. Shows:
+  - Rank number (plain 1, 2, 3...)
+  - Color dot
+  - Language name (truncated)
+  - Streak as `Nd` (e.g., `3d`) — orange text, only if > 0
+  - Hours logged
+  - Title: "Top Languages"
+
+- **Insight card**: Between heatmap and recent sessions.
+
+- **Recent sessions**: Below everything, inside its own card.
+
+- **Tooltips**: Teleported to body, fixed positioning, scroll-dismiss.
+
+## Design Principles (applied in v2)
+
+The following UX research informed the current design. Apply these when making future UI changes:
+
+1. **Group related elements** (Gestalt proximity): The header card proved that connecting identity (title), motivation (streak), and action (CTA) in one container creates a clear visual hierarchy. Avoid floating disconnected elements.
+
+2. **Full-width is often better than centered**: The "Log a session" button was centered and floating, which created whitespace without context. Making it full-width inside the card anchored it and eliminated visual imbalance.
+
+3. **Remove before adding (aesthetic/minimalist heuristic)**: The leaderboard had medals, fire emoji, 7-day dots, a proportional bar, and a "days active" label. We removed everything except rank, name, hours, and streak. The lost info (daily frequency, relative share) was either duplicated by the heatmap or implied by the rank order. Always ask: "does this element support the user's primary goal?"
+
+4. **Each component should own its width context**: The TimeframeSelector was full page width even though it only controls the heatmap. It now lives inside the heatmap column. Components should be scoped to the context they affect.
+
+5. **No emojis in data displays**: Emojis (🥇 🥈 🥉 🔥) added visual noise without information value. Plain numbers and text are cleaner and more professional.
+
+6. **Status bridges motivation**: Showing "3 day streak · 30m studied today" between the title and the CTA gives the user a reason to act. This follows NN/G's visibility of system status heuristic.
+
+7. **Progressive disclosure**: The LogForm shows only the CTA at rest. Expanding reveals steps one at a time. The leaderboard shows summary rankings; detailed daily patterns require one more click (language filter in the heatmap).
 
 ## Deployment
 
