@@ -5,17 +5,22 @@ A personal language learning tracker inspired by GitHub contribution heatmaps. T
 ## Features
 
 - **Visual Heatmap**: Month, quarter, and year views with mosaic tiles — each cell shows a pixel-art grid of colored squares representing languages studied that day
-- **Multi-Language Mosaic**: In combined view, cells display a 5×5 (month), 3×3 (quarter), or 2×2 (year) grid of tiny colored squares, distributed proportionally by language
+- **Multi-Language Mosaic**: In combined view, cells display a 5×5 (month), 3×3 (quarter), or 2×2 (year) grid of colored squares, distributed proportionally by language
 - **Intensity Cells**: When filtered to a single language, cells use 8 intensity levels from light to full color
 - **Streak Glow**: Cells in a 3+ day streak get a subtle gold ring and glow
-- **Language Activity Leaderboard**: Clean ranked sidebar with plain numbers, color-coded languages, current streak, and hours logged — no emojis or redundant visual noise
-- **Garden Status Card**: Unified header containing the app title, motivational status line (streak + today's minutes), and the main "Log a session" CTA — creates visual hierarchy and bridges identity with the primary action
+- **Language Activity Leaderboard**: Clean ranked sidebar with plain numbers, color-coded languages, current streak, and hours logged
+- **Garden Status Card**: Unified header with title, motivational status line, weekly goal progress bar, and the "Log a session" CTA
+- **Weekly Study Goal**: Set a target (e.g., 5h/week) and see a color-coded progress bar split by language
 - **Smart Filtering**: View combined progress or drill down to specific languages and activity types
-- **Stepper Log Form**: Step-by-step session entry with quick duration presets
-- **Language Seeds Modal**: Manage languages via a gear icon, displayed as styled seed packets
+- **Stepper Log Form**: 4-step session entry with quick duration presets and optional notes
+- **Edit Sessions**: Click "Edit" on any recent session to change language, type, duration, date, or notes
+- **Session Notes**: Add optional notes to sessions (e.g., "read chapter 3", "Duolingo lesson 5")
+- **Language Seeds Modal**: Manage languages via a gear icon, displayed as styled seed packets. Languages removed via ✕ button
+- **Language Autocomplete**: Curated list of ~130 languages — no free-form input, no misspellings
+- **Activity Type Pills**: Fixed types (reading, grammar, vocabulary, listening, speaking, writing, pronunciation) as toggleable pills
 - **Insight Card**: Auto-generated narrative — top language, longest streak, weekend/weekday bias
-- **Time-Based**: Track hours and minutes for accurate progress measurement
 - **Persistent Storage**: Supabase (PostgreSQL) backend — data persists across devices
+- **Email/Password Auth**: Per-user data via Supabase RLS. Language picker on first sign-up
 
 ## Tech Stack
 
@@ -32,7 +37,7 @@ npm run dev        # Vite dev server
 npm run build      # Production build to dist/
 ```
 
-The Supabase anon key is embedded in the client bundle. For production, set up proper Row Level Security policies and consider an auth flow.
+Enable email/password auth in the Supabase dashboard (Authentication → Providers → Email). RLS policies scope all data to the authenticated user.
 
 ## Deployment
 
@@ -62,6 +67,10 @@ Sessions are stored in Supabase as atomic entries:
 - `language_id` (references `languages.id`)
 - `type` (reading, grammar, vocabulary, listening, speaking, writing, pronunciation)
 - `hours` & `minutes`
+- `notes` (optional text)
+
+User settings:
+- `weekly_goal_hours` (nullable numeric)
 
 ## Performance
 

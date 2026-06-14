@@ -23,7 +23,8 @@ This is a Vue 3 + Vite SPA deployed to GitHub Pages. It uses Supabase (PostgreSQ
 
 All data operations go through the `useStorage` composable which maps between JS camelCase and DB snake_case:
 - `languages`: Array of { id, name, color, types[] } — stored as-is in Supabase
-- `entries`: Array of { id, date, languageId, type, hours, minutes } — `languageId` maps to `language_id` in DB
+- `entries`: Array of { id, date, languageId, type, hours, minutes, notes } — `languageId` maps to `language_id` in DB
+- `user_settings`: { user_id, weekly_goal_hours } — per-user weekly study goal
 
 ## Data Caching
 
@@ -41,14 +42,15 @@ Entries older than 2 years are not fetched — the heatmap only displays data wi
 ## UI Patterns
 
 - **Garden Status Card (App.vue)**: The header is a single `bg-white rounded-xl border shadow-sm` card containing:
-  - Title + tagline on the left, gear icon for settings on the right
+  - Title + tagline on the left, gear icon + sign-out on the right
   - Status line: streak pill (orange bg, plain number + "day streak") + today-minutes text
+  - Weekly goal progress bar (color-coded by language, segmented)
   - LogForm CTA below the status line (full-width button on all breakpoints)
   - This grouping follows the Gestalt proximity principle — title, motivation, and action are visually connected.
 
-- **Log form**: Collapsed to a full-width button, expands to 4-step stepper (language → type → duration → confirm). Button is `w-full flex items-center justify-center` (no longer centered/floating). The expanded form renders inside the same header card.
+- **Log form**: Collapsed to a full-width button, expands to 4-step stepper (language → type → duration → confirm with optional notes). Button is `w-full flex items-center justify-center` (no longer centered/floating). The expanded form renders inside the same header card.
 
-- **Language manager**: Gear icon in the top-right of the header card opens a modal with seed packet language cards.
+- **Language manager**: Gear icon in the top-right of the header card opens a modal with seed packet language cards. Languages can be removed via the ✕ button on each card. New languages use a curated autocomplete list (no free-form input).
 
 - **Filters**: Horizontal chip bar below stats, multi-select for types.
 
@@ -66,7 +68,7 @@ Entries older than 2 years are not fetched — the heatmap only displays data wi
 
 - **Insight card**: Between heatmap and recent sessions.
 
-- **Recent sessions**: Below everything, inside its own card.
+- **Recent sessions**: Below everything, inside its own card. Two-row layout: top row has language/type/date/duration, bottom row has notes (truncated) + edit/delete actions.
 
 - **Tooltips**: Teleported to body, fixed positioning, scroll-dismiss.
 
@@ -87,6 +89,14 @@ The following UX research informed the current design. Apply these when making f
 6. **Status bridges motivation**: Showing "3 day streak · 30m studied today" between the title and the CTA gives the user a reason to act. This follows NN/G's visibility of system status heuristic.
 
 7. **Progressive disclosure**: The LogForm shows only the CTA at rest. Expanding reveals steps one at a time. The leaderboard shows summary rankings; detailed daily patterns require one more click (language filter in the heatmap).
+
+## Authentication
+
+Email/password auth via Supabase. On sign-up, users pick languages from a curated autocomplete list before entering the app. On sign-in, they go straight to the app. RLS policies scope all data to the authenticated user.
+
+## Activity Types
+
+Fixed set defined in `src/lib/types.js`: reading, grammar, vocabulary, listening, speaking, writing, pronunciation. Displayed as toggleable pills in both the LogForm and LanguageManager.
 
 ## Deployment
 

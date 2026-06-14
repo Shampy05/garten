@@ -59,6 +59,43 @@
           </span>
         </div>
 
+        <!-- Weekly Goal -->
+        <div v-if="goalHours" class="mb-4">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-xs text-gray-500">Weekly goal</span>
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs font-medium text-gray-700">
+                {{ (weekMinutes / 60).toFixed(1) }}h / {{ goalHours }}h
+              </span>
+              <button @click="goalEditing = !goalEditing" class="text-gray-400 hover:text-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+              </button>
+            </div>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden flex">
+            <div v-for="(seg, i) in goalSegments" :key="i"
+              class="h-2 transition-all duration-500 first:rounded-l-full last:rounded-r-full"
+              :style="{ width: seg.percent + '%', backgroundColor: seg.color }"
+            ></div>
+          </div>
+          <div v-if="goalProgress >= 100" class="text-xs text-green-600 mt-1 font-medium">Goal reached!</div>
+        </div>
+        <div v-else class="mb-4">
+          <button @click="goalEditing = true" class="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+            + Set weekly goal
+          </button>
+        </div>
+
+        <!-- Goal Edit Inline -->
+        <div v-if="goalEditing" class="mb-4 flex items-center gap-2">
+          <input v-model.number="goalHours" type="number" min="0.5" step="0.5" placeholder="e.g. 5"
+            class="w-24 px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          <span class="text-xs text-gray-500">hours/week</span>
+          <button @click="saveGoalInput" class="text-xs text-green-600 hover:text-green-700 font-medium">Save</button>
+          <button @click="goalEditing = false; goalHours = weeklyGoal" class="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+        </div>
+
         <LogForm
           :languages="data.languages"
           @add-entry="addEntry"
@@ -188,7 +225,7 @@ import EditSession from './components/EditSession.vue'
 const { user, loading: authLoading, signIn, signUp, signOut } = useAuth()
 provide('auth', { signIn, signUp })
 
-const { data, loaded, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry } = useStorage()
+const { data, loaded, weeklyGoal, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, saveGoal } = useStorage()
 
 const setupActive = ref(false)
 
@@ -245,6 +282,70 @@ const todayMinutes = computed(() => {
   const todayEntries = data.value.entries.filter(e => e.date === today)
   return todayEntries.reduce((sum, e) => sum + e.hours * 60 + e.minutes, 0)
 })
+
+const weekMinutes = computed(() => {
+  const now = new Date()
+  const day = now.getDay()
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1))
+  monday.setHours(0, 0, 0, 0)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  const from = localDateStr(monday)
+  const to = localDateStr(sunday)
+  return data.value.entries
+    .filter(e => e.date >= from && e.date <= to)
+    .reduce((sum, e) => sum + e.hours * 60 + e.minutes, 0)
+})
+
+const goalHours = ref(null)
+const goalEditing = ref(false)
+
+watch(weeklyGoal, (v) => { goalHours.value = v }, { immediate: true })
+
+const goalProgress = computed(() => {
+  if (!goalHours.value || goalHours.value <= 0) return 0
+  return Math.min((weekMinutes.value / (goalHours.value * 60)) * 100, 100)
+})
+
+const goalSegments = computed(() => {
+  if (!goalHours.value || goalHours.value <= 0 || weekMinutes.value === 0) return []
+  const now = new Date()
+  const day = now.getDay()
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1))
+  monday.setHours(0, 0, 0, 0)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  const from = localDateStr(monday)
+  const to = localDateStr(sunday)
+
+  const weekEntries = data.value.entries.filter(e => e.date >= from && e.date <= to)
+  const byLang = {}
+  for (const e of weekEntries) {
+    byLang[e.languageId] = (byLang[e.languageId] || 0) + e.hours * 60 + e.minutes
+  }
+
+  const total = Object.values(byLang).reduce((s, v) => s + v, 0)
+  const filledPct = Math.min((total / (goalHours.value * 60)) * 100, 100)
+
+  return Object.entries(byLang)
+    .sort((a, b) => b[1] - a[1])
+    .map(([langId, mins]) => {
+      const lang = data.value.languages.find(l => l.id === langId)
+      return {
+        color: lang ? lang.color : '#16a34a',
+        percent: (mins / total) * filledPct
+      }
+    })
+})
+
+const saveGoalInput = () => {
+  const val = parseFloat(goalHours.value)
+  if (!val || val <= 0) { saveGoal(null); goalEditing.value = false; return }
+  saveGoal(val)
+  goalEditing.value = false
+}
 
 const updateFilter = (filter) => {
   activeFilter.value = filter

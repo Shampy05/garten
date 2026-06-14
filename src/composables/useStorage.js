@@ -35,6 +35,7 @@ function twoYearsAgo() {
 export function useStorage() {
   const data = ref({ languages: [], entries: [] })
   const loaded = ref(false)
+  const weeklyGoal = ref(null)
 
   const loadData = async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -49,21 +50,23 @@ export function useStorage() {
     if (cached) {
       data.value = cached
       loaded.value = true
-      return
+    } else {
+      const [langRes, entryRes] = await Promise.all([
+        supabase.from('languages').select('*').eq('user_id', userId).order('id'),
+        supabase.from('entries').select('*').eq('user_id', userId).gte('date', twoYearsAgo()).order('date', { ascending: false })
+      ])
+
+      const fresh = {
+        languages: langRes.data || [],
+        entries: (entryRes.data || []).map(toCamel)
+      }
+      setCache(userId, fresh)
+      data.value = fresh
+      loaded.value = true
     }
 
-    const [langRes, entryRes] = await Promise.all([
-      supabase.from('languages').select('*').eq('user_id', userId).order('id'),
-      supabase.from('entries').select('*').eq('user_id', userId).gte('date', twoYearsAgo()).order('date', { ascending: false })
-    ])
-
-    const fresh = {
-      languages: langRes.data || [],
-      entries: (entryRes.data || []).map(toCamel)
-    }
-    setCache(userId, fresh)
-    data.value = fresh
-    loaded.value = true
+    const { data: settings } = await supabase.from('user_settings').select('weekly_goal_hours').eq('user_id', userId).single()
+    weeklyGoal.value = settings?.weekly_goal_hours ?? null
   }
 
   onMounted(() => {
@@ -164,13 +167,28 @@ export function useStorage() {
     if (idx !== -1) data.value.entries[idx] = toCamel(toSnake(entry))
   }
 
+  const saveGoal = async (hours) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+    if (!userId) return
+
+    const { error } = await supabase.from('user_settings').upsert({ user_id: userId, weekly_goal_hours: hours, updated_at: new Date().toISOString() })
+    if (error) {
+      console.error('Failed to save goal:', error)
+      return
+    }
+    weeklyGoal.value = hours
+  }
+
   return {
     data,
     loaded,
+    weeklyGoal,
     addEntry,
     addLanguage,
     deleteLanguage,
     deleteEntry,
-    updateEntry
+    updateEntry,
+    saveGoal
   }
 }
