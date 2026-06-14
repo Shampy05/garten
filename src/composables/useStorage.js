@@ -1,6 +1,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { supabase } from '../lib/supabase.js'
 import { getCached, setCache, clearCache } from '../lib/cache.js'
+import { useToast } from './useToast.js'
 
 function toSnake(entry) {
   return {
@@ -36,6 +37,7 @@ export function useStorage() {
   const data = ref({ languages: [], entries: [] })
   const loaded = ref(false)
   const weeklyGoal = ref(null)
+  const toast = useToast()
 
   const loadData = async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -94,7 +96,7 @@ export function useStorage() {
       user_id: userId
     })
     if (error) {
-      console.error('Failed to add entry:', error)
+      toast.error('Failed to add entry. Please try again.')
       return
     }
     clearCache(userId)
@@ -113,7 +115,7 @@ export function useStorage() {
     }
     const { error } = await supabase.from('languages').upsert(newLang)
     if (error) {
-      console.error('Failed to add language:', error)
+      toast.error('Failed to add language. Please try again.')
       return
     }
     clearCache(userId)
@@ -130,7 +132,7 @@ export function useStorage() {
     await supabase.from('entries').delete().eq('language_id', langId).eq('user_id', userId)
     const { error } = await supabase.from('languages').delete().eq('id', langId).eq('user_id', userId)
     if (error) {
-      console.error('Failed to delete language:', error)
+      toast.error('Failed to delete language. Please try again.')
       return
     }
     clearCache(userId)
@@ -145,7 +147,7 @@ export function useStorage() {
 
     const { error } = await supabase.from('entries').delete().eq('id', id).eq('user_id', userId)
     if (error) {
-      console.error('Failed to delete entry:', error)
+      toast.error('Failed to delete entry. Please try again.')
       return
     }
     clearCache(userId)
@@ -159,7 +161,7 @@ export function useStorage() {
 
     const { error } = await supabase.from('entries').update(toSnake(entry)).eq('id', entry.id).eq('user_id', userId)
     if (error) {
-      console.error('Failed to update entry:', error)
+      toast.error('Failed to update entry. Please try again.')
       return
     }
     clearCache(userId)
@@ -174,7 +176,7 @@ export function useStorage() {
 
     const { error } = await supabase.from('user_settings').upsert({ user_id: userId, weekly_goal_hours: hours, updated_at: new Date().toISOString() })
     if (error) {
-      console.error('Failed to save goal:', error)
+      toast.error('Failed to save goal. Please try again.')
       return
     }
     weeklyGoal.value = hours
