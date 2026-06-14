@@ -296,60 +296,6 @@ const getMosaicGrid = (day, gridSize = 5) => {
   return colors
 }
 
-const getCellColor = (day) => {
-  if (day.totalMinutes === 0) return '#f3f4f6'
-
-  if (props.filter.language) {
-    const lang = props.languages.find(l => l.id === props.filter.language)
-    const baseColor = lang ? lang.color : '#16a34a'
-    return getColorAtIntensity(baseColor, day.totalMinutes)
-  }
-
-  const groups = getLanguageActivities(day)
-  const entries = Object.entries(groups).sort((a, b) => b[1] - a[1])
-  const topId = entries[0][0]
-  const topLang = props.languages.find(l => l.id === topId)
-  const topColor = topLang ? topLang.color : '#16a34a'
-
-  if (entries.length === 1) {
-    return getColorAtIntensity(topColor, day.totalMinutes)
-  }
-
-  const top = getColorAtIntensity(topColor, day.totalMinutes)
-
-  if (entries.length === 2) {
-    const secondId = entries[1][0]
-    const secondLang = props.languages.find(l => l.id === secondId)
-    const secondColor = secondLang ? secondLang.color : '#16a34a'
-    const second = getColorAtIntensity(secondColor, day.totalMinutes)
-    return `linear-gradient(90deg, ${top} 50%, ${second} 50%)`
-  }
-
-  const stops = []
-  const count = Math.min(entries.length, 3)
-  const pct = 100 / count
-  for (let i = 0; i < count; i++) {
-    const langId = entries[i][0]
-    const lang = props.languages.find(l => l.id === langId)
-    const c = lang ? lang.color : '#16a34a'
-    const col = getColorAtIntensity(c, day.totalMinutes)
-    const start = i * pct
-    const end = (i + 1) * pct
-    stops.push(`${col} ${start}%`)
-    if (i < count - 1) stops.push(`${col} ${end}%`)
-  }
-  return `linear-gradient(90deg, ${stops.join(', ')})`
-}
-
-const getCellStyle = (day) => {
-  if (!day.inRange) return { background: 'transparent' }
-  const color = getCellColor(day)
-  if (color.startsWith('linear-gradient')) {
-    return { background: color }
-  }
-  return { backgroundColor: color }
-}
-
 const getDayNumber = (day) => {
   return parseInt(day.date.split('-')[2], 10)
 }
