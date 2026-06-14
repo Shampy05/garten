@@ -41,12 +41,12 @@
               'opacity-0 pointer-events-none': !day.inRange,
               'ring-2 ring-yellow-400/70 shadow-[0_0_8px_rgba(250,204,21,0.25)]': day.inRange && streakDaysSet.has(day.date)
             }"
-            :style="day.inRange ? { backgroundColor: '#f3f4f6' } : { background: 'transparent' }"
+            :style="day.inRange ? { backgroundColor: dayBgColor(day) } : { background: 'transparent' }"
             @mouseenter="day.inRange && showTooltip(day, $event)"
             @mouseleave="hideTooltip()"
           >
             <div v-if="day.inRange" class="absolute inset-0 pointer-events-none">
-              <div v-if="day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-5 grid-rows-5 gap-[1.5px] p-[2px]">
+              <div v-if="!filter.language && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-5 grid-rows-5 gap-[1.5px] p-[2px]">
                 <div v-for="(color, si) in getMosaicGrid(day)" :key="si"
                   class="rounded-[1.5px]"
                   :class="color ? '' : 'invisible'"
@@ -86,12 +86,12 @@
                     'opacity-0 pointer-events-none': !day.inRange,
                     'ring-1 ring-yellow-400/70 shadow-[0_0_4px_rgba(250,204,21,0.2)]': day.inRange && streakDaysSet.has(day.date)
                   }"
-                  :style="day.inRange ? { backgroundColor: '#f3f4f6', width: cellSizeQ + 'px', height: cellSizeQ + 'px' } : { width: cellSizeQ + 'px', height: cellSizeQ + 'px', background: 'transparent' }"
+                  :style="day.inRange ? { backgroundColor: dayBgColor(day), width: cellSizeQ + 'px', height: cellSizeQ + 'px' } : { width: cellSizeQ + 'px', height: cellSizeQ + 'px', background: 'transparent' }"
                   @mouseenter="day.inRange && showTooltip(day, $event)"
                   @mouseleave="hideTooltip()"
                 >
                   <div v-if="day.inRange" class="absolute inset-0 pointer-events-none">
-                    <div v-if="day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-px p-px">
+                    <div v-if="!filter.language && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-px p-px">
                       <div v-for="(color, si) in getMosaicGrid(day, 3)" :key="si"
                         class="rounded-[0.5px]"
                         :class="color ? '' : 'invisible'"
@@ -129,11 +129,11 @@
                 :class="{
                   'ring-[0.5px] ring-yellow-400/70': streakDaysSet.has(day.date)
                 }"
-                :style="day.totalMinutes > 0 ? {} : { backgroundColor: '#f3f4f6' }"
+                :style="day.totalMinutes > 0 ? { backgroundColor: dayBgColor(day) } : { backgroundColor: '#f3f4f6' }"
                 @mouseenter="showTooltip(day, $event)"
                 @mouseleave="hideTooltip()"
               >
-                <div v-if="day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px p-px">
+                <div v-if="!filter.language && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px p-px">
                   <div v-for="(color, si) in getMosaicGrid(day, 2)" :key="si"
                     class="rounded-[0.5px]"
                     :class="color ? '' : 'invisible'"
@@ -226,9 +226,13 @@ const adjustColor = (hex, intensity) => {
 
 const getColorAtIntensity = (hex, minutes) => {
   if (minutes === 0) return '#f3f4f6'
-  if (minutes <= 15) return adjustColor(hex, 0.2)
-  if (minutes <= 30) return adjustColor(hex, 0.4)
-  if (minutes <= 60) return adjustColor(hex, 0.7)
+  if (minutes <= 10) return adjustColor(hex, 0.15)
+  if (minutes <= 20) return adjustColor(hex, 0.25)
+  if (minutes <= 30) return adjustColor(hex, 0.35)
+  if (minutes <= 45) return adjustColor(hex, 0.45)
+  if (minutes <= 60) return adjustColor(hex, 0.55)
+  if (minutes <= 90) return adjustColor(hex, 0.7)
+  if (minutes <= 120) return adjustColor(hex, 0.85)
   return hex
 }
 
@@ -240,6 +244,15 @@ const getLanguageActivities = (day) => {
     groups[id] = (groups[id] || 0) + a.minutes
   }
   return groups
+}
+
+const dayBgColor = (day) => {
+  if (day.totalMinutes === 0) return '#f3f4f6'
+  if (props.filter.language) {
+    const lang = props.languages.find(l => l.id === props.filter.language)
+    return getColorAtIntensity(lang ? lang.color : '#16a34a', day.totalMinutes)
+  }
+  return '#f3f4f6'
 }
 
 const getMosaicGrid = (day, gridSize = 5) => {
@@ -333,7 +346,13 @@ const colorLevels = computed(() => {
   const isFiltered = !!props.filter.language
   const language = isFiltered ? props.languages.find(l => l.id === props.filter.language) : null
   const baseColor = language ? language.color : '#16a34a'
-  return ['#f3f4f6', adjustColor(baseColor, 0.2), adjustColor(baseColor, 0.4), adjustColor(baseColor, 0.7), baseColor]
+  return [
+    '#f3f4f6',
+    adjustColor(baseColor, 0.15), adjustColor(baseColor, 0.25),
+    adjustColor(baseColor, 0.35), adjustColor(baseColor, 0.45),
+    adjustColor(baseColor, 0.55), adjustColor(baseColor, 0.7),
+    adjustColor(baseColor, 0.85), baseColor
+  ]
 })
 
 const streakDaysSet = computed(() => {

@@ -27,18 +27,20 @@ All data operations go through the `useStorage` composable which maps between JS
 
 ## Color Scheme
 
-- Combined view (mosaic): Dominant language color(s) with intensity based on total minutes. Up to 3 languages shown as multi-stop diagonals.
-- Language-specific: Use language.color with 4 intensity levels
+- Combined view (no filter): Cells show mosaic tiles — a 5×5 (month), 3×3 (quarter), or 2×2 (year) grid of colored squares distributed proportionally by language. Background is `#f3f4f6`.
+- Single-language filter: Cells use 8 intensity levels via `getColorAtIntensity()` — solid color blocks from light to full color.
 - Empty cells: `#f3f4f6`
+- Streak glow: `ring-2 ring-yellow-400/70 shadow-[0_0_8px_rgba(250,204,21,0.25)]` on cells in 3+ day streaks
 
 ## UI Patterns
 
-- Log form: Always visible at top, search-box style
+- Log form: Collapsed to single button, expands to 4-step stepper
+- Language manager: Gear icon in header opens modal with seed packet cards
 - Filters: Horizontal chip bar, multi-select for types
-- Stats: Cards below log form
 - Heatmap + Leaderboard side-by-side on desktop, stacked on mobile
+- Leaderboard shows medals, streak fire, 7-day frequency dots, days active
 - Insight card between heatmap and recent sessions
-- Tooltips use `max-w-[90vw]` to prevent overflow on mobile
+- Tooltips: Teleported to body, fixed positioning, scroll-dismiss
 
 ## Deployment
 
