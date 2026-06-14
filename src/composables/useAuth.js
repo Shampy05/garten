@@ -22,5 +22,11 @@ export function useAuth() {
     await supabase.auth.signOut()
   }
 
-  return { user, loading, signIn, signUp, signOut }
+  const resetPassword = async (email) => {
+    return supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin
+    })
+  }
+
+  return { user, loading, signIn, signUp, signOut, resetPassword }
 }

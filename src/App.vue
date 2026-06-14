@@ -245,8 +245,8 @@ import EditSession from './components/EditSession.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import Toast from './components/Toast.vue'
 
-const { user, loading: authLoading, signIn, signUp, signOut } = useAuth()
-provide('auth', { signIn, signUp })
+const { user, loading: authLoading, signIn, signUp, signOut, resetPassword } = useAuth()
+provide('auth', { signIn, signUp, resetPassword })
 
 const { data, loaded, weeklyGoal, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, saveGoal } = useStorage()
 
