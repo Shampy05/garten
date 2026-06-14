@@ -158,7 +158,7 @@ export function useStorage() {
     }
     clearCache(userId.value)
     const idx = data.value.entries.findIndex(e => e.id === entry.id)
-    if (idx !== -1) data.value.entries[idx] = toCamel(toSnake(entry))
+    if (idx !== -1) data.value.entries[idx] = entry
   }
 
   const saveGoal = async (hours) => {

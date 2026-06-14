@@ -25,7 +25,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { localDateStr, daysBetween, getMonthRange, getQuarterRange, getYearRange } from '../lib/date.js'
+import { localDateStr, currentStreak, getMonthRange, getQuarterRange, getYearRange } from '../lib/date.js'
 
 const props = defineProps({
   entries: { type: Array, required: true },
@@ -50,20 +50,6 @@ const periodEntries = computed(() => {
   const range = dateRange.value
   return props.entries.filter(e => e.date >= range.start && e.date <= range.end)
 })
-
-const currentStreak = (dates) => {
-  const sorted = [...dates].sort().reverse()
-  if (sorted.length === 0) return 0
-  const today = localDateStr(new Date())
-  const yesterday = localDateStr(new Date(Date.now() - 86400000))
-  if (sorted[0] !== today && sorted[0] !== yesterday) return 0
-  let streak = 1
-  for (let i = 0; i < sorted.length - 1; i++) {
-    if (daysBetween(sorted[i + 1], sorted[i]) === 1) streak++
-    else break
-  }
-  return streak
-}
 
 const rankings = computed(() => {
   const minutesByLang = {}

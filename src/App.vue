@@ -230,7 +230,7 @@
 import { ref, computed, watch, provide } from 'vue'
 import { useAuth } from './composables/useAuth.js'
 import { useStorage } from './composables/useStorage.js'
-import { localDateStr } from './lib/date.js'
+import { localDateStr, currentStreak } from './lib/date.js'
 import AuthScreen from './components/AuthScreen.vue'
 import LanguageSetup from './components/LanguageSetup.vue'
 import LogForm from './components/LogForm.vue'
@@ -286,22 +286,7 @@ const recentEntries = computed(() => {
     .slice(0, recentLimit.value)
 })
 
-const todayStreak = computed(() => {
-  if (data.value.entries.length === 0) return 0
-  const sortedDates = [...new Set(data.value.entries.map(e => e.date))].sort().reverse()
-  let streak = 0
-  let checkDate = new Date()
-  for (const dateStr of sortedDates) {
-    const entryDate = new Date(dateStr)
-    const diffDays = Math.floor((checkDate - entryDate) / (1000 * 60 * 60 * 24))
-    if (diffDays === streak) {
-      streak++
-    } else if (diffDays > streak) {
-      break
-    }
-  }
-  return streak
-})
+const todayStreak = computed(() => currentStreak(data.value.entries.map(e => e.date)))
 
 const todayMinutes = computed(() => {
   const today = localDateStr(new Date())

@@ -9,7 +9,7 @@
     
     <div class="grid grid-cols-3 gap-4">
       <div class="text-center">
-        <div class="text-3xl font-bold text-green-600">{{ currentStreak }}</div>
+        <div class="text-3xl font-bold text-green-600">{{ currentStreakVal }}</div>
         <div class="text-xs text-gray-500 mt-1">Current Streak</div>
         <div class="text-xs text-gray-400">days</div>
       </div>
@@ -31,13 +31,7 @@
 
 <script setup>
 import { computed } from 'vue'
-
-function localDateStr(date) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
+import { localDateStr, currentStreak } from '../lib/date.js'
 
 const props = defineProps({
   entries: {
@@ -62,26 +56,7 @@ const activeFilterLabel = computed(() => {
   return `${name} (${props.filter.types.join(', ')})`
 })
 
-const currentStreak = computed(() => {
-  if (props.entries.length === 0) return 0
-  
-  const sortedDates = [...new Set(props.entries.map(e => e.date))].sort().reverse()
-  let streak = 0
-  let checkDate = new Date()
-  
-  for (const dateStr of sortedDates) {
-    const entryDate = new Date(dateStr)
-    const diffDays = Math.floor((checkDate - entryDate) / (1000 * 60 * 60 * 24))
-    
-    if (diffDays === streak) {
-      streak++
-    } else if (diffDays > streak) {
-      break
-    }
-  }
-  
-  return streak
-})
+const currentStreakVal = computed(() => currentStreak(props.entries.map(e => e.date)))
 
 const totalHoursThisWeek = computed(() => {
   const now = new Date()
