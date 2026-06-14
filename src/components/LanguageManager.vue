@@ -28,14 +28,20 @@
               <label class="block text-xs font-medium text-gray-600 mb-1">Language</label>
               <LanguageAutocomplete ref="autocompleteRef" :exclude="existingNames" @select="onLanguageSelect" />
             </div>
-            <div class="flex gap-3">
-              <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Color</label>
-                <input v-model="color" type="color" class="w-10 h-10 rounded cursor-pointer" />
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Color</label>
+              <div class="flex gap-1.5 mt-1">
+                <button v-for="c in PALETTE" :key="c"
+                  @click="color = c"
+                  class="w-8 h-8 rounded-full border-2 transition-all"
+                  :class="c === color ? 'border-gray-800 scale-110' : 'border-gray-200 hover:border-gray-400'"
+                  :style="{ backgroundColor: c }"
+                ></button>
               </div>
-              <div class="flex-1">
-                <label class="block text-xs font-medium text-gray-600 mb-1">Activity Types</label>
-                <div class="flex flex-wrap gap-1.5 mt-1">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Activity Types</label>
+              <div class="flex flex-wrap gap-1.5 mt-1">
                   <button
                     v-for="type in ACTIVITY_TYPES"
                     :key="type"
