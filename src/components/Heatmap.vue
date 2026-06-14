@@ -127,13 +127,14 @@
               <div v-for="(day, di) in week" :key="di"
                 class="garden-cell w-3 h-3 rounded-[1px] cursor-pointer relative overflow-hidden"
                 :class="{
-                  'ring-[0.5px] ring-yellow-400/70': streakDaysSet.has(day.date)
+                  'opacity-0 pointer-events-none': !day.inRange,
+                  'ring-[0.5px] ring-yellow-400/70': day.inRange && streakDaysSet.has(day.date)
                 }"
-                :style="day.totalMinutes > 0 ? { backgroundColor: dayBgColor(day) } : { backgroundColor: '#f3f4f6' }"
-                @mouseenter="showTooltip(day, $event)"
+                :style="day.inRange ? { backgroundColor: day.totalMinutes > 0 ? dayBgColor(day) : '#f3f4f6' } : { background: 'transparent' }"
+                @mouseenter="day.inRange && showTooltip(day, $event)"
                 @mouseleave="hideTooltip()"
               >
-                <div v-if="useMosaic && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px p-px">
+                <div v-if="day.inRange && useMosaic && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px p-px">
                   <div v-for="(color, si) in getMosaicGrid(day, 2)" :key="si"
                     class="rounded-[0.5px]"
                     :class="color ? '' : 'invisible'"
