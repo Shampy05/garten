@@ -31,8 +31,8 @@
             class="flex-1 aspect-square rounded-md cursor-pointer relative"
             :class="{ 'opacity-0 pointer-events-none': !day.inRange }"
             :style="day.inRange ? getCellStyle(day) : { background: 'transparent' }"
-            @mouseenter="day.inRange && (hoveredDay = day)"
-            @mouseleave="hoveredDay = null"
+            @mouseenter="day.inRange && showTooltip(day, $event)"
+            @mouseleave="hideTooltip()"
           >
             <div v-if="day.inRange" class="absolute inset-0 overflow-hidden rounded-md pointer-events-none">
               <span class="absolute top-0.5 left-1 text-[9px] font-medium text-gray-500/60 leading-none select-none">
@@ -45,19 +45,7 @@
                 ></div>
               </div>
             </div>
-            <div v-if="hoveredDay && hoveredDay.date === day.date && hoveredDay.inRange"
-              class="absolute left-1/2 transform -translate-x-1/2 z-50 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg pointer-events-auto max-w-[90vw]"
-              :class="wi < 2 ? 'top-full mt-1' : 'bottom-full mb-1'"
-            >
-              <div class="font-semibold">{{ day.date }}</div>
-              <div v-if="day.totalMinutes === 0">No activity</div>
-              <div v-else>
-                <div>Total: {{ formatTime(day.totalMinutes) }}</div>
-                <div v-for="(activity, idx) in day.activities" :key="idx" class="text-gray-300">
-                  {{ activity.language }} {{ activity.type }}: {{ formatTime(activity.minutes) }}
-                </div>
-              </div>
-            </div>
+
           </div>
         </div>
       </div>
@@ -85,8 +73,8 @@
                   class="rounded-sm cursor-pointer relative"
                   :class="{ 'opacity-0 pointer-events-none': !day.inRange }"
                   :style="day.inRange ? { ...getCellStyle(day), width: cellSizeQ + 'px', height: cellSizeQ + 'px' } : { width: cellSizeQ + 'px', height: cellSizeQ + 'px', background: 'transparent' }"
-                  @mouseenter="day.inRange && (hoveredDay = day)"
-                  @mouseleave="hoveredDay = null"
+                  @mouseenter="day.inRange && showTooltip(day, $event)"
+                  @mouseleave="hideTooltip()"
                 >
                   <div v-if="day.inRange" class="absolute inset-0 overflow-hidden rounded-sm pointer-events-none">
                     <span class="absolute top-0.5 left-1 text-[8px] font-medium text-gray-500/60 leading-none select-none">
@@ -99,19 +87,7 @@
                       ></div>
                     </div>
                   </div>
-                  <div v-if="hoveredDay && hoveredDay.date === day.date && hoveredDay.inRange"
-                    class="absolute left-1/2 transform -translate-x-1/2 z-50 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg pointer-events-auto max-w-[90vw]"
-                    :class="wi < 2 ? 'top-full mt-1' : 'bottom-full mb-1'"
-                  >
-                    <div class="font-semibold">{{ day.date }}</div>
-                    <div v-if="day.totalMinutes === 0">No activity</div>
-                    <div v-else>
-                      <div>Total: {{ formatTime(day.totalMinutes) }}</div>
-                      <div v-for="(activity, idx) in day.activities" :key="idx" class="text-gray-300">
-                        {{ activity.language }} {{ activity.type }}: {{ formatTime(activity.minutes) }}
-                      </div>
-                    </div>
-                  </div>
+
                 </div>
               </div>
             </div>
@@ -137,22 +113,10 @@
               <div v-for="(day, di) in week" :key="di"
                 class="garden-cell w-3 h-3 rounded-sm cursor-pointer relative"
                 :style="getCellStyle(day)"
-                @mouseenter="hoveredDay = day"
-                @mouseleave="hoveredDay = null"
+                @mouseenter="showTooltip(day, $event)"
+                @mouseleave="hideTooltip()"
               >
-                <div v-if="hoveredDay && hoveredDay.date === day.date"
-                  class="absolute left-1/2 transform -translate-x-1/2 z-50 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg pointer-events-auto max-w-[90vw]"
-                  :class="wi < 2 ? 'top-full mt-1' : 'bottom-full mb-1'"
-                >
-                  <div class="font-semibold">{{ day.date }}</div>
-                  <div v-if="day.totalMinutes === 0">No activity</div>
-                  <div v-else>
-                    <div>Total: {{ formatTime(day.totalMinutes) }}</div>
-                    <div v-for="(activity, idx) in day.activities" :key="idx" class="text-gray-300">
-                      {{ activity.language }} {{ activity.type }}: {{ formatTime(activity.minutes) }}
-                    </div>
-                  </div>
-                </div>
+
               </div>
             </div>
           </div>
@@ -160,6 +124,26 @@
       </div>
     </div>
   </div>
+
+  <Teleport to="body">
+    <div v-if="tooltip"
+      class="fixed z-50 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg pointer-events-none"
+      :style="{
+        left: tooltip.x + 'px',
+        top: tooltip.y + 'px',
+        transform: 'translateX(-50%)' + (tooltip.above ? ' translateY(-100%)' : '')
+      }"
+    >
+      <div class="font-semibold">{{ tooltip.day.date }}</div>
+      <div v-if="tooltip.day.totalMinutes === 0">No activity</div>
+      <div v-else>
+        <div>Total: {{ formatTime(tooltip.day.totalMinutes) }}</div>
+        <div v-for="(activity, idx) in tooltip.day.activities" :key="idx" class="text-gray-300">
+          {{ activity.language }} {{ activity.type }}: {{ formatTime(activity.minutes) }}
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -173,7 +157,24 @@ const props = defineProps({
   viewDate: { type: Date, default: () => new Date() }
 })
 
-const hoveredDay = ref(null)
+const tooltip = ref(null)
+
+const showTooltip = (day, event) => {
+  const cell = event.currentTarget
+  const rect = cell.getBoundingClientRect()
+  const above = rect.top > window.innerHeight / 2
+  tooltip.value = {
+    day,
+    x: rect.left + rect.width / 2,
+    y: above ? rect.top - 8 : rect.bottom + 8,
+    above
+  }
+}
+
+const hideTooltip = () => {
+  tooltip.value = null
+}
+
 const dayLabels = ['Mon', 'Wed', 'Fri']
 const fullDayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const dayLabelSizeQ = 16

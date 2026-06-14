@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-6 transition-all">
+  <div class="mb-6">
     <!-- Collapsed state -->
     <div v-if="step === 0" class="text-center">
       <button
@@ -12,7 +12,7 @@
     </div>
 
     <!-- Expanded state -->
-    <div v-else>
+    <div v-else class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 transition-all">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-semibold text-gray-800">Log Session</h3>
         <button @click="reset" class="text-sm text-gray-400 hover:text-gray-600 transition-colors">Cancel</button>
