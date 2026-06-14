@@ -121,30 +121,26 @@
             :key="entry.id"
             class="p-3 bg-gray-50 rounded-lg"
           >
-            <div class="flex flex-wrap items-center gap-1">
+            <div class="flex items-center gap-2">
               <div class="w-3 h-3 rounded-full flex-shrink-0"
                 :style="{ backgroundColor: getLanguageColor(entry.languageId) }"
               ></div>
               <span class="font-medium text-gray-700 text-sm">{{ getLanguageName(entry.languageId) }}</span>
-              <span class="text-gray-500 text-sm">{{ entry.type }}</span>
-              <span class="text-xs text-gray-400">{{ entry.date }}</span>
-              <span class="text-sm font-medium text-gray-600 ml-auto">
+              <span class="text-gray-400 text-xs">·</span>
+              <span class="text-gray-500 text-xs capitalize">{{ entry.type }}</span>
+              <span class="text-gray-400 text-xs">·</span>
+              <span class="text-gray-400 text-xs">{{ entry.date }}</span>
+              <span class="text-sm font-medium text-gray-600 ml-auto mr-2">
                 {{ entry.hours }}h {{ entry.minutes }}m
               </span>
-              <button
-                @click="openEdit(entry)"
-                class="text-gray-400 hover:text-gray-600 text-xs"
-              >
-                Edit
-              </button>
-              <button
-                @click="deleteEntry(entry.id)"
-                class="text-red-500 hover:text-red-700 text-xs"
-              >
-                Delete
-              </button>
             </div>
-            <p v-if="entry.notes" class="text-xs text-gray-400 mt-1 pl-4">{{ entry.notes }}</p>
+            <div class="flex items-center gap-3 mt-1.5 pl-5">
+              <p v-if="entry.notes" class="text-xs text-gray-400 truncate flex-1">{{ entry.notes }}</p>
+              <div class="flex items-center gap-2 ml-auto flex-shrink-0">
+                <button @click="openEdit(entry)" class="text-gray-400 hover:text-gray-600 text-xs">Edit</button>
+                <button @click="deleteEntry(entry.id)" class="text-red-400 hover:text-red-600 text-xs">Delete</button>
+              </div>
+            </div>
           </div>
 
           <div v-if="recentEntries.length === 0" class="text-center py-8 text-gray-400">
