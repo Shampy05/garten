@@ -127,18 +127,20 @@
 
   <Teleport to="body">
     <div v-if="tooltip"
-      class="fixed z-50 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg pointer-events-none"
+      class="fixed z-50 px-3 py-2.5 bg-gray-900 text-white text-xs rounded-lg shadow-lg pointer-events-none leading-relaxed"
       :style="{
         left: tooltip.x + 'px',
         top: tooltip.y + 'px',
-        transform: 'translateX(-50%)' + (tooltip.above ? ' translateY(-100%)' : '')
+        transform: 'translateX(-50%)' + (tooltip.above ? ' translateY(-100%)' : ''),
+        maxWidth: 'min(90vw, 340px)',
+        minWidth: '160px'
       }"
     >
       <div class="font-semibold">{{ tooltip.day.date }}</div>
       <div v-if="tooltip.day.totalMinutes === 0">No activity</div>
       <div v-else>
         <div>Total: {{ formatTime(tooltip.day.totalMinutes) }}</div>
-        <div v-for="(activity, idx) in tooltip.day.activities" :key="idx" class="text-gray-300">
+        <div v-for="(activity, idx) in tooltip.day.activities" :key="idx" class="text-gray-300 truncate">
           {{ activity.language }} {{ activity.type }}: {{ formatTime(activity.minutes) }}
         </div>
       </div>
@@ -158,20 +160,32 @@ const props = defineProps({
 })
 
 const tooltip = ref(null)
+let scrollCleanup = null
 
 const showTooltip = (day, event) => {
   const cell = event.currentTarget
   const rect = cell.getBoundingClientRect()
   const above = rect.top > window.innerHeight / 2
-  tooltip.value = {
-    day,
-    x: rect.left + rect.width / 2,
-    y: above ? rect.top - 8 : rect.bottom + 8,
-    above
+
+  if (scrollCleanup) {
+    window.removeEventListener('scroll', scrollCleanup)
   }
+
+  scrollCleanup = () => { tooltip.value = null }
+  window.addEventListener('scroll', scrollCleanup, { passive: true })
+
+  const halfW = 100
+  const x = Math.max(10 + halfW, Math.min(rect.left + rect.width / 2, window.innerWidth - 10 - halfW))
+  const y = above ? rect.top - 8 : rect.bottom + 8
+
+  tooltip.value = { day, x, y, above }
 }
 
 const hideTooltip = () => {
+  if (scrollCleanup) {
+    window.removeEventListener('scroll', scrollCleanup)
+    scrollCleanup = null
+  }
   tooltip.value = null
 }
 
