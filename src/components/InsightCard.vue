@@ -1,23 +1,40 @@
 <template>
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mt-6">
     <h3 class="text-lg font-semibold text-gray-800 mb-4">Insights</h3>
-    <div class="text-sm text-gray-700 leading-relaxed space-y-1">
-      <p v-if="topLanguage && periodEntries.length > 0">
-        This <span class="text-gray-500">{{ periodLabel }}</span>,
-        <span class="font-medium" :style="{ color: topLanguage.color }">{{ topLanguage.name }}</span>
-        was your top language ({{ topLanguage.hours }}h).
-      </p>
-      <p v-if="longestStreak.days >= 2">
-        Your longest streak was <span class="font-medium">{{ longestStreak.days }} days</span>
-        ({{ longestStreak.language }}).
-      </p>
-      <p v-for="bias in weekendBiases" :key="bias.name">
-        You studied <span class="font-medium" :style="{ color: bias.color }">{{ bias.name }}</span>
-        {{ bias.bias }}.
-      </p>
-      <p v-if="periodEntries.length === 0" class="text-gray-400 italic">
-        Not enough data to generate insights yet. Start logging your sessions!
-      </p>
+    <div v-if="periodEntries.length === 0" class="text-sm text-gray-400 italic">
+      Not enough data to generate insights yet. Start logging your sessions!
+    </div>
+    <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div class="bg-gray-50 rounded-lg p-3">
+        <div class="text-xs text-gray-500 mb-1">Total logged</div>
+        <div class="text-lg font-bold text-gray-800">{{ totalHours }}h</div>
+        <div class="text-[10px] text-gray-400">this {{ periodLabel }}</div>
+      </div>
+      <div class="bg-gray-50 rounded-lg p-3">
+        <div class="text-xs text-gray-500 mb-1">Languages</div>
+        <div class="text-lg font-bold text-gray-800">{{ languageCount }}</div>
+        <div class="text-[10px] text-gray-400">active</div>
+      </div>
+      <div class="bg-gray-50 rounded-lg p-3">
+        <div class="text-xs text-gray-500 mb-1">Daily avg</div>
+        <div class="text-lg font-bold text-gray-800">{{ dailyAvg }}</div>
+        <div class="text-[10px] text-gray-400">min / day</div>
+      </div>
+      <div v-if="bestStreak.days >= 3" class="bg-gray-50 rounded-lg p-3">
+        <div class="text-xs text-gray-500 mb-1">Best streak</div>
+        <div class="text-lg font-bold text-gray-800">{{ bestStreak.days }}d</div>
+        <div class="text-[10px] text-gray-400">{{ bestStreak.language }}</div>
+      </div>
+      <div v-if="busiestDay" class="bg-gray-50 rounded-lg p-3">
+        <div class="text-xs text-gray-500 mb-1">Busiest day</div>
+        <div class="text-lg font-bold text-gray-800">{{ busiestDay }}</div>
+        <div class="text-[10px] text-gray-400">{{ busiestDayHours }}h logged</div>
+      </div>
+      <div v-if="topLanguage" class="bg-gray-50 rounded-lg p-3">
+        <div class="text-xs text-gray-500 mb-1">Top language</div>
+        <div class="text-lg font-bold" :style="{ color: topLanguage.color }">{{ topLanguage.name }}</div>
+        <div class="text-[10px] text-gray-400">{{ topLanguage.hours }}h</div>
+      </div>
     </div>
   </div>
 </template>
@@ -72,33 +89,44 @@ const periodEntries = computed(() => {
 })
 
 const periodLabel = computed(() => {
-  switch (props.viewMode) {
-    case 'month': return 'month'
-    case 'quarter': return 'quarter'
-    case 'year': return 'year'
-    default: return 'period'
-  }
+  const labels = { month: 'month', quarter: 'quarter', year: 'year' }
+  return labels[props.viewMode] || 'period'
+})
+
+const totalMinutes = computed(() =>
+  periodEntries.value.reduce((sum, e) => sum + e.hours * 60 + e.minutes, 0)
+)
+
+const totalHours = computed(() => (totalMinutes.value / 60).toFixed(1))
+
+const languageCount = computed(() => {
+  const ids = new Set(periodEntries.value.map(e => e.languageId))
+  return ids.size
+})
+
+const dailyAvg = computed(() => {
+  const uniqueDays = new Set(periodEntries.value.map(e => e.date)).size
+  return uniqueDays > 0 ? Math.round(totalMinutes.value / uniqueDays) : 0
 })
 
 const topLanguage = computed(() => {
-  const minutesByLang = {}
+  const byLang = {}
   for (const e of periodEntries.value) {
-    minutesByLang[e.languageId] = (minutesByLang[e.languageId] || 0) + (e.hours * 60 + e.minutes)
+    byLang[e.languageId] = (byLang[e.languageId] || 0) + e.hours * 60 + e.minutes
   }
-  const sorted = Object.entries(minutesByLang).sort((a, b) => b[1] - a[1])
+  const sorted = Object.entries(byLang).sort((a, b) => b[1] - a[1])
   if (sorted.length === 0) return null
-  const [langId, totalMin] = sorted[0]
+  const [langId, mins] = sorted[0]
   const lang = props.languages.find(l => l.id === langId)
-  return { name: lang ? lang.name : langId, hours: (totalMin / 60).toFixed(1), color: lang ? lang.color : '#16a34a' }
+  return { name: lang ? lang.name : langId, hours: (mins / 60).toFixed(1), color: lang ? lang.color : '#16a34a' }
 })
 
-const longestStreak = computed(() => {
+const bestStreak = computed(() => {
   const langDates = {}
   for (const e of props.entries) {
     if (!langDates[e.languageId]) langDates[e.languageId] = new Set()
     langDates[e.languageId].add(e.date)
   }
-
   let best = { days: 0, language: '' }
   for (const [langId, dateSet] of Object.entries(langDates)) {
     const sorted = [...dateSet].sort()
@@ -117,35 +145,30 @@ const longestStreak = computed(() => {
     }
     if (maxStreak > best.days) {
       const lang = props.languages.find(l => l.id === langId)
-      best = { days: maxStreak, language: lang ? lang.name : langId, langId }
+      best = { days: maxStreak, language: lang ? lang.name : langId }
     }
   }
   return best
 })
 
-const weekendBiases = computed(() => {
-  const langCounts = {}
+const busiestDay = computed(() => {
+  const dayMins = [0, 0, 0, 0, 0, 0, 0]
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   for (const e of periodEntries.value) {
-    if (!langCounts[e.languageId]) langCounts[e.languageId] = { weekend: 0, weekday: 0 }
     const d = new Date(e.date + 'T12:00:00')
-    const day = d.getDay()
-    const mins = e.hours * 60 + e.minutes
-    if (day === 0 || day === 6) {
-      langCounts[e.languageId].weekend += mins
-    } else {
-      langCounts[e.languageId].weekday += mins
-    }
+    dayMins[d.getDay()] += e.hours * 60 + e.minutes
   }
+  const maxIdx = dayMins.indexOf(Math.max(...dayMins))
+  if (dayMins[maxIdx] === 0) return null
+  return dayNames[maxIdx]
+})
 
-  return Object.entries(langCounts)
-    .map(([langId, counts]) => {
-      const total = counts.weekend + counts.weekday
-      if (total === 0) return null
-      const weekendPct = (counts.weekend / total) * 100
-      const lang = props.languages.find(l => l.id === langId)
-      const bias = weekendPct > 60 ? 'mostly on weekends' : (weekendPct < 30 ? 'mostly on weekdays' : '')
-      return bias ? { name: lang ? lang.name : langId, color: lang ? lang.color : '#16a34a', bias } : null
-    })
-    .filter(Boolean)
+const busiestDayHours = computed(() => {
+  const dayMins = [0, 0, 0, 0, 0, 0, 0]
+  for (const e of periodEntries.value) {
+    const d = new Date(e.date + 'T12:00:00')
+    dayMins[d.getDay()] += e.hours * 60 + e.minutes
+  }
+  return (Math.max(...dayMins) / 60).toFixed(1)
 })
 </script>

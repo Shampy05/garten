@@ -267,7 +267,8 @@ const getMosaicGrid = (day, gridSize = 5) => {
     return Array(maxSquares).fill(getColorAtIntensity(color, day.totalMinutes))
   }
 
-  const filled = Math.min(Math.ceil(day.totalMinutes / (gridSize === 2 ? 30 : gridSize === 3 ? 15 : 5)), maxSquares)
+  let filled = Math.min(Math.ceil(day.totalMinutes / (gridSize === 2 ? 30 : gridSize === 3 ? 15 : 5)), maxSquares)
+  if (filled >= maxSquares - 1) filled = maxSquares
   const totalMins = Object.values(groups).reduce((s, v) => s + v, 0)
   const colors = []
   let remaining = filled
