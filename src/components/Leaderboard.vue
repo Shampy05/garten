@@ -30,7 +30,7 @@
           :style="dot.active ? { backgroundColor: item.color } : {}"
           :title="dot.date"
         ></div>
-        <span class="text-[10px] text-gray-400 ml-1.5">· {{ item.daysActive }} days this {{ periodLabel }}</span>
+        <span class="text-[10px] text-gray-400 ml-1.5 whitespace-nowrap">· {{ item.daysActive }} {{ item.daysActive === 1 ? 'day' : 'days' }}</span>
       </div>
 
       <div class="h-1 bg-gray-100 rounded-full overflow-hidden ml-7">
@@ -56,11 +56,6 @@ function localDateStr(date) {
   const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
 }
-
-const periodLabel = computed(() => {
-  const labels = { month: 'month', quarter: 'quarter', year: 'year' }
-  return labels[props.viewMode] || 'month'
-})
 
 const dateRange = computed(() => {
   const d = props.viewDate

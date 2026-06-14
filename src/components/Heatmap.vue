@@ -87,24 +87,33 @@
               <div v-for="(week, wi) in monthData.weeks" :key="wi" class="flex flex-col gap-1">
                 <div :style="{ height: dayLabelSizeQ + 'px' }"></div>
                 <div v-for="(day, di) in week" :key="di"
-                  class="rounded-sm cursor-pointer relative"
-                  :class="{ 'opacity-0 pointer-events-none': !day.inRange }"
-                  :style="day.inRange ? { ...getCellStyle(day), width: cellSizeQ + 'px', height: cellSizeQ + 'px' } : { width: cellSizeQ + 'px', height: cellSizeQ + 'px', background: 'transparent' }"
+                  class="rounded-sm cursor-pointer relative overflow-hidden"
+                  :class="{
+                    'opacity-0 pointer-events-none': !day.inRange,
+                    'ring-1 ring-yellow-400/70 shadow-[0_0_4px_rgba(250,204,21,0.2)]': day.inRange && streakDaysSet.has(day.date)
+                  }"
+                  :style="day.inRange ? { backgroundColor: '#f3f4f6', width: cellSizeQ + 'px', height: cellSizeQ + 'px' } : { width: cellSizeQ + 'px', height: cellSizeQ + 'px', background: 'transparent' }"
                   @mouseenter="day.inRange && showTooltip(day, $event)"
                   @mouseleave="hideTooltip()"
                 >
-                  <div v-if="day.inRange" class="absolute inset-0 overflow-hidden rounded-sm pointer-events-none">
-                    <span class="absolute top-0.5 left-1 text-[8px] font-medium text-gray-500/60 leading-none select-none">
+                  <div v-if="day.inRange" class="absolute inset-0 pointer-events-none">
+                    <div v-if="day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-px p-px">
+                      <div v-for="(color, si) in getMosaicGrid(day, 3)" :key="si"
+                        class="rounded-[0.5px]"
+                        :class="color ? '' : 'invisible'"
+                        :style="color ? { backgroundColor: color } : {}"
+                      ></div>
+                    </div>
+                    <span class="absolute top-px left-0.5 text-[6px] font-medium text-gray-500/60 leading-none select-none z-10">
                       {{ getDayNumber(day) }}
                     </span>
-                    <div v-if="day.totalMinutes > 0" class="absolute bottom-0 left-0 right-0 h-[5px] flex rounded-b-sm overflow-hidden">
+                    <div v-if="day.totalMinutes > 0" class="absolute bottom-0 left-0 right-0 h-[2px] flex z-10">
                       <div v-for="(seg, si) in getStackBars(day)" :key="si"
                         class="h-full"
                         :style="{ width: seg.percent + '%', backgroundColor: seg.color }"
                       ></div>
                     </div>
                   </div>
-
                 </div>
               </div>
             </div>
@@ -128,12 +137,21 @@
               <div v-if="wi % 4 === 0" class="h-3 text-xs text-gray-400">{{ getMonthLabel(week) }}</div>
               <div v-else class="h-3"></div>
               <div v-for="(day, di) in week" :key="di"
-                class="garden-cell w-3 h-3 rounded-sm cursor-pointer relative"
-                :style="getCellStyle(day)"
+                class="garden-cell w-3 h-3 rounded-[1px] cursor-pointer relative overflow-hidden"
+                :class="{
+                  'ring-[0.5px] ring-yellow-400/70': streakDaysSet.has(day.date)
+                }"
+                :style="day.totalMinutes > 0 ? {} : { backgroundColor: '#f3f4f6' }"
                 @mouseenter="showTooltip(day, $event)"
                 @mouseleave="hideTooltip()"
               >
-
+                <div v-if="day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px p-px">
+                  <div v-for="(color, si) in getMosaicGrid(day, 2)" :key="si"
+                    class="rounded-[0.5px]"
+                    :class="color ? '' : 'invisible'"
+                    :style="color ? { backgroundColor: color } : {}"
+                  ></div>
+                </div>
               </div>
             </div>
           </div>
@@ -246,10 +264,10 @@ const getStackBars = (day) => {
   })
 }
 
-const getMosaicGrid = (day) => {
+const getMosaicGrid = (day, gridSize = 5) => {
   if (day.totalMinutes === 0) return []
-  const maxSquares = 25
-  const filled = Math.min(Math.ceil(day.totalMinutes / 5), maxSquares)
+  const maxSquares = gridSize * gridSize
+  const filled = Math.min(Math.ceil(day.totalMinutes / (gridSize === 2 ? 30 : gridSize === 3 ? 15 : 5)), maxSquares)
   const groups = getLanguageActivities(day)
   const entries = Object.entries(groups).sort((a, b) => b[1] - a[1])
   const totalMins = Object.values(groups).reduce((s, v) => s + v, 0)
