@@ -31,9 +31,3 @@ export const languages = [
   'Yiddish', 'Yoruba',
   'Zulu'
 ]
-
-export function matchLanguage(query) {
-  if (!query || query.length < 1) return []
-  const q = query.toLowerCase()
-  return languages.filter(l => l.toLowerCase().includes(q)).slice(0, 8)
-}
