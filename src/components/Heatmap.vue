@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-semibold text-gray-800">Your Garden</h3>
       <div class="flex items-center gap-2 text-sm flex-wrap">
-        <div v-if="filter.language" class="flex items-center gap-1">
+          <div v-if="!useMosaic" class="flex items-center gap-1">
           <span class="text-gray-500 text-xs">Less</span>
           <div class="flex gap-1">
             <div v-for="(level, index) in colorLevels" :key="index"
@@ -46,7 +46,7 @@
             @mouseleave="hideTooltip()"
           >
             <div v-if="day.inRange" class="absolute inset-0 pointer-events-none">
-              <div v-if="!filter.language && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-5 grid-rows-5 gap-[1.5px] p-[2px]">
+              <div v-if="useMosaic && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-5 grid-rows-5 gap-[1.5px] p-[2px]">
                 <div v-for="(color, si) in getMosaicGrid(day)" :key="si"
                   class="rounded-[1.5px]"
                   :class="color ? '' : 'invisible'"
@@ -91,7 +91,7 @@
                   @mouseleave="hideTooltip()"
                 >
                   <div v-if="day.inRange" class="absolute inset-0 pointer-events-none">
-                    <div v-if="!filter.language && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-px p-px">
+                    <div v-if="useMosaic && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-px p-px">
                       <div v-for="(color, si) in getMosaicGrid(day, 3)" :key="si"
                         class="rounded-[0.5px]"
                         :class="color ? '' : 'invisible'"
@@ -133,7 +133,7 @@
                 @mouseenter="showTooltip(day, $event)"
                 @mouseleave="hideTooltip()"
               >
-                <div v-if="!filter.language && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px p-px">
+                <div v-if="useMosaic && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px p-px">
                   <div v-for="(color, si) in getMosaicGrid(day, 2)" :key="si"
                     class="rounded-[0.5px]"
                     :class="color ? '' : 'invisible'"
@@ -248,8 +248,10 @@ const getLanguageActivities = (day) => {
 
 const dayBgColor = (day) => {
   if (day.totalMinutes === 0) return '#f3f4f6'
-  if (props.filter.language) {
-    const lang = props.languages.find(l => l.id === props.filter.language)
+  if (!useMosaic.value) {
+    const lang = props.filter.language
+      ? props.languages.find(l => l.id === props.filter.language)
+      : props.languages[0]
     return getColorAtIntensity(lang ? lang.color : '#16a34a', day.totalMinutes)
   }
   return '#f3f4f6'
@@ -267,19 +269,17 @@ const getMosaicGrid = (day, gridSize = 5) => {
     return Array(maxSquares).fill(getColorAtIntensity(color, day.totalMinutes))
   }
 
-  let filled = Math.min(Math.ceil(day.totalMinutes / (gridSize === 2 ? 30 : gridSize === 3 ? 15 : 5)), maxSquares)
-  if (filled >= maxSquares - 1) filled = maxSquares
   const totalMins = Object.values(groups).reduce((s, v) => s + v, 0)
 
   const allocation = entries.map(([langId, mins]) => {
-    const exact = (mins / totalMins) * filled
+    const exact = (mins / totalMins) * maxSquares
     return { langId, exact, floor: Math.floor(exact), remainder: exact - Math.floor(exact) }
   })
 
   let sum = allocation.reduce((s, a) => s + a.floor, 0)
   const sorted = [...allocation].sort((a, b) => b.remainder - a.remainder)
   let ri = 0
-  while (sum < filled && ri < sorted.length) {
+  while (sum < maxSquares && ri < sorted.length) {
     sorted[ri].floor++
     sum++
     ri++
@@ -365,6 +365,10 @@ const colorLevels = computed(() => {
     adjustColor(baseColor, 0.85), baseColor
   ]
 })
+
+const useMosaic = computed(() =>
+  !props.filter.language && activeLanguages.value.length > 1
+)
 
 const streakDaysSet = computed(() => {
   const dates = [...new Set(props.entries.map(e => e.date))].sort()
