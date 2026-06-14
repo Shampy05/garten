@@ -39,7 +39,8 @@
             class="flex-1 aspect-square rounded-md cursor-pointer relative overflow-hidden"
             :class="{
               'opacity-0 pointer-events-none': !day.inRange,
-              'ring-2 ring-yellow-400/70 shadow-[0_0_8px_rgba(250,204,21,0.25)]': day.inRange && streakDaysSet.has(day.date)
+              'ring-2 ring-yellow-400/70 shadow-[0_0_8px_rgba(250,204,21,0.25)]': day.inRange && streakDaysSet.has(day.date),
+              'ring-2 ring-blue-400/70': day.inRange && day.date === todayStr
             }"
             :style="day.inRange ? { backgroundColor: dayBgColor(day) } : { background: 'transparent' }"
             @mouseenter="day.inRange && showTooltip(day, $event)"
@@ -84,7 +85,8 @@
                   class="rounded-sm cursor-pointer relative overflow-hidden"
                   :class="{
                     'opacity-0 pointer-events-none': !day.inRange,
-                    'ring-1 ring-yellow-400/70 shadow-[0_0_4px_rgba(250,204,21,0.2)]': day.inRange && streakDaysSet.has(day.date)
+                    'ring-1 ring-yellow-400/70 shadow-[0_0_4px_rgba(250,204,21,0.2)]': day.inRange && streakDaysSet.has(day.date),
+                    'ring-1 ring-blue-400/70': day.inRange && day.date === todayStr
                   }"
                   :style="day.inRange ? { backgroundColor: dayBgColor(day), width: cellSizeQ + 'px', height: cellSizeQ + 'px' } : { width: cellSizeQ + 'px', height: cellSizeQ + 'px', background: 'transparent' }"
                   @mouseenter="day.inRange && showTooltip(day, $event)"
@@ -128,7 +130,8 @@
                 class="garden-cell w-3 h-3 rounded-[1px] cursor-pointer relative overflow-hidden"
                 :class="{
                   'opacity-0 pointer-events-none': !day.inRange,
-                  'ring-[0.5px] ring-yellow-400/70': day.inRange && streakDaysSet.has(day.date)
+                  'ring-[0.5px] ring-yellow-400/70': day.inRange && streakDaysSet.has(day.date),
+                  'ring-[0.5px] ring-blue-400/70': day.inRange && day.date === todayStr
                 }"
                 :style="day.inRange ? { backgroundColor: day.totalMinutes > 0 ? dayBgColor(day) : '#f3f4f6' } : { background: 'transparent' }"
                 @mouseenter="day.inRange && showTooltip(day, $event)"
@@ -184,6 +187,7 @@ const props = defineProps({
   viewDate: { type: Date, default: () => new Date() }
 })
 
+const todayStr = localDateStr(new Date())
 const tooltip = ref(null)
 let scrollCleanup = null
 
