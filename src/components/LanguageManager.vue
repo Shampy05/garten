@@ -31,11 +31,10 @@
             <div>
               <label class="block text-xs font-medium text-gray-600 mb-1">Color</label>
               <div class="flex flex-wrap gap-1.5 mt-1">
-                <button v-for="c in PALETTE" :key="c"
+                <button v-for="c in availableColors(color)" :key="c"
                   @click="color = c"
-                  :disabled="isColorTaken(c, color)"
                   class="w-8 h-8 rounded-full border-2 transition-all"
-                  :class="c.toLowerCase() === color?.toLowerCase() ? 'border-gray-800 scale-110' : isColorTaken(c, color) ? 'border-gray-200 opacity-30 cursor-not-allowed' : 'border-gray-200 hover:border-gray-400'"
+                  :class="c.toLowerCase() === color?.toLowerCase() ? 'border-gray-800 scale-110' : 'border-gray-200 hover:border-gray-400'"
                   :style="{ backgroundColor: c }"
                 ></button>
               </div>
@@ -109,21 +108,10 @@
                 {{ lang.name[0].toUpperCase() }}
               </div>
               <span class="font-bold text-white drop-shadow-sm">{{ lang.name }}</span>
-              <div class="ml-auto flex items-center gap-1.5">
-                <div class="flex flex-wrap justify-end gap-1 max-w-[140px]">
-                  <button v-for="c in PALETTE" :key="c"
-                    @click="updateColor(lang, c)"
-                    :disabled="isColorTaken(c, lang.color)"
-                    class="w-5 h-5 rounded-full border-2 transition-all"
-                    :class="c.toLowerCase() === lang.color?.toLowerCase() ? 'border-white scale-125' : isColorTaken(c, lang.color) ? 'border-white/20 opacity-30 cursor-not-allowed' : 'border-white/30 hover:border-white/60'"
-                    :style="{ backgroundColor: c }"
-                  ></button>
-                </div>
-                <button @click.stop="confirmDeleteLanguage(lang)"
-                  class="w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white/80 hover:text-white transition-colors text-xs ml-1"
-                  title="Remove language"
-                >✕</button>
-              </div>
+              <button @click.stop="confirmDeleteLanguage(lang)"
+                class="ml-auto w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white/80 hover:text-white transition-colors text-xs flex-shrink-0"
+                title="Remove language"
+              >✕</button>
             </div>
             <div class="flex items-center justify-center" :style="{ backgroundColor: lang.color + '08' }">
               <div class="w-full border-t-2 border-dashed mx-3" :style="{ borderColor: lang.color + '30' }"></div>
@@ -137,6 +125,18 @@
                 >
                   {{ type }}
                 </span>
+              </div>
+
+              <div class="mt-3 pt-3 border-t border-dashed" :style="{ borderColor: lang.color + '20' }">
+                <div class="text-[10px] text-gray-400 mb-1.5 font-semibold uppercase tracking-widest">Color</div>
+                <div class="flex flex-wrap gap-1.5">
+                  <button v-for="c in availableColors(lang.color)" :key="c"
+                    @click="updateColor(lang, c)"
+                    class="w-6 h-6 rounded-full border-2 transition-all"
+                    :class="c.toLowerCase() === lang.color?.toLowerCase() ? 'border-gray-700 scale-110' : 'border-transparent hover:border-gray-300'"
+                    :style="{ backgroundColor: c }"
+                  ></button>
+                </div>
               </div>
 
               <div class="mt-3 pt-3 border-t border-dashed" :style="{ borderColor: lang.color + '20' }">
@@ -245,12 +245,13 @@ const NATIVE_OPTIONS = NATIVE_LANGUAGES
 const existingNames = computed(() => props.languages.map(l => l.name))
 const existingColors = computed(() => props.languages.map(l => l.color))
 const usedColors = computed(() => new Set(existingColors.value.map(c => c?.toLowerCase())))
-// A swatch is unavailable when another language already owns that color. The
-// current language's own color is always still selectable. Used so both pickers
-// can show the whole palette and just disable what's taken, rather than hiding
-// colors (which made the available count look different in each place).
-const isColorTaken = (c, ownColor) =>
-  usedColors.value.has(c.toLowerCase()) && c.toLowerCase() !== ownColor?.toLowerCase()
+// Colors a language can pick: any not already owned by another language, plus
+// its own current color. The picker shows just these real choices — no
+// greyed-out "already taken" swatches to puzzle over.
+const availableColors = (ownColor) =>
+  PALETTE.filter(c =>
+    !usedColors.value.has(c.toLowerCase()) || c.toLowerCase() === ownColor?.toLowerCase()
+  )
 const showAddForm = ref(false)
 const { selectedLanguage, color, selectedTypes, autocompleteRef, onLanguageSelect, toggleType, getLanguageData, reset } = useLanguageForm(existingColors)
 
