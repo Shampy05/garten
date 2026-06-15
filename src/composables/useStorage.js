@@ -1,7 +1,8 @@
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch } from 'vue'
 import { supabase } from '../lib/supabase.js'
 import { getCached, setCache, clearCache } from '../lib/cache.js'
 import { useToast } from './useToast.js'
+import { useAuth } from './useAuth.js'
 
 function toSnake(entry) {
   return {
@@ -38,7 +39,7 @@ export function useStorage() {
   const loaded = ref(false)
   const weeklyGoal = ref(null)
   const nativeLanguage = ref(null)
-  const userId = ref(null)
+  const { userId } = useAuth()
   const toast = useToast()
 
   const loadData = async () => {
@@ -72,21 +73,19 @@ export function useStorage() {
     nativeLanguage.value = settings?.native_language ?? null
   }
 
-  onMounted(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-        userId.value = session?.user?.id ?? null
-        loadData()
-      } else if (event === 'SIGNED_OUT') {
-        userId.value = null
-        data.value = { languages: [], entries: [] }
-        weeklyGoal.value = null
-        nativeLanguage.value = null
-        loaded.value = false
-      }
-    })
-    onUnmounted(() => subscription.unsubscribe())
-  })
+  // React to the shared auth singleton instead of opening a second
+  // onAuthStateChange subscription. Fires immediately for the current session
+  // and again whenever the signed-in user changes.
+  watch(userId, (id) => {
+    if (id) {
+      loadData()
+    } else {
+      data.value = { languages: [], entries: [] }
+      weeklyGoal.value = null
+      nativeLanguage.value = null
+      loaded.value = false
+    }
+  }, { immediate: true })
 
   const addEntry = async (entry) => {
     if (!userId.value) return
