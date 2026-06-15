@@ -44,9 +44,19 @@
         </div>
 
         <div class="flex items-center justify-between mt-1.5 gap-2">
-          <span class="text-xs" :class="row.reached ? 'text-green-600 font-medium' : 'text-gray-400'">
-            {{ row.statusLabel }}
-          </span>
+          <div class="flex items-baseline gap-2 min-w-0">
+            <span class="text-xs whitespace-nowrap" :class="row.reached ? 'text-green-600 font-medium' : 'text-gray-400'">
+              {{ row.statusLabel }}
+            </span>
+            <span
+              v-if="row.momentumLabel"
+              class="text-[10px] font-medium whitespace-nowrap"
+              :class="row.momentumDir === 'up' ? 'text-green-600' : 'text-gray-400'"
+              :title="`Pace ${row.momentumDir === 'up' ? 'up' : 'down'} vs the previous 4 weeks`"
+            >
+              {{ row.momentumLabel }} vs last month
+            </span>
+          </div>
           <span class="text-[10px] text-gray-300 whitespace-nowrap">
             {{ row.totalHours }} / {{ row.target }}h
           </span>
@@ -65,15 +75,23 @@
     <p class="text-[10px] text-gray-300 mt-4 leading-relaxed">
       Targets estimate the hours to professional working proficiency (~CEFR B2/C1) for
       English speakers, based on FSI language-difficulty research. Ticks mark the A2, B1
-      and B2 milestones; forecasts use your last 4 weeks of logging.
+      and B2 milestones. Forecasts weight your recent sessions more heavily and flag whether
+      your pace is rising or falling versus the previous month.
     </p>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { localDateStr } from '../lib/date.js'
-import { targetHours, forecastMonths, LEVELS } from '../lib/proficiency.js'
+import { localDateStr, daysBetween } from '../lib/date.js'
+import {
+  targetHours,
+  forecastMonths,
+  weightedWeeklyPace,
+  paceMomentum,
+  PACE_WINDOW_DAYS,
+  LEVELS,
+} from '../lib/proficiency.js'
 
 const props = defineProps({
   entries: { type: Array, required: true },
@@ -97,21 +115,32 @@ const milestones = computed(() =>
   }))
 )
 
-// Minutes logged per language, all-time and over the trailing 28 days.
+// All-time minutes per language, plus a per-day breakdown over the trailing
+// pace window (indexed by days-ago) that feeds the recency-weighted forecast.
 const stats = computed(() => {
-  const cutoff = new Date()
-  cutoff.setDate(cutoff.getDate() - 28)
-  const cutoffStr = localDateStr(cutoff)
+  const todayStr = localDateStr(new Date())
 
   const total = {}
-  const recent = {}
+  const daily = {} // languageId -> array indexed by days-ago
   for (const e of props.entries) {
     const mins = e.hours * 60 + e.minutes
     total[e.languageId] = (total[e.languageId] || 0) + mins
-    if (e.date >= cutoffStr) recent[e.languageId] = (recent[e.languageId] || 0) + mins
+
+    const age = daysBetween(e.date, todayStr)
+    if (age >= 0 && age < PACE_WINDOW_DAYS) {
+      if (!daily[e.languageId]) daily[e.languageId] = new Array(PACE_WINDOW_DAYS).fill(0)
+      daily[e.languageId][age] += mins
+    }
   }
-  return { total, recent }
+  return { total, daily }
 })
+
+// Minutes logged in the last 28 days, from the per-day buckets.
+function recentMinutes(minutesByAge) {
+  let sum = 0
+  for (let age = 0; age < 28; age++) sum += minutesByAge[age] || 0
+  return sum
+}
 
 function fmtForecast(months) {
   if (months == null || months > MAX_FORECAST_MONTHS) return null
@@ -133,8 +162,9 @@ const rows = computed(() => {
       const loggedPct = Math.min((loggedHours / target) * 100, 100 - priorPct)
       const pct = Math.min((totalHours / target) * 100, 100)
 
-      const recentHours = (stats.value.recent[lang.id] || 0) / 60
-      const weeklyPace = recentHours / 4
+      const minutesByAge = stats.value.daily[lang.id] || []
+      const recentHours = recentMinutes(minutesByAge) / 60
+      const weeklyPace = weightedWeeklyPace(minutesByAge)
       const remaining = Math.max(target - totalHours, 0)
 
       let statusLabel
@@ -148,6 +178,18 @@ const rows = computed(() => {
         statusLabel = forecast || `${Math.round(remaining)}h to go`
       }
 
+      // Momentum vs the previous 4 weeks — only when it's a meaningful swing.
+      let momentumLabel = null
+      let momentumDir = null
+      if (!reached) {
+        const m = paceMomentum(minutesByAge)
+        if (m != null && Math.abs(m) >= 0.1) {
+          const pct = Math.round(m * 100)
+          momentumDir = pct > 0 ? 'up' : 'down'
+          momentumLabel = `${pct > 0 ? '+' : '−'}${Math.abs(pct)}%`
+        }
+      }
+
       return {
         id: lang.id,
         name: lang.name,
@@ -158,6 +200,8 @@ const rows = computed(() => {
         loggedPct,
         reached,
         statusLabel,
+        momentumLabel,
+        momentumDir,
         pctLabel: pct === 0 ? '0%' : pct < 1 ? '<1%' : `${Math.round(pct)}%`,
         active: totalHours > 0 || recentHours > 0,
         sortKey: totalHours / target,

@@ -81,3 +81,46 @@ export function forecastMonths(remainingHours, weeklyPaceHours) {
   const weeks = remainingHours / weeklyPaceHours
   return weeks / 4.345 // avg weeks per month
 }
+
+// --- Trend-aware pace -------------------------------------------------------
+//
+// A flat N-day average has two problems: a single session ageing out of the
+// window makes the ETA jump (whipsaw), and it can't tell someone ramping up
+// from someone winding down. Instead we look back over a longer window and
+// weight recent days more heavily with exponential decay — no hard cliff, and
+// the pace tracks current behaviour.
+
+export const PACE_WINDOW_DAYS = 56 // 8 weeks of context
+export const PACE_HALF_LIFE_DAYS = 14 // a day's contribution halves every 2 weeks
+
+// minutesByAge: array indexed by days-ago (0 = today) holding minutes logged
+// that day. Returns an exponentially-weighted pace in hours per week.
+export function weightedWeeklyPace(minutesByAge) {
+  const tau = PACE_HALF_LIFE_DAYS / Math.LN2
+  let weightSum = 0
+  let weightedMinutes = 0
+  for (let age = 0; age < PACE_WINDOW_DAYS; age++) {
+    const w = Math.exp(-age / tau)
+    weightSum += w
+    weightedMinutes += w * (minutesByAge[age] || 0)
+  }
+  if (weightSum === 0) return 0
+  const weightedDailyMinutes = weightedMinutes / weightSum
+  return (weightedDailyMinutes * 7) / 60
+}
+
+// Momentum: total minutes in the most recent 4 weeks vs the 4 weeks before,
+// as a signed ratio (e.g. 0.2 = pace up 20%). Returns null when there isn't a
+// prior-period baseline to compare against (a fresh ramp-up has no "before").
+export function paceMomentum(minutesByAge) {
+  const half = PACE_WINDOW_DAYS / 2
+  let recent = 0
+  let prior = 0
+  for (let age = 0; age < PACE_WINDOW_DAYS; age++) {
+    const m = minutesByAge[age] || 0
+    if (age < half) recent += m
+    else prior += m
+  }
+  if (prior <= 0) return null
+  return (recent - prior) / prior
+}
