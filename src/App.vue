@@ -261,6 +261,8 @@ import { ref, computed, watch, provide } from 'vue'
 import { useAuth } from './composables/useAuth.js'
 import { useStorage } from './composables/useStorage.js'
 import { useLanguageLookup } from './composables/useLanguageLookup.js'
+import { useTimeframe } from './composables/useTimeframe.js'
+import { useWeeklyGoal } from './composables/useWeeklyGoal.js'
 import { localDateStr, currentStreak } from './lib/date.js'
 import AuthScreen from './components/AuthScreen.vue'
 import LanguageSetup from './components/LanguageSetup.vue'
@@ -298,8 +300,7 @@ const finishSetup = () => {
 }
 
 const activeFilter = ref({ language: null, types: [] })
-const viewMode = ref('month')
-const viewDate = ref(new Date())
+const { viewMode, viewDate, updateViewMode, navigateView } = useTimeframe()
 const showLangManager = ref(false)
 const editingEntry = ref(null)
 const editingVisible = ref(false)
@@ -329,90 +330,15 @@ const todayMinutes = computed(() => {
   return todayEntries.reduce((sum, e) => sum + e.hours * 60 + e.minutes, 0)
 })
 
-const weekMinutes = computed(() => {
-  const now = new Date()
-  const day = now.getDay()
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1))
-  monday.setHours(0, 0, 0, 0)
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
-  const from = localDateStr(monday)
-  const to = localDateStr(sunday)
-  return data.value.entries
-    .filter(e => e.date >= from && e.date <= to)
-    .reduce((sum, e) => sum + e.hours * 60 + e.minutes, 0)
-})
-
-const goalHours = ref(null)
-const goalEditing = ref(false)
-
-watch(weeklyGoal, (v) => { goalHours.value = v }, { immediate: true })
-
-const goalProgress = computed(() => {
-  if (!goalHours.value || goalHours.value <= 0) return 0
-  return Math.min((weekMinutes.value / (goalHours.value * 60)) * 100, 100)
-})
-
-const goalSegments = computed(() => {
-  if (!goalHours.value || goalHours.value <= 0 || weekMinutes.value === 0) return []
-  const now = new Date()
-  const day = now.getDay()
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1))
-  monday.setHours(0, 0, 0, 0)
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
-  const from = localDateStr(monday)
-  const to = localDateStr(sunday)
-
-  const weekEntries = data.value.entries.filter(e => e.date >= from && e.date <= to)
-  const byLang = {}
-  for (const e of weekEntries) {
-    byLang[e.languageId] = (byLang[e.languageId] || 0) + e.hours * 60 + e.minutes
-  }
-
-  const total = Object.values(byLang).reduce((s, v) => s + v, 0)
-  const filledPct = Math.min((total / (goalHours.value * 60)) * 100, 100)
-
-  return Object.entries(byLang)
-    .sort((a, b) => b[1] - a[1])
-    .map(([langId, mins]) => ({
-      color: colorFor(langId),
-      percent: (mins / total) * filledPct
-    }))
-})
-
-const saveGoalInput = () => {
-  const val = parseFloat(goalHours.value)
-  if (!val || val <= 0) { saveGoal(null); goalEditing.value = false; return }
-  saveGoal(val)
-  goalEditing.value = false
-}
+const { goalHours, goalEditing, weekMinutes, goalProgress, goalSegments, saveGoalInput } = useWeeklyGoal(
+  computed(() => data.value.entries),
+  computed(() => data.value.languages),
+  weeklyGoal,
+  saveGoal
+)
 
 const updateFilter = (filter) => {
   activeFilter.value = filter
-}
-
-const updateViewMode = (mode) => {
-  viewMode.value = mode
-  viewDate.value = new Date()
-}
-
-const navigateView = (direction) => {
-  const d = new Date(viewDate.value)
-  switch (viewMode.value) {
-    case 'month':
-      d.setMonth(d.getMonth() + direction)
-      break
-    case 'quarter':
-      d.setMonth(d.getMonth() + direction * 3)
-      break
-    case 'year':
-      d.setFullYear(d.getFullYear() + direction)
-      break
-  }
-  viewDate.value = d
 }
 
 const addEntry = (entry) => { storageAddEntry(entry) }

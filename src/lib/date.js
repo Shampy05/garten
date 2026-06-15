@@ -28,6 +28,16 @@ export function getYearRange(date) {
   return { start, end }
 }
 
+export function getWeekRange(date) {
+  const day = date.getDay()
+  const monday = new Date(date)
+  monday.setDate(date.getDate() - (day === 0 ? 6 : day - 1))
+  monday.setHours(0, 0, 0, 0)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  return { start: monday, end: sunday }
+}
+
 export function currentStreak(dates) {
   if (dates.length === 0) return 0
   const sorted = [...new Set(dates)].sort().reverse()
