@@ -57,8 +57,6 @@ const props = defineProps({
 })
 
 const { nameFor, colorFor } = useLanguageLookup(() => props.languages)
-  viewDate: { type: Date, default: () => new Date() }
-})
 
 const dateRange = computed(() => {
   const d = props.viewDate

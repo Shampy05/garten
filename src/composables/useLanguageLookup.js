@@ -9,8 +9,10 @@ import { computed } from 'vue'
  */
 export function useLanguageLookup(languagesRef) {
   const map = computed(() => {
+    const arr = typeof languagesRef === 'function'
+      ? (languagesRef() || [])
+      : (languagesRef?.value || [])
     const m = new Map()
-    const arr = languagesRef.value || []
     for (const lang of arr) {
       m.set(lang.id, lang)
     }
