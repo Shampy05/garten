@@ -5,7 +5,7 @@
 
       <div class="relative bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-md max-h-[70vh] overflow-y-auto z-10">
         <!-- Header -->
-        <div class="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between rounded-t-2xl">
+        <div class="sticky top-0 z-10 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between rounded-t-2xl">
           <h2 class="text-lg font-bold text-gray-900">Language Seeds</h2>
           <div class="flex items-center gap-2">
             <button @click="showAddForm = !showAddForm"
