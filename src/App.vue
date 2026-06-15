@@ -15,8 +15,19 @@
   <div v-else class="min-h-screen bg-gray-50">
     <div v-if="!loaded" class="flex items-center justify-center min-h-screen">
       <div class="text-center">
-        <div class="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p class="text-gray-500">Loading your garden...</p>
+        <div v-if="!loadError" class="text-center">
+          <div class="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p class="text-gray-500">Loading your garden...</p>
+        </div>
+        <div v-else>
+          <p class="text-gray-500 mb-4">Failed to load your garden.</p>
+          <button
+            @click="retryLoad"
+            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     </div>
     <div v-else class="max-w-6xl mx-auto px-4 py-8">
@@ -269,7 +280,7 @@ import Toast from './components/Toast.vue'
 const { user, loading: authLoading, signIn, signUp, signOut, resetPassword } = useAuth()
 provide('auth', { signIn, signUp, resetPassword })
 
-const { data, loaded, weeklyGoal, nativeLanguage, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, updateLanguage: storageUpdateLanguage, saveGoal, saveNativeLanguage } = useStorage()
+const { data, loaded, loadError, weeklyGoal, nativeLanguage, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, updateLanguage: storageUpdateLanguage, saveGoal, saveNativeLanguage, retryLoad } = useStorage()
 
 const setupActive = ref(false)
 
