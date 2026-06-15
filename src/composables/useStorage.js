@@ -1,6 +1,7 @@
 import { ref, watch } from 'vue'
 import { supabase } from '../lib/supabase.js'
 import { getCached, setCache } from '../lib/cache.js'
+import { localDateStr } from '../lib/date.js'
 import { useToast } from './useToast.js'
 import { useAuth } from './useAuth.js'
 
@@ -31,7 +32,7 @@ function toCamel(row) {
 function twoYearsAgo() {
   const d = new Date()
   d.setFullYear(d.getFullYear() - 2)
-  return d.toISOString().split('T')[0]
+  return localDateStr(d)
 }
 
 export function useStorage() {
@@ -92,7 +93,7 @@ export function useStorage() {
 
     const newEntry = {
       ...entry,
-      id: Date.now().toString(36) + Math.random().toString(36).substr(2)
+      id: crypto.randomUUID()
     }
     const { error } = await supabase.from('entries').insert({
       ...toSnake(newEntry),
