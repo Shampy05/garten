@@ -118,6 +118,8 @@
         :entries="filteredEntries"
         :languages="data.languages"
         :filter="activeFilter"
+        :view-mode="viewMode"
+        :view-date="viewDate"
       />
 
       <!-- Filters -->

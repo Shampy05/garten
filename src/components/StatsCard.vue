@@ -6,24 +6,24 @@
         {{ activeFilterLabel }}
       </div>
     </div>
-    
+
     <div class="grid grid-cols-3 gap-4">
       <div class="text-center">
-        <div class="text-3xl font-bold text-green-600">{{ currentStreakVal }}</div>
-        <div class="text-xs text-gray-500 mt-1">Current Streak</div>
-        <div class="text-xs text-gray-400">days</div>
+        <div class="text-3xl font-bold text-green-600">{{ activeDays }}</div>
+        <div class="text-xs text-gray-500 mt-1">Active Days</div>
+        <div class="text-xs text-gray-400">{{ periodLabel }}</div>
       </div>
-      
+
       <div class="text-center">
-        <div class="text-3xl font-bold text-blue-600">{{ totalHoursThisWeek }}</div>
-        <div class="text-xs text-gray-500 mt-1">This Week</div>
-        <div class="text-xs text-gray-400">hours</div>
+        <div class="text-3xl font-bold text-blue-600">{{ periodHours }}</div>
+        <div class="text-xs text-gray-500 mt-1">Hours</div>
+        <div class="text-xs text-gray-400">{{ periodLabel }}</div>
       </div>
-      
+
       <div class="text-center">
-        <div class="text-3xl font-bold text-purple-600">{{ totalSessions }}</div>
-        <div class="text-xs text-gray-500 mt-1">Total Sessions</div>
-        <div class="text-xs text-gray-400">all time</div>
+        <div class="text-3xl font-bold text-purple-600">{{ periodSessions }}</div>
+        <div class="text-xs text-gray-500 mt-1">Sessions</div>
+        <div class="text-xs text-gray-400">{{ periodLabel }}</div>
       </div>
     </div>
   </div>
@@ -31,7 +31,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { localDateStr, currentStreak } from '../lib/date.js'
+import { localDateStr, getMonthRange, getQuarterRange, getYearRange } from '../lib/date.js'
 import { useLanguageLookup } from '../composables/useLanguageLookup.js'
 
 const props = defineProps({
@@ -46,6 +46,14 @@ const props = defineProps({
   filter: {
     type: Object,
     default: () => ({ language: null, types: [] })
+  },
+  viewMode: {
+    type: String,
+    default: 'month'
+  },
+  viewDate: {
+    type: Date,
+    default: () => new Date()
   }
 })
 
@@ -58,27 +66,35 @@ const activeFilterLabel = computed(() => {
   return `${name} (${props.filter.types.join(', ')})`
 })
 
-const currentStreakVal = computed(() => currentStreak(props.entries.map(e => e.date)))
-
-const totalHoursThisWeek = computed(() => {
-  const now = new Date()
-  const day = now.getDay()
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1))
-  monday.setHours(0, 0, 0, 0)
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
-  const from = localDateStr(monday)
-  const to = localDateStr(sunday)
-
-  const totalMinutes = props.entries
-    .filter(e => e.date >= from && e.date <= to)
-    .reduce((sum, e) => sum + e.hours * 60 + e.minutes, 0)
-
-  return (totalMinutes / 60).toFixed(1)
+const periodLabel = computed(() => {
+  const labels = { month: 'this month', quarter: 'this quarter', year: 'this year' }
+  return labels[props.viewMode] || 'this period'
 })
 
-const totalSessions = computed(() => {
-  return props.entries.length
+// Same timeframe window the heatmap, leaderboard and insights use.
+const dateRange = computed(() => {
+  const d = props.viewDate
+  let range
+  switch (props.viewMode) {
+    case 'month': range = getMonthRange(d); break
+    case 'quarter': range = getQuarterRange(d); break
+    case 'year': range = getYearRange(d); break
+    default: range = getMonthRange(d)
+  }
+  return { start: localDateStr(range.start), end: localDateStr(range.end) }
 })
+
+// props.entries already has the language/type filter applied upstream.
+const periodEntries = computed(() => {
+  const { start, end } = dateRange.value
+  return props.entries.filter(e => e.date >= start && e.date <= end)
+})
+
+const activeDays = computed(() => new Set(periodEntries.value.map(e => e.date)).size)
+
+const periodHours = computed(() =>
+  (periodEntries.value.reduce((sum, e) => sum + e.hours * 60 + e.minutes, 0) / 60).toFixed(1)
+)
+
+const periodSessions = computed(() => periodEntries.value.length)
 </script>
