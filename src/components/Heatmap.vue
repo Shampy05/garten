@@ -43,8 +43,9 @@
               'ring-2 ring-yellow-400/70 shadow-[0_0_8px_rgba(250,204,21,0.25)]': day.inRange && streakDaysSet.has(day.date)
             }"
             :style="day.inRange ? { backgroundColor: dayBgColor(day) } : { background: 'transparent' }"
-            @mouseenter="day.inRange && showTooltip(day, $event)"
-            @mouseleave="hideTooltip()"
+            @mouseenter="day.inRange && hoverShow(day, $event)"
+            @mouseleave="hoverHide()"
+            @click="day.inRange && toggleTooltip(day, $event)"
           >
             <div v-if="day.inRange" class="absolute inset-0 pointer-events-none">
               <div v-if="useMosaic && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-5 grid-rows-5 gap-[1.5px] p-[2px]">
@@ -89,8 +90,9 @@
                     'ring-1 ring-yellow-400/70 shadow-[0_0_4px_rgba(250,204,21,0.2)]': day.inRange && streakDaysSet.has(day.date)
                   }"
                   :style="day.inRange ? { backgroundColor: dayBgColor(day), width: cellSizeQ + 'px', height: cellSizeQ + 'px' } : { width: cellSizeQ + 'px', height: cellSizeQ + 'px', background: 'transparent' }"
-                  @mouseenter="day.inRange && showTooltip(day, $event)"
-                  @mouseleave="hideTooltip()"
+                  @mouseenter="day.inRange && hoverShow(day, $event)"
+                  @mouseleave="hoverHide()"
+                  @click="day.inRange && toggleTooltip(day, $event)"
                 >
                   <div v-if="day.inRange" class="absolute inset-0 pointer-events-none">
                     <div v-if="useMosaic && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-px p-px">
@@ -134,8 +136,9 @@
                   'ring-[0.5px] ring-yellow-400/70': day.inRange && streakDaysSet.has(day.date)
                 }"
                 :style="day.inRange ? { backgroundColor: day.totalMinutes > 0 ? dayBgColor(day) : '#f3f4f6' } : { background: 'transparent' }"
-                @mouseenter="day.inRange && showTooltip(day, $event)"
-                @mouseleave="hideTooltip()"
+                @mouseenter="day.inRange && hoverShow(day, $event)"
+                @mouseleave="hoverHide()"
+                @click="day.inRange && toggleTooltip(day, $event)"
               >
                 <div v-if="day.inRange && useMosaic && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px p-px">
                   <div v-for="(color, si) in getMosaicGrid(day, 2)" :key="si"
@@ -176,7 +179,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { localDateStr, daysBetween, getMonthRange, getQuarterRange, getYearRange } from '../lib/date.js'
 import { toHexColor } from '../lib/color.js'
 
@@ -190,9 +193,13 @@ const props = defineProps({
 
 const todayStr = localDateStr(new Date())
 const tooltip = ref(null)
+// "pinned" = surfaced by a tap/click rather than a passing hover. A pinned
+// tooltip ignores mouseleave so it survives on touch (where there is no hover)
+// and is dismissed explicitly by tapping the cell again or anywhere outside.
+const pinned = ref(false)
 let scrollCleanup = null
 
-const showTooltip = (day, event) => {
+const positionTooltip = (day, event) => {
   const cell = event.currentTarget
   const rect = cell.getBoundingClientRect()
   const above = rect.top > window.innerHeight / 2
@@ -201,7 +208,7 @@ const showTooltip = (day, event) => {
     window.removeEventListener('scroll', scrollCleanup)
   }
 
-  scrollCleanup = () => { tooltip.value = null }
+  scrollCleanup = () => hideTooltip()
   window.addEventListener('scroll', scrollCleanup, { passive: true })
 
   const halfW = 100
@@ -211,13 +218,49 @@ const showTooltip = (day, event) => {
   tooltip.value = { day, x, y, above }
 }
 
+// Hover (desktop) — never overrides a pinned tooltip.
+const hoverShow = (day, event) => {
+  if (pinned.value) return
+  positionTooltip(day, event)
+}
+
+const hoverHide = () => {
+  if (pinned.value) return
+  hideTooltip()
+}
+
+// Tap / click — works on every device. Toggles the same day off, otherwise
+// pins the tapped day. stopPropagation keeps the document dismiss handler from
+// firing for the very tap that opened it.
+const toggleTooltip = (day, event) => {
+  event.stopPropagation()
+  if (pinned.value && tooltip.value && tooltip.value.day.date === day.date) {
+    hideTooltip()
+  } else {
+    pinned.value = true
+    positionTooltip(day, event)
+  }
+}
+
 const hideTooltip = () => {
   if (scrollCleanup) {
     window.removeEventListener('scroll', scrollCleanup)
     scrollCleanup = null
   }
+  pinned.value = false
   tooltip.value = null
 }
+
+// Dismiss a pinned tooltip when tapping/clicking anywhere outside a cell.
+const onDocPointerDown = () => {
+  if (pinned.value) hideTooltip()
+}
+
+onMounted(() => document.addEventListener('click', onDocPointerDown))
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocPointerDown)
+  if (scrollCleanup) window.removeEventListener('scroll', scrollCleanup)
+})
 
 const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const dayLabelSizeQ = 16
