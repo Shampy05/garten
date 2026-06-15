@@ -34,9 +34,12 @@
       <!-- Garden Status Card -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-6">
         <div class="flex items-start justify-between mb-4">
-          <div>
-            <h1 class="font-display text-3xl sm:text-4xl font-bold text-gray-900 mb-1">Garten</h1>
-            <p class="text-sm sm:text-base text-gray-600">Track your language learning progress.</p>
+          <div class="flex items-center gap-3">
+            <SproutIcon class="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
+            <div>
+              <h1 class="font-display text-3xl sm:text-4xl font-bold text-gray-900 mb-1">Garten</h1>
+              <p class="text-sm sm:text-base text-gray-600">Track your language learning progress.</p>
+            </div>
           </div>
           <div class="flex items-center gap-2">
             <button
@@ -279,6 +282,7 @@ import FluencyHorizon from './components/FluencyHorizon.vue'
 import ActivityBreakdown from './components/ActivityBreakdown.vue'
 import Leaderboard from './components/Leaderboard.vue'
 import EditSession from './components/EditSession.vue'
+import SproutIcon from './components/SproutIcon.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import Toast from './components/Toast.vue'
 

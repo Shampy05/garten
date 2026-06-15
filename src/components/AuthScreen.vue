@@ -2,6 +2,7 @@
   <div class="min-h-screen bg-gray-50 flex items-center justify-center p-4">
     <div class="w-full max-w-sm">
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-8">
+        <SproutIcon class="w-10 h-10 mb-3" />
         <h1 class="font-display text-3xl font-bold text-gray-900 mb-1">Garten</h1>
         <p class="text-sm text-gray-500 mb-6">
           {{ view === 'reset' ? 'Reset your password' : 'Sign in to cultivate your garden' }}
@@ -87,6 +88,7 @@
 
 <script setup>
 import { ref, inject } from 'vue'
+import SproutIcon from './SproutIcon.vue'
 
 const email = ref('')
 const password = ref('')

@@ -1,6 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-50 p-4 sm:p-8 flex items-start justify-center">
     <div class="w-full max-w-md pt-8 sm:pt-16">
+      <SproutIcon class="w-10 h-10 mb-3" />
       <h1 class="font-display text-3xl font-bold text-gray-900">Welcome to Garten</h1>
       <p class="text-gray-500 mt-1 mb-8">Add the languages you're learning to get started.</p>
 
@@ -90,6 +91,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import SproutIcon from './SproutIcon.vue'
 import LanguageAutocomplete from './LanguageAutocomplete.vue'
 import { ACTIVITY_TYPES } from '../lib/types.js'
 import { PALETTE } from '../lib/color.js'
