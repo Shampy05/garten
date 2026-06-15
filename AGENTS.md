@@ -28,7 +28,7 @@ All data operations go through the `useStorage` composable which maps between JS
 
 ## Data Caching
 
-Supabase reads are cached in localStorage with a 30-second TTL (`src/lib/cache.js`). On page load, cached data is served instantly and no API call is made. Cache is invalidated on every mutation (add/delete entry, add language). This minimizes Supabase reads on the free tier.
+Supabase reads are cached in localStorage with a 30-second TTL (`src/lib/cache.js`). On page load, cached data is served instantly and no API call is made. Every mutation (add/delete/update entry or language) writes the new in-memory state back to the cache with a fresh timestamp, so reloads after an edit keep hitting the cache instead of the network. This minimizes Supabase reads on the free tier. Settings (`weekly_goal_hours`, `native_language`) are not cached and are always read from Supabase.
 
 Entries older than 2 years are not fetched — the heatmap only displays data within that window.
 

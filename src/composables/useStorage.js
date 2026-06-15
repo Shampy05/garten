@@ -1,6 +1,6 @@
 import { ref, watch } from 'vue'
 import { supabase } from '../lib/supabase.js'
-import { getCached, setCache, clearCache } from '../lib/cache.js'
+import { getCached, setCache } from '../lib/cache.js'
 import { useToast } from './useToast.js'
 import { useAuth } from './useAuth.js'
 
@@ -102,8 +102,8 @@ export function useStorage() {
       toast.error('Failed to add entry. Please try again.')
       return
     }
-    clearCache(userId.value)
     data.value.entries.push(newEntry)
+    setCache(userId.value, data.value)
   }
 
   const addLanguage = async (language) => {
@@ -119,10 +119,10 @@ export function useStorage() {
       toast.error('Failed to add language. Please try again.')
       return
     }
-    clearCache(userId.value)
     if (!data.value.languages.find(l => l.id === newLang.id)) {
       data.value.languages.push(newLang)
     }
+    setCache(userId.value, data.value)
   }
 
   const deleteLanguage = async (langId) => {
@@ -134,9 +134,9 @@ export function useStorage() {
       toast.error('Failed to delete language. Please try again.')
       return
     }
-    clearCache(userId.value)
     data.value.entries = data.value.entries.filter(e => e.languageId !== langId)
     data.value.languages = data.value.languages.filter(l => l.id !== langId)
+    setCache(userId.value, data.value)
   }
 
   const updateLanguage = async (langId, updates) => {
@@ -147,9 +147,9 @@ export function useStorage() {
       toast.error('Failed to update language. Please try again.')
       return
     }
-    clearCache(userId.value)
     const idx = data.value.languages.findIndex(l => l.id === langId)
     if (idx !== -1) data.value.languages = data.value.languages.map(l => l.id === langId ? { ...l, ...updates } : l)
+    setCache(userId.value, data.value)
   }
 
   const deleteEntry = async (id) => {
@@ -160,8 +160,8 @@ export function useStorage() {
       toast.error('Failed to delete entry. Please try again.')
       return
     }
-    clearCache(userId.value)
     data.value.entries = data.value.entries.filter(e => e.id !== id)
+    setCache(userId.value, data.value)
   }
 
   const updateEntry = async (entry) => {
@@ -172,9 +172,9 @@ export function useStorage() {
       toast.error('Failed to update entry. Please try again.')
       return
     }
-    clearCache(userId.value)
     const idx = data.value.entries.findIndex(e => e.id === entry.id)
     if (idx !== -1) data.value.entries[idx] = entry
+    setCache(userId.value, data.value)
   }
 
   const saveGoal = async (hours) => {

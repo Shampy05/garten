@@ -26,9 +26,3 @@ export function setCache(userId, data) {
   }
 }
 
-export function clearCache(userId) {
-  try {
-    localStorage.removeItem(key(userId))
-  } catch {
-  }
-}
