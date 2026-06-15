@@ -1,34 +1,55 @@
 import { describe, it, expect } from 'vitest'
-import { PALETTE, nextColor, colorDistance } from './color.js'
+import { PALETTE, nextColor, colorDistance, hueGap, hueOf } from './color.js'
 
-describe('color palette', () => {
-  it('has no duplicate entries', () => {
-    const lower = PALETTE.map(c => c.toLowerCase())
-    expect(new Set(lower).size).toBe(PALETTE.length)
+// Local WCAG contrast-vs-white helper (color.js doesn't need to export this).
+function contrastVsWhite(hex) {
+  const rgb = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+  const lin = c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+  const L = 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2])
+  return 1.05 / (L + 0.05)
+}
+
+describe('palette', () => {
+  it('has 10 unique colors', () => {
+    expect(PALETTE).toHaveLength(10)
+    expect(new Set(PALETTE.map(c => c.toLowerCase())).size).toBe(10)
   })
 
-  it('keeps every pair of palette colors visually distinct', () => {
-    // Threshold chosen so the two-greens / two-reds collisions that motivated
-    // this change would fail the test.
-    const MIN_DISTANCE = 90
+  it('is legible: every color clears 3:1 contrast on white', () => {
+    for (const c of PALETTE) {
+      expect(contrastVsWhite(c), c).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  it('spreads its colors around the hue wheel (no near-duplicate hues)', () => {
     for (let i = 0; i < PALETTE.length; i++) {
       for (let j = i + 1; j < PALETTE.length; j++) {
-        const d = colorDistance(PALETTE[i], PALETTE[j])
-        expect(d, `${PALETTE[i]} vs ${PALETTE[j]}`).toBeGreaterThan(MIN_DISTANCE)
+        expect(hueGap(PALETTE[i], PALETTE[j]), `${PALETTE[i]} vs ${PALETTE[j]}`).toBeGreaterThan(15)
       }
     }
   })
 })
 
-describe('colorDistance', () => {
+describe('colorDistance (colorblind-aware)', () => {
   it('is zero for identical colors', () => {
-    expect(colorDistance('#0072b2', '#0072b2')).toBe(0)
+    expect(colorDistance('#2563eb', '#2563eb')).toBe(0)
   })
 
-  it('rates near-identical greens as closer than green vs blue', () => {
-    const greens = colorDistance('#16a34a', '#65a30d') // the old collision
-    const greenBlue = colorDistance('#16a34a', '#0072b2')
-    expect(greens).toBeLessThan(greenBlue)
+  it('keeps every palette pair distinguishable under color blindness', () => {
+    // Above the old red/rose collision (~33); the gamut won't allow much more
+    // than this for ten colors.
+    for (let i = 0; i < PALETTE.length; i++) {
+      for (let j = i + 1; j < PALETTE.length; j++) {
+        expect(colorDistance(PALETTE[i], PALETTE[j]), `${PALETTE[i]} vs ${PALETTE[j]}`).toBeGreaterThan(30)
+      }
+    }
+  })
+})
+
+describe('hueGap', () => {
+  it('is zero for the same hue and ~180 for opposites', () => {
+    expect(hueGap('#16a34a', '#16a34a')).toBe(0)
+    expect(hueGap('#ff0000', '#00ffff')).toBeCloseTo(180, 0)
   })
 })
 
@@ -37,43 +58,45 @@ describe('nextColor', () => {
     expect(nextColor([])).toBe(PALETTE[0])
   })
 
-  it('never returns a color already in use (until the palette is exhausted)', () => {
+  it('never reuses a color until the palette is exhausted', () => {
     const used = []
     for (let i = 0; i < PALETTE.length; i++) {
       const c = nextColor(used)
       expect(used).not.toContain(c)
       used.push(c)
     }
-    // All palette colors assigned exactly once.
     expect(new Set(used.map(c => c.toLowerCase())).size).toBe(PALETTE.length)
   })
 
-  it('picks a color far from the ones already chosen', () => {
-    const picked = nextColor(['#0072b2']) // blue in use
-    // The pick should be meaningfully distant from blue, not another blue.
-    expect(colorDistance(picked, '#0072b2')).toBeGreaterThan(150)
+  it('does not pick a second green when a green is already used', () => {
+    const picked = nextColor(['#16a34a']) // green in use
+    expect(hueGap(picked, '#16a34a')).toBeGreaterThan(40)
   })
 
-  it('maximizes the minimum distance across multiple used colors', () => {
-    const used = ['#0072b2', '#d55e00'] // blue + vermillion
-    const picked = nextColor(used)
-    const minToUsed = Math.min(...used.map(u => colorDistance(picked, u)))
-    // Any alternative unused color cannot beat the chosen one's min-distance.
-    const usedSet = new Set(used.map(c => c.toLowerCase()))
-    for (const cand of PALETTE.filter(c => !usedSet.has(c.toLowerCase()))) {
-      const candMin = Math.min(...used.map(u => colorDistance(cand, u)))
-      expect(minToUsed).toBeGreaterThanOrEqual(candMin)
+  it('does not pick a second blue when a blue is already used', () => {
+    const picked = nextColor(['#2563eb'])
+    expect(hueGap(picked, '#2563eb')).toBeGreaterThan(40)
+  })
+
+  it('spreads picks around the hue wheel for several languages', () => {
+    const used = []
+    for (let i = 0; i < 6; i++) used.push(nextColor(used))
+    let minGap = 360
+    for (let i = 0; i < used.length; i++) {
+      for (let j = i + 1; j < used.length; j++) {
+        minGap = Math.min(minGap, hueGap(used[i], used[j]))
+      }
     }
+    expect(minGap).toBeGreaterThan(30)
   })
 
   it('is case-insensitive about used colors', () => {
-    const picked = nextColor(['#0072B2'])
-    expect(picked.toLowerCase()).not.toBe('#0072b2')
+    const picked = nextColor(['#2563EB'])
+    expect(picked.toLowerCase()).not.toBe('#2563eb')
   })
 
-  it('falls back to a palette color when more languages than palette', () => {
-    const used = [...PALETTE]
-    const picked = nextColor(used)
+  it('falls back to a palette color when there are more languages than colors', () => {
+    const picked = nextColor([...PALETTE])
     expect(PALETTE).toContain(picked)
   })
 })

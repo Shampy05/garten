@@ -1,20 +1,22 @@
 // Language palette.
 //
-// Based on the Okabe-Ito qualitative palette, which is designed to stay
-// distinguishable under the common forms of color blindness (deuteranopia,
-// protanopia, tritanopia). Pure black is softened to a dark slate so the dots
-// and intensity fills sit comfortably on the light UI. nextColor() then assigns
-// by maximum perceptual distance, so even a handful of languages get colors
-// that are far apart rather than, say, two greens.
+// Ten vivid hues spread around the color wheel, each with a contrast ratio of
+// at least 3:1 against the white UI so dots and intensity fills stay legible
+// (no washed-out yellows). Ten is roughly the ceiling at which colors stay
+// reliably distinct — including under color blindness — so nextColor() assigns
+// by maximum hue separation, keeping the first handful of languages (the common
+// case) far apart and deferring the closer hues until many are in play.
 export const PALETTE = [
-  '#0072b2', // blue
-  '#e69f00', // orange
-  '#009e73', // bluish green
-  '#cc79a7', // reddish purple
-  '#d55e00', // vermillion
-  '#56b4e9', // sky blue
-  '#f0e442', // yellow
-  '#525252'  // neutral dark
+  '#2563eb', // blue
+  '#4f46e5', // indigo
+  '#7c3aed', // violet
+  '#a21caf', // fuchsia
+  '#e11d48', // rose
+  '#d97706', // amber
+  '#65a30d', // lime
+  '#16a34a', // green
+  '#0d9488', // teal
+  '#0284c7'  // sky
 ]
 
 function hexToRgb(hex) {
@@ -26,16 +28,26 @@ function hexToRgb(hex) {
   ]
 }
 
-// Perceptual-ish distance between two colors (the "redmean" low-cost
-// approximation). Bigger = more visually different. Good enough to keep
-// auto-assigned colors apart without pulling in a full CIELAB dependency.
-export function colorDistance(a, b) {
-  const [r1, g1, b1] = hexToRgb(a)
-  const [r2, g2, b2] = hexToRgb(b)
-  const rmean = (r1 + r2) / 2
-  const dr = r1 - r2
-  const dg = g1 - g2
-  const db = b1 - b2
+// sRGB-space approximations of normal vision plus the two common red-green
+// color-vision deficiencies. Used to measure the *worst-case* separation.
+const CB_MATRICES = [
+  [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+  [[0.625, 0.375, 0], [0.7, 0.3, 0], [0, 0.3, 0.7]],        // deuteranopia
+  [[0.567, 0.433, 0], [0.558, 0.442, 0], [0, 0.242, 0.758]] // protanopia
+]
+
+function simulate(rgb, m) {
+  return m.map(row =>
+    Math.max(0, Math.min(255, row[0] * rgb[0] + row[1] * rgb[1] + row[2] * rgb[2]))
+  )
+}
+
+// Low-cost perceptual ("redmean") distance between two RGB triples.
+function redmean(a, b) {
+  const rmean = (a[0] + b[0]) / 2
+  const dr = a[0] - b[0]
+  const dg = a[1] - b[1]
+  const db = a[2] - b[2]
   return Math.sqrt(
     (2 + rmean / 256) * dr * dr +
     4 * dg * dg +
@@ -43,9 +55,40 @@ export function colorDistance(a, b) {
   )
 }
 
-// Pick the next language color: the unused palette entry that is most distant
-// from every color already in use. Falls back to the most-distant palette entry
-// overall once the palette is exhausted, so reuse still favors contrast.
+// Colorblind-aware distance: the smallest separation across normal vision and
+// the two red-green deficiencies. Bigger = more reliably distinguishable.
+export function colorDistance(a, b) {
+  const x = hexToRgb(a)
+  const y = hexToRgb(b)
+  return Math.min(...CB_MATRICES.map(m => redmean(simulate(x, m), simulate(y, m))))
+}
+
+// Hue angle (0–360) of a color.
+export function hueOf(hex) {
+  const [r0, g0, b0] = hexToRgb(hex)
+  const r = r0 / 255, g = g0 / 255, b = b0 / 255
+  const mx = Math.max(r, g, b)
+  const mn = Math.min(r, g, b)
+  const d = mx - mn
+  if (d === 0) return 0
+  let h
+  if (mx === r) h = ((g - b) / d + 6) % 6
+  else if (mx === g) h = (b - r) / d + 2
+  else h = (r - g) / d + 4
+  return h * 60
+}
+
+// Smallest angular distance between two hues (0–180).
+export function hueGap(a, b) {
+  const d = Math.abs(hueOf(a) - hueOf(b))
+  return Math.min(d, 360 - d)
+}
+
+// Pick the next language color. Among the colors not already in use, choose the
+// one whose hue is furthest from every hue already taken (so we spread around
+// the wheel and never land on a second "green" or "blue" while a distinct hue
+// is free), breaking ties by colorblind-aware distance. Once the palette is
+// exhausted it falls back to the whole palette, still maximizing separation.
 export function nextColor(existingColors) {
   const used = (existingColors || []).map(c => c?.toLowerCase()).filter(Boolean)
   const usedSet = new Set(used)
@@ -55,12 +98,14 @@ export function nextColor(existingColors) {
   if (used.length === 0) return pool[0]
 
   let best = pool[0]
-  let bestScore = -Infinity
+  let bestHue = -1
+  let bestDist = -1
   for (const c of pool) {
-    let minD = Infinity
-    for (const u of used) minD = Math.min(minD, colorDistance(c, u))
-    if (minD > bestScore) {
-      bestScore = minD
+    const minHue = Math.min(...used.map(u => hueGap(c, u)))
+    const minDist = Math.min(...used.map(u => colorDistance(c, u)))
+    if (minHue > bestHue + 0.5 || (Math.abs(minHue - bestHue) <= 0.5 && minDist > bestDist)) {
+      bestHue = minHue
+      bestDist = minDist
       best = c
     }
   }
