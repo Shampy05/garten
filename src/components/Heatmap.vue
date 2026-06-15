@@ -65,8 +65,11 @@
     </div>
 
     <!-- Quarter View -->
-    <div v-if="viewMode === 'quarter'" class="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <div class="flex gap-8 justify-center">
+    <div v-if="viewMode === 'quarter'" class="relative">
+      <div v-show="fade.left" class="pointer-events-none absolute inset-y-0 left-0 w-10 z-20 bg-gradient-to-r from-white to-transparent"></div>
+      <div v-show="fade.right" class="pointer-events-none absolute inset-y-0 right-0 w-10 z-20 bg-gradient-to-l from-white to-transparent"></div>
+      <div ref="scrollEl" @scroll="updateFade" class="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div class="flex gap-8 justify-center">
         <div v-for="(monthData, mi) in quarterMonths" :key="mi" class="flex-shrink-0 min-w-0">
           <div class="text-sm font-medium text-gray-600 mb-2 text-center">{{ monthData.label }}</div>
           <div class="flex gap-1">
@@ -111,12 +114,16 @@
             </div>
           </div>
         </div>
+        </div>
       </div>
     </div>
 
     <!-- Year View -->
-    <div v-if="viewMode === 'year'" class="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <div class="w-full">
+    <div v-if="viewMode === 'year'" class="relative">
+      <div v-show="fade.left" class="pointer-events-none absolute inset-y-0 left-0 w-10 z-20 bg-gradient-to-r from-white to-transparent"></div>
+      <div v-show="fade.right" class="pointer-events-none absolute inset-y-0 right-0 w-10 z-20 bg-gradient-to-l from-white to-transparent"></div>
+      <div ref="scrollEl" @scroll="updateFade" class="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div class="w-full">
         <div class="flex gap-1">
           <div class="flex flex-col gap-1 mr-2">
             <div class="h-3"></div>
@@ -151,6 +158,7 @@
             </div>
           </div>
         </div>
+        </div>
       </div>
     </div>
   </div>
@@ -179,7 +187,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { localDateStr, daysBetween, getMonthRange, getQuarterRange, getYearRange } from '../lib/date.js'
 import { toHexColor } from '../lib/color.js'
 import { useLanguageLookup } from '../composables/useLanguageLookup.js'
@@ -259,9 +267,29 @@ const onDocPointerDown = () => {
   if (pinned.value) hideTooltip()
 }
 
-onMounted(() => document.addEventListener('click', onDocPointerDown))
+// Edge-fade affordance: quarter/year views scroll horizontally with the
+// scrollbar hidden, so a fade on each overflowing edge signals "more this way".
+const scrollEl = ref(null)
+const fade = ref({ left: false, right: false })
+const updateFade = () => {
+  const el = scrollEl.value
+  if (!el) { fade.value = { left: false, right: false }; return }
+  const maxScroll = el.scrollWidth - el.clientWidth
+  fade.value = {
+    left: el.scrollLeft > 1,
+    right: el.scrollLeft < maxScroll - 1,
+  }
+}
+const onResize = () => updateFade()
+
+onMounted(() => {
+  document.addEventListener('click', onDocPointerDown)
+  window.addEventListener('resize', onResize)
+  nextTick(updateFade)
+})
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocPointerDown)
+  window.removeEventListener('resize', onResize)
   if (scrollCleanup) window.removeEventListener('scroll', scrollCleanup)
 })
 
@@ -466,4 +494,12 @@ const formatTime = (minutes) => {
   const m = minutes % 60
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
+
+// Re-evaluate the scroll fades whenever the rendered content or view changes
+// (declared here so the immediate watch run sees weeks/quarterMonths defined).
+watch(
+  () => [props.viewMode, props.filter, weeks.value, quarterMonths.value],
+  () => nextTick(updateFade),
+  { deep: true }
+)
 </script>
