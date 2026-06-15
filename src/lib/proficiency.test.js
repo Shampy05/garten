@@ -10,9 +10,12 @@ import {
   paceMomentum,
   relationRank,
   nativeMultiplier,
+  LEVELS,
   PACE_WINDOW_DAYS,
   DEFAULT_TARGET_HOURS,
 } from './proficiency.js'
+
+const fractionOf = (key) => LEVELS.find((l) => l.key === key).fraction
 
 describe('targets', () => {
   it('falls back to the Category III default for unlisted languages', () => {
@@ -27,8 +30,23 @@ describe('targets', () => {
 
 describe('level <-> hours', () => {
   it('maps a level to a fraction of the target', () => {
-    expect(hoursForLevel('Spanish', 'b1')).toBe(Math.round(750 * 0.45))
+    expect(hoursForLevel('Spanish', 'b1')).toBe(Math.round(750 * fractionOf('b1')))
     expect(hoursForLevel('Spanish', 'none')).toBe(0)
+  })
+
+  it('uses Cambridge-derived CEFR fractions', () => {
+    expect(fractionOf('a1')).toBe(0.13)
+    expect(fractionOf('a2')).toBe(0.25)
+    expect(fractionOf('b1')).toBe(0.5)
+    expect(fractionOf('b2')).toBe(0.73)
+    expect(fractionOf('c1')).toBe(1.0)
+  })
+
+  it('keeps CEFR fractions monotonic and within [0, 1]', () => {
+    const fr = LEVELS.map((l) => l.fraction)
+    for (let i = 1; i < fr.length; i++) expect(fr[i]).toBeGreaterThan(fr[i - 1])
+    expect(fr[0]).toBe(0)
+    expect(fr[fr.length - 1]).toBe(1.0)
   })
 
   it('round-trips through the nearest level', () => {

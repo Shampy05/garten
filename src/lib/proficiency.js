@@ -231,25 +231,34 @@ export function targetHours(languageName, nativeLanguage = null) {
   return Math.round(adjusted / 25) * 25 // keep it estimate-shaped
 }
 
-// Beyond professional proficiency (~B2/C1), a stretch "mastery" horizon toward
-// near-native command (~C2). Roughly 1.6x the base hours — guided-learning-hour
-// estimates put C2 well above C1, but like the base targets this is an estimate
-// meant to give advanced learners somewhere to keep aiming, not a precise figure.
-export const MASTERY_FACTOR = 1.6
+// Beyond professional proficiency (~C1), a stretch "mastery" horizon toward
+// near-native command (~C2). Cambridge's guided-learning-hours put C2 at
+// ~1000–1200h against C1's ~700–800h, i.e. roughly 1.5x — like the base targets
+// an estimate to give advanced learners somewhere to keep aiming, not a promise.
+export const MASTERY_FACTOR = 1.5
 
 export function masteryHours(languageName, nativeLanguage = null) {
   return Math.round((targetHours(languageName, nativeLanguage) * MASTERY_FACTOR) / 25) * 25
 }
 
 // Starting-point levels. The fraction is the share of the proficiency target a
-// learner has roughly already covered when entering at that level. This lets a
+// learner has roughly already covered when entering at that level — letting a
 // user say "I'm about intermediate" instead of counting past hours.
+//
+// Basis: our base target is professional working proficiency (≈ CEFR C1, the
+// ILR-3 level FSI hours describe), so C1 = 1.0 by definition. The other
+// fractions are Cambridge English's published cumulative "guided learning
+// hours" per level, normalised to their C1 midpoint (~750h):
+//   A1 ~95h → 0.13 · A2 ~190h → 0.25 · B1 ~375h → 0.50 · B2 ~550h → 0.73.
+// (Cambridge gives ranges — A2 180–200, B1 350–400, B2 500–600, C1 700–800,
+// C2 1000–1200 — and stresses they're guidelines; learners vary widely.)
+// Source: Cambridge English, "Guided learning hours".
 export const LEVELS = [
   { key: 'none', label: 'Just starting', fraction: 0 },
-  { key: 'a1', label: 'Beginner (A1)', fraction: 0.1 },
-  { key: 'a2', label: 'Elementary (A2)', fraction: 0.22 },
-  { key: 'b1', label: 'Intermediate (B1)', fraction: 0.45 },
-  { key: 'b2', label: 'Upper-intermediate (B2)', fraction: 0.75 },
+  { key: 'a1', label: 'Beginner (A1)', fraction: 0.13 },
+  { key: 'a2', label: 'Elementary (A2)', fraction: 0.25 },
+  { key: 'b1', label: 'Intermediate (B1)', fraction: 0.5 },
+  { key: 'b2', label: 'Upper-intermediate (B2)', fraction: 0.73 },
   { key: 'c1', label: 'Advanced (C1+)', fraction: 1.0 },
 ]
 
