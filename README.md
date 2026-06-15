@@ -74,8 +74,13 @@ Sessions are stored in Supabase as atomic entries:
 - `hours` & `minutes`
 - `notes` (optional text)
 
+Languages:
+- `id`, `name`, `color`, `types[]`
+- `prior_hours` (numeric, default 0) — starting point credited from experience before tracking; feeds the Fluency Horizon only
+
 User settings:
 - `weekly_goal_hours` (nullable numeric)
+- `native_language` (nullable text) — user's L1; feeds the Fluency Horizon's proximity-based target adjustment (NULL = English baseline)
 
 ## Performance
 
