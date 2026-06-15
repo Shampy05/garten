@@ -54,10 +54,7 @@
               class="w-10 h-10 rounded-xl bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm flex items-center justify-center text-gray-500 hover:text-gray-700 transition-all flex-shrink-0"
               title="Manage Languages"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-              </svg>
+              <Settings :size="20" />
             </button>
           </div>
         </div>
@@ -82,7 +79,7 @@
                 {{ (weekMinutes / 60).toFixed(1) }}h / {{ goalHours }}h
               </span>
               <button @click="goalEditing = !goalEditing" class="text-gray-400 hover:text-gray-600">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                <Pencil :size="12" />
               </button>
             </div>
           </div>
@@ -204,15 +201,20 @@
             </div>
             <div class="flex items-center gap-3 mt-1.5 pl-5">
               <p v-if="entry.notes" class="text-xs text-gray-400 truncate flex-1">{{ entry.notes }}</p>
-              <div class="flex items-center gap-2 ml-auto flex-shrink-0">
-                <button @click="openEdit(entry)" class="text-gray-400 hover:text-gray-600 text-xs">Edit</button>
-                <button @click="confirmDeleteEntry(entry)" class="text-red-400 hover:text-red-600 text-xs">Delete</button>
+              <div class="flex items-center gap-1.5 ml-auto flex-shrink-0">
+                <button @click="openEdit(entry)" class="p-1 rounded text-gray-400 hover:text-gray-600 transition-colors" title="Edit">
+                  <Pencil :size="14" />
+                </button>
+                <button @click="confirmDeleteEntry(entry)" class="p-1 rounded text-red-400 hover:text-red-600 transition-colors" title="Delete">
+                  <Trash2 :size="14" />
+                </button>
               </div>
             </div>
           </div>
 
           <div v-if="recentEntries.length === 0" class="text-center py-8 text-gray-400">
-            No sessions yet. Start planting your first seed!
+            <Sprout :size="32" class="mx-auto mb-3 text-gray-300" />
+            <p class="text-sm">No sessions yet. Start planting your first seed!</p>
           </div>
           <button
             v-if="recentEntries.length < data.entries.length"
@@ -263,6 +265,7 @@
 
 <script setup>
 import { ref, computed, watch, provide } from 'vue'
+import { Settings, Pencil, Trash2, Sprout } from 'lucide-vue-next'
 import { useAuth } from './composables/useAuth.js'
 import { useStorage } from './composables/useStorage.js'
 import { useLanguageLookup } from './composables/useLanguageLookup.js'

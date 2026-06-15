@@ -9,14 +9,15 @@
           <h2 class="text-lg font-bold text-gray-900">Language Seeds</h2>
           <div class="flex items-center gap-2">
             <button @click="showAddForm = !showAddForm"
-              class="text-sm text-green-600 hover:text-green-700 font-medium transition-colors"
+              class="text-sm text-green-600 hover:text-green-700 font-medium transition-colors inline-flex items-center gap-1"
             >
-              + New Seed
+              <Sprout :size="14" />
+              New Seed
             </button>
             <button @click="$emit('close')"
-              class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors text-sm"
+              class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
             >
-              ✕
+              <X :size="14" />
             </button>
           </div>
         </div>
@@ -37,7 +38,7 @@
                   :class="c.toLowerCase() === color?.toLowerCase() ? 'ring-2 ring-offset-2 ring-gray-500' : 'hover:scale-110'"
                   :style="{ backgroundColor: c }"
                 >
-                  <svg v-if="c.toLowerCase() === color?.toLowerCase()" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  <Check v-if="c.toLowerCase() === color?.toLowerCase()" class="w-4 h-4 text-white" :stroke-width="3.5" />
                 </button>
               </div>
             </div>
@@ -111,9 +112,9 @@
               </div>
               <span class="font-bold text-white drop-shadow-sm">{{ lang.name }}</span>
               <button @click.stop="confirmDeleteLanguage(lang)"
-                class="ml-auto w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white/80 hover:text-white transition-colors text-xs flex-shrink-0"
+                class="ml-auto w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white/80 hover:text-white transition-colors flex-shrink-0"
                 title="Remove language"
-              >✕</button>
+              ><X :size="14" /></button>
             </div>
             <div class="flex items-center justify-center" :style="{ backgroundColor: lang.color + '08' }">
               <div class="w-full border-t-2 border-dashed mx-3" :style="{ borderColor: lang.color + '30' }"></div>
@@ -139,7 +140,7 @@
                     :class="c.toLowerCase() === lang.color?.toLowerCase() ? 'ring-2 ring-offset-2 ring-gray-500' : 'hover:scale-110'"
                     :style="{ backgroundColor: c }"
                   >
-                    <svg v-if="c.toLowerCase() === lang.color?.toLowerCase()" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    <Check v-if="c.toLowerCase() === lang.color?.toLowerCase()" class="w-4 h-4 text-white" :stroke-width="3.5" />
                   </button>
                 </div>
               </div>
@@ -166,8 +167,9 @@
           </div>
 
           <div v-if="languages.length === 0" class="text-center py-8 text-gray-400">
+            <Sprout :size="32" class="mx-auto mb-3 text-gray-300" />
             <p class="text-sm">No language seeds yet.</p>
-            <p class="text-xs mt-1">Click "+ New Seed" to add your first language.</p>
+            <p class="text-xs mt-1">Click "New Seed" to add your first language.</p>
           </div>
         </div>
 
@@ -178,15 +180,17 @@
             <button
               @click="onExportCSV"
               :disabled="!hasData"
-              class="flex-1 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              class="flex-1 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-1.5"
             >
+              <Download :size="12" />
               Download CSV
             </button>
             <button
               @click="onExportJSON"
               :disabled="!hasData"
-              class="flex-1 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              class="flex-1 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-1.5"
             >
+              <Download :size="12" />
               Download JSON
             </button>
           </div>
@@ -212,6 +216,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { Sprout, Plus, Download, X, Check } from 'lucide-vue-next'
 import LanguageAutocomplete from './LanguageAutocomplete.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import { ACTIVITY_TYPES } from '../lib/types.js'

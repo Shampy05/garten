@@ -1,7 +1,8 @@
 <template>
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mt-6">
     <h3 class="font-display text-lg font-semibold text-gray-800 mb-4">Activity Breakdown</h3>
-    <div v-if="rows.length === 0" class="text-sm text-gray-400 italic">
+    <div v-if="rows.length === 0" class="text-sm text-gray-400 italic flex items-center gap-2">
+      <Sprout :size="18" class="text-gray-300 flex-shrink-0" />
       No sessions logged yet.
     </div>
     <div v-else class="space-y-4">
@@ -37,6 +38,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { Sprout } from 'lucide-vue-next'
 import { useLanguageLookup } from '../composables/useLanguageLookup.js'
 
 const props = defineProps({

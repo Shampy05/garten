@@ -2,7 +2,8 @@
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
     <h4 class="font-display text-xs font-semibold text-gray-800 mb-3">Top Languages</h4>
     <div v-if="rankings.length === 0" class="text-xs text-gray-400 text-center py-4">
-      No data yet
+      <Sprout :size="24" class="mx-auto mb-2 text-gray-300" />
+      <p>No data yet</p>
     </div>
     <div v-for="(item, i) in rankings" :key="item.id"
       class="flex items-center gap-2 py-2 border-b border-gray-100 last:border-0"
@@ -25,6 +26,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { Sprout } from 'lucide-vue-next'
 import { localDateStr, currentStreak, getMonthRange, getQuarterRange, getYearRange } from '../lib/date.js'
 import { useLanguageLookup } from '../composables/useLanguageLookup.js'
 

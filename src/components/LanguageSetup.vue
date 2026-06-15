@@ -40,7 +40,7 @@
               :class="c === color ? 'ring-2 ring-offset-2 ring-gray-500' : 'hover:scale-110'"
               :style="{ backgroundColor: c }"
             >
-              <svg v-if="c === color" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              <Check v-if="c === color" class="w-4 h-4 text-white" :stroke-width="3.5" />
             </button>
           </div>
         </div>
@@ -91,6 +91,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { Check } from 'lucide-vue-next'
 import SproutIcon from './SproutIcon.vue'
 import LanguageAutocomplete from './LanguageAutocomplete.vue'
 import { ACTIVITY_TYPES } from '../lib/types.js'

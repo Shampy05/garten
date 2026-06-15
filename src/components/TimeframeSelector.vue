@@ -19,9 +19,7 @@
           class="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
           title="Previous"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
+          <ChevronLeft class="w-5 h-5" />
         </button>
         <span class="text-sm font-semibold text-gray-800 text-center select-none">
           {{ dateLabel }}
@@ -31,9 +29,7 @@
           class="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
           title="Next"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
+          <ChevronRight class="w-5 h-5" />
         </button>
       </div>
     </div>
@@ -42,6 +38,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
 const props = defineProps({
   viewMode: { type: String, required: true },
