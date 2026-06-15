@@ -32,6 +32,7 @@
 <script setup>
 import { computed } from 'vue'
 import { localDateStr, currentStreak } from '../lib/date.js'
+import { useLanguageLookup } from '../composables/useLanguageLookup.js'
 
 const props = defineProps({
   entries: {
@@ -48,10 +49,11 @@ const props = defineProps({
   }
 })
 
+const { nameFor } = useLanguageLookup(() => props.languages)
+
 const activeFilterLabel = computed(() => {
   if (!props.filter.language) return 'All Languages'
-  const lang = props.languages.find(l => l.id === props.filter.language)
-  const name = lang ? lang.name : props.filter.language
+  const name = nameFor(props.filter.language)
   if (props.filter.types.length === 0) return name
   return `${name} (${props.filter.types.join(', ')})`
 })

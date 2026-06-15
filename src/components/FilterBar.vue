@@ -43,6 +43,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useLanguageLookup } from '../composables/useLanguageLookup.js'
 
 const props = defineProps({
   languages: {
@@ -53,11 +54,13 @@ const props = defineProps({
 
 const emit = defineEmits(['filter-change'])
 
+const { languageFor } = useLanguageLookup(() => props.languages)
+
 const selectedLanguage = ref(null)
 const selectedTypes = ref([])
 
 const selectedLanguageObj = computed(() => {
-  return props.languages.find(l => l.id === selectedLanguage.value)
+  return languageFor(selectedLanguage.value)
 })
 
 const selectLanguage = (langId) => {
@@ -84,7 +87,7 @@ const emitFilter = () => {
 }
 
 watch(() => props.languages, () => {
-  if (selectedLanguage.value && !props.languages.find(l => l.id === selectedLanguage.value)) {
+  if (selectedLanguage.value && !languageFor(selectedLanguage.value)) {
     selectedLanguage.value = null
     selectedTypes.value = []
     emitFilter()

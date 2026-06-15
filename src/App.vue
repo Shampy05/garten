@@ -260,6 +260,7 @@
 import { ref, computed, watch, provide } from 'vue'
 import { useAuth } from './composables/useAuth.js'
 import { useStorage } from './composables/useStorage.js'
+import { useLanguageLookup } from './composables/useLanguageLookup.js'
 import { localDateStr, currentStreak } from './lib/date.js'
 import AuthScreen from './components/AuthScreen.vue'
 import LanguageSetup from './components/LanguageSetup.vue'
@@ -281,6 +282,8 @@ const { user, loading: authLoading, signIn, signUp, signOut, resetPassword } = u
 provide('auth', { signIn, signUp, resetPassword })
 
 const { data, loaded, loadError, weeklyGoal, nativeLanguage, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, updateLanguage: storageUpdateLanguage, saveGoal, saveNativeLanguage, retryLoad } = useStorage()
+
+const { nameFor, colorFor } = useLanguageLookup(() => data.value.languages)
 
 const setupActive = ref(false)
 
@@ -374,13 +377,10 @@ const goalSegments = computed(() => {
 
   return Object.entries(byLang)
     .sort((a, b) => b[1] - a[1])
-    .map(([langId, mins]) => {
-      const lang = data.value.languages.find(l => l.id === langId)
-      return {
-        color: lang ? lang.color : '#16a34a',
-        percent: (mins / total) * filledPct
-      }
-    })
+    .map(([langId, mins]) => ({
+      color: colorFor(langId),
+      percent: (mins / total) * filledPct
+    }))
 })
 
 const saveGoalInput = () => {
@@ -427,13 +427,6 @@ const confirmDeleteEntry = (entry) => { deleteTarget.value = entry; showDeleteCo
 const cancelDelete = () => { deleteTarget.value = null; showDeleteConfirm.value = false }
 const executeDelete = () => { if (deleteTarget.value) storageDeleteEntry(deleteTarget.value.id); deleteTarget.value = null; showDeleteConfirm.value = false }
 
-const getLanguageName = (languageId) => {
-  const lang = data.value.languages.find(l => l.id === languageId)
-  return lang ? lang.name : languageId
-}
-
-const getLanguageColor = (languageId) => {
-  const lang = data.value.languages.find(l => l.id === languageId)
-  return lang ? lang.color : '#16a34a'
-}
+const getLanguageName = nameFor
+const getLanguageColor = colorFor
 </script>

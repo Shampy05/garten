@@ -37,11 +37,14 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useLanguageLookup } from '../composables/useLanguageLookup.js'
 
 const props = defineProps({
   entries: { type: Array, required: true },
   languages: { type: Array, required: true }
 })
+
+const { nameFor, colorFor } = useLanguageLookup(() => props.languages)
 
 const TYPE_INITIALS = {
   reading: 'R',
@@ -82,7 +85,8 @@ const rows = computed(() => {
 
   return Object.entries(byLang)
     .map(([langId, types]) => {
-      const lang = props.languages.find(l => l.id === langId)
+      const langName = nameFor(langId)
+      const langColor = colorFor(langId)
       const totalMinutes = Object.values(types).reduce((s, v) => s + v, 0)
       const segments = Object.entries(types)
         .sort((a, b) => b[1] - a[1])
@@ -97,8 +101,8 @@ const rows = computed(() => {
 
       return {
         id: langId,
-        name: lang ? lang.name : langId,
-        color: lang ? lang.color : '#16a34a',
+        name: langName,
+        color: langColor,
         totalMinutes,
         totalFormatted: formatMinutes(totalMinutes),
         segments

@@ -141,7 +141,7 @@ export function useStorage() {
       toast.error('Failed to add language. Please try again.')
       return
     }
-    if (!data.value.languages.find(l => l.id === newLang.id)) {
+    if (!data.value.languages.some(l => l.id === newLang.id)) {
       data.value.languages.push(newLang)
     }
     setCache(userId.value, data.value)

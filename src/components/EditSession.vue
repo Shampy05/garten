@@ -68,6 +68,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useLanguageLookup } from '../composables/useLanguageLookup.js'
 
 const props = defineProps({
   entry: { type: Object, default: null },
@@ -76,6 +77,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['save', 'close'])
+
+const { languageFor } = useLanguageLookup(() => props.languages)
 
 const form = ref({ languageId: '', type: '', hours: 0, minutes: 0, date: '', notes: '' })
 
@@ -92,7 +95,7 @@ watch(() => props.visible, (v) => {
   }
 })
 
-const selectedLang = computed(() => props.languages.find(l => l.id === form.value.languageId))
+const selectedLang = computed(() => languageFor(form.value.languageId))
 const availableTypes = computed(() => selectedLang.value ? selectedLang.value.types : [])
 
 function save() {

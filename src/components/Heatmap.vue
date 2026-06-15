@@ -179,6 +179,7 @@
 import { ref, computed } from 'vue'
 import { localDateStr, daysBetween, getMonthRange, getQuarterRange, getYearRange } from '../lib/date.js'
 import { toHexColor } from '../lib/color.js'
+import { useLanguageLookup } from '../composables/useLanguageLookup.js'
 
 const props = defineProps({
   entries: { type: Array, required: true },
@@ -187,6 +188,8 @@ const props = defineProps({
   viewMode: { type: String, default: 'month' },
   viewDate: { type: Date, default: () => new Date() }
 })
+
+const { nameFor, colorFor, languageFor } = useLanguageLookup(() => props.languages)
 
 const todayStr = localDateStr(new Date())
 const tooltip = ref(null)
@@ -257,7 +260,7 @@ const dayBgColor = (day) => {
   if (day.totalMinutes === 0) return '#f3f4f6'
   if (!useMosaic.value) {
     const lang = props.filter.language
-      ? props.languages.find(l => l.id === props.filter.language)
+      ? languageFor(props.filter.language)
       : activeLanguages.value[0]
     return getColorAtIntensity(lang?.color || '#16a34a', day.totalMinutes)
   }
@@ -271,8 +274,7 @@ const getMosaicGrid = (day, gridSize = 5) => {
   const entries = Object.entries(groups).sort((a, b) => b[1] - a[1])
 
   if (entries.length === 1) {
-    const lang = props.languages.find(l => l.id === entries[0][0])
-    const color = lang ? lang.color : '#16a34a'
+    const color = colorFor(entries[0][0])
     return Array(maxSquares).fill(getColorAtIntensity(color, day.totalMinutes))
   }
 
@@ -294,8 +296,7 @@ const getMosaicGrid = (day, gridSize = 5) => {
 
   const colors = []
   for (const a of allocation) {
-    const lang = props.languages.find(l => l.id === a.langId)
-    const color = lang ? lang.color : '#16a34a'
+    const color = colorFor(a.langId)
     for (let j = 0; j < a.floor; j++) colors.push(color)
   }
   while (colors.length < maxSquares) colors.push(null)
@@ -308,7 +309,7 @@ const getDayNumber = (day) => {
 
 const colorLevels = computed(() => {
   const lang = props.filter.language
-    ? props.languages.find(l => l.id === props.filter.language)
+    ? languageFor(props.filter.language)
     : activeLanguages.value[0]
   const baseColor = lang?.color || '#16a34a'
   return [
@@ -367,8 +368,7 @@ function generateWeeks(startDate, endDate) {
     const dayEntries = inRange ? getEntriesForDate(dateStr) : []
     const totalMinutes = dayEntries.reduce((sum, e) => sum + (e.hours * 60 + e.minutes), 0)
     const activities = dayEntries.map(e => {
-      const lang = props.languages.find(l => l.id === e.languageId)
-      return { language: lang ? lang.name : e.languageId, type: e.type, minutes: e.hours * 60 + e.minutes }
+      return { language: nameFor(e.languageId), type: e.type, minutes: e.hours * 60 + e.minutes }
     })
 
     currentWeek.push({ date: dateStr, totalMinutes, activities, month: currentDate.getMonth(), inRange })

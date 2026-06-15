@@ -26,6 +26,7 @@
 <script setup>
 import { computed } from 'vue'
 import { localDateStr, currentStreak, getMonthRange, getQuarterRange, getYearRange } from '../lib/date.js'
+import { useLanguageLookup } from '../composables/useLanguageLookup.js'
 
 const props = defineProps({
   entries: { type: Array, required: true },
@@ -33,6 +34,8 @@ const props = defineProps({
   viewMode: { type: String, default: 'month' },
   viewDate: { type: Date, default: () => new Date() }
 })
+
+const { nameFor, colorFor } = useLanguageLookup(() => props.languages)
 
 const dateRange = computed(() => {
   const d = props.viewDate
@@ -59,13 +62,12 @@ const rankings = computed(() => {
 
   const sorted = Object.entries(minutesByLang)
     .map(([langId, mins]) => {
-      const lang = props.languages.find(l => l.id === langId)
       const langEntries = periodEntries.value.filter(e => e.languageId === langId)
       const langDates = new Set(langEntries.map(e => e.date))
       return {
         id: langId,
-        name: lang ? lang.name : langId,
-        color: lang ? lang.color : '#16a34a',
+        name: nameFor(langId),
+        color: colorFor(langId),
         hours: +(mins / 60).toFixed(1),
         minutes: mins,
         streak: currentStreak(langDates)
