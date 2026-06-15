@@ -130,6 +130,31 @@
             <p class="text-xs mt-1">Click "+ New Seed" to add your first language.</p>
           </div>
         </div>
+
+        <!-- Export your data -->
+        <div class="border-t border-gray-100 px-5 py-4">
+          <div class="text-[10px] text-gray-400 mb-2 font-semibold uppercase tracking-widest">Export your data</div>
+          <div class="flex items-center gap-2">
+            <button
+              @click="onExportCSV"
+              :disabled="!hasData"
+              class="flex-1 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Download CSV
+            </button>
+            <button
+              @click="onExportJSON"
+              :disabled="!hasData"
+              class="flex-1 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Download JSON
+            </button>
+          </div>
+          <p class="text-[10px] text-gray-300 mt-2 leading-relaxed">
+            CSV is a flat session table for spreadsheets. JSON is a full snapshot with language
+            names and a summary — handy for backups or feeding to an LLM.
+          </p>
+        </div>
       </div>
     </div>
   </Teleport>
@@ -152,12 +177,21 @@ import ConfirmDialog from './ConfirmDialog.vue'
 import { ACTIVITY_TYPES } from '../lib/types.js'
 import { PALETTE } from '../lib/color.js'
 import { LEVELS, hoursForLevel, levelForHours } from '../lib/proficiency.js'
+import { exportCSV, exportJSON } from '../lib/export.js'
 import { useLanguageForm } from '../composables/useLanguageForm.js'
 
 const props = defineProps({
   languages: {
     type: Array,
     required: true
+  },
+  entries: {
+    type: Array,
+    default: () => []
+  },
+  weeklyGoal: {
+    type: Number,
+    default: null
   },
   visible: {
     type: Boolean,
@@ -191,6 +225,16 @@ function updateColor(lang, newColor) {
 
 function updateStart(lang, levelKey) {
   emit('update-language', { id: lang.id, prior_hours: hoursForLevel(lang.name, levelKey) })
+}
+
+const hasData = computed(() => props.entries.length > 0 || props.languages.length > 0)
+
+function onExportCSV() {
+  exportCSV(props.entries, props.languages)
+}
+
+function onExportJSON() {
+  exportJSON(props.entries, props.languages, props.weeklyGoal)
 }
 
 function cancelDelete() {

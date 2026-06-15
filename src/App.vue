@@ -211,6 +211,8 @@
     <!-- Language Manager Modal -->
     <LanguageManager
       :languages="data.languages"
+      :entries="data.entries"
+      :weekly-goal="goalHours"
       :visible="showLangManager"
       @add-language="addLanguage"
       @delete-language="deleteLanguage"
