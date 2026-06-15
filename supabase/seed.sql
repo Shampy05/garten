@@ -1,0 +1,2 @@
+-- Seed data for local development.
+-- Garten does not require any seed data; auth and user data are created at runtime.
