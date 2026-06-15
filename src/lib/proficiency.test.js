@@ -4,6 +4,8 @@ import {
   hoursForLevel,
   levelForHours,
   forecastMonths,
+  masteryHours,
+  MASTERY_FACTOR,
   weightedWeeklyPace,
   paceMomentum,
   relationRank,
@@ -37,6 +39,20 @@ describe('level <-> hours', () => {
   it('treats zero / missing prior hours as "none"', () => {
     expect(levelForHours('German', 0)).toBe('none')
     expect(levelForHours('German', undefined)).toBe('none')
+  })
+})
+
+describe('masteryHours', () => {
+  it('is a stretch above the base target, on the 25h grid', () => {
+    const base = targetHours('Spanish') // 750
+    const mastery = masteryHours('Spanish')
+    expect(mastery).toBeGreaterThan(base)
+    expect(mastery).toBe(Math.round((base * MASTERY_FACTOR) / 25) * 25)
+    expect(mastery % 25).toBe(0)
+  })
+
+  it('respects the native-language adjustment', () => {
+    expect(masteryHours('Portuguese', 'Spanish')).toBeLessThan(masteryHours('Portuguese'))
   })
 })
 

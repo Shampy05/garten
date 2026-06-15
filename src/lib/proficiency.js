@@ -231,6 +231,16 @@ export function targetHours(languageName, nativeLanguage = null) {
   return Math.round(adjusted / 25) * 25 // keep it estimate-shaped
 }
 
+// Beyond professional proficiency (~B2/C1), a stretch "mastery" horizon toward
+// near-native command (~C2). Roughly 1.6x the base hours — guided-learning-hour
+// estimates put C2 well above C1, but like the base targets this is an estimate
+// meant to give advanced learners somewhere to keep aiming, not a precise figure.
+export const MASTERY_FACTOR = 1.6
+
+export function masteryHours(languageName, nativeLanguage = null) {
+  return Math.round((targetHours(languageName, nativeLanguage) * MASTERY_FACTOR) / 25) * 25
+}
+
 // Starting-point levels. The fraction is the share of the proficiency target a
 // learner has roughly already covered when entering at that level. This lets a
 // user say "I'm about intermediate" instead of counting past hours.
