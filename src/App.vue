@@ -35,7 +35,7 @@
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-6">
         <div class="flex items-start justify-between mb-4">
           <div>
-            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-1">Garten</h1>
+            <h1 class="font-display text-3xl sm:text-4xl font-bold text-gray-900 mb-1">Garten</h1>
             <p class="text-sm sm:text-base text-gray-600">Track your language learning progress.</p>
           </div>
           <div class="flex items-center gap-2">
@@ -179,7 +179,7 @@
 
       <!-- Recent Entries -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mt-6">
-        <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Sessions</h3>
+        <h3 class="font-display text-lg font-semibold text-gray-800 mb-4">Recent Sessions</h3>
         <div class="space-y-2">
           <div
             v-for="entry in recentEntries"

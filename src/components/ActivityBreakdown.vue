@@ -1,6 +1,6 @@
 <template>
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mt-6">
-    <h3 class="text-lg font-semibold text-gray-800 mb-4">Activity Breakdown</h3>
+    <h3 class="font-display text-lg font-semibold text-gray-800 mb-4">Activity Breakdown</h3>
     <div v-if="rows.length === 0" class="text-sm text-gray-400 italic">
       No sessions logged yet.
     </div>

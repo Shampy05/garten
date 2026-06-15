@@ -1,7 +1,7 @@
 <template>
   <div v-if="rows.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mt-6">
     <div class="flex items-baseline justify-between mb-5">
-      <h3 class="text-lg font-semibold text-gray-800">Fluency Horizon</h3>
+      <h3 class="font-display text-lg font-semibold text-gray-800">Fluency Horizon</h3>
       <button
         @click="$emit('manage')"
         class="text-xs text-gray-400 hover:text-gray-600 transition-colors"

@@ -1,7 +1,7 @@
 <template>
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-6">
     <div class="flex items-center justify-between mb-4">
-      <h3 class="text-lg font-semibold text-gray-800">Garden Stats</h3>
+      <h3 class="font-display text-lg font-semibold text-gray-800">Garden Stats</h3>
       <div class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
         {{ activeFilterLabel }}
       </div>
@@ -9,19 +9,19 @@
 
     <div class="grid grid-cols-3 gap-4">
       <div class="text-center">
-        <div class="text-3xl font-bold text-green-600">{{ activeDays }}</div>
+        <div class="font-display text-3xl font-bold text-green-600">{{ activeDays }}</div>
         <div class="text-xs text-gray-500 mt-1">Active Days</div>
         <div class="text-xs text-gray-400">{{ periodLabel }}</div>
       </div>
 
       <div class="text-center">
-        <div class="text-3xl font-bold text-blue-600">{{ periodHours }}</div>
+        <div class="font-display text-3xl font-bold text-blue-600">{{ periodHours }}</div>
         <div class="text-xs text-gray-500 mt-1">Hours</div>
         <div class="text-xs text-gray-400">{{ periodLabel }}</div>
       </div>
 
       <div class="text-center">
-        <div class="text-3xl font-bold text-purple-600">{{ periodSessions }}</div>
+        <div class="font-display text-3xl font-bold text-purple-600">{{ periodSessions }}</div>
         <div class="text-xs text-gray-500 mt-1">Sessions</div>
         <div class="text-xs text-gray-400">{{ periodLabel }}</div>
       </div>

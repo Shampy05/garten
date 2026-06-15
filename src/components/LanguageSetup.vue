@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-50 p-4 sm:p-8 flex items-start justify-center">
     <div class="w-full max-w-md pt-8 sm:pt-16">
-      <h1 class="text-3xl font-bold text-gray-900">Welcome to Garten</h1>
+      <h1 class="font-display text-3xl font-bold text-gray-900">Welcome to Garten</h1>
       <p class="text-gray-500 mt-1 mb-8">Add the languages you're learning to get started.</p>
 
       <div v-if="languages.length > 0" class="space-y-2 mb-6">
