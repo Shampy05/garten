@@ -38,6 +38,7 @@ function twoYearsAgo() {
 export function useStorage() {
   const data = ref({ languages: [], entries: [] })
   const loaded = ref(false)
+  const loadError = ref(false)
   const weeklyGoal = ref(null)
   const nativeLanguage = ref(null)
   const { userId } = useAuth()
@@ -47,6 +48,7 @@ export function useStorage() {
     if (!userId.value) {
       data.value = { languages: [], entries: [] }
       loaded.value = false
+      loadError.value = false
       return
     }
 
@@ -54,24 +56,43 @@ export function useStorage() {
     if (cached) {
       data.value = cached
       loaded.value = true
+      loadError.value = false
     } else {
-      const [langRes, entryRes] = await Promise.all([
-        supabase.from('languages').select('*').eq('user_id', userId.value).order('id'),
-        supabase.from('entries').select('*').eq('user_id', userId.value).gte('date', twoYearsAgo()).order('date', { ascending: false })
-      ])
+      loadError.value = false
+      try {
+        const [langRes, entryRes] = await Promise.all([
+          supabase.from('languages').select('*').eq('user_id', userId.value).order('id'),
+          supabase.from('entries').select('*').eq('user_id', userId.value).gte('date', twoYearsAgo()).order('date', { ascending: false })
+        ])
+        if (langRes.error) throw langRes.error
+        if (entryRes.error) throw entryRes.error
 
-      const fresh = {
-        languages: langRes.data || [],
-        entries: (entryRes.data || []).map(toCamel)
+        const fresh = {
+          languages: langRes.data || [],
+          entries: (entryRes.data || []).map(toCamel)
+        }
+        setCache(userId.value, fresh)
+        data.value = fresh
+        loaded.value = true
+      } catch (e) {
+        // Network or query failure on the initial load: surface a retry state
+        // instead of leaving the user stuck on the spinner forever.
+        loadError.value = true
+        loaded.value = false
+        return
       }
-      setCache(userId.value, fresh)
-      data.value = fresh
-      loaded.value = true
     }
 
-    const { data: settings } = await supabase.from('user_settings').select('weekly_goal_hours, native_language').eq('user_id', userId.value).single()
-    weeklyGoal.value = settings?.weekly_goal_hours ?? null
-    nativeLanguage.value = settings?.native_language ?? null
+    // Settings are non-blocking — a failure here degrades gracefully to
+    // defaults rather than blocking the dashboard or triggering a retry.
+    try {
+      const { data: settings } = await supabase.from('user_settings').select('weekly_goal_hours, native_language').eq('user_id', userId.value).single()
+      weeklyGoal.value = settings?.weekly_goal_hours ?? null
+      nativeLanguage.value = settings?.native_language ?? null
+    } catch (e) {
+      weeklyGoal.value = null
+      nativeLanguage.value = null
+    }
   }
 
   // React to the shared auth singleton instead of opening a second
@@ -120,7 +141,7 @@ export function useStorage() {
       toast.error('Failed to add language. Please try again.')
       return
     }
-    if (!data.value.languages.find(l => l.id === newLang.id)) {
+    if (!data.value.languages.some(l => l.id === newLang.id)) {
       data.value.languages.push(newLang)
     }
     setCache(userId.value, data.value)
@@ -201,9 +222,15 @@ export function useStorage() {
     nativeLanguage.value = value
   }
 
+  const retryLoad = () => {
+    if (!userId.value) return
+    loadData()
+  }
+
   return {
     data,
     loaded,
+    loadError,
     weeklyGoal,
     nativeLanguage,
     addEntry,
@@ -213,6 +240,7 @@ export function useStorage() {
     updateEntry,
     updateLanguage,
     saveGoal,
-    saveNativeLanguage
+    saveNativeLanguage,
+    retryLoad
   }
 }

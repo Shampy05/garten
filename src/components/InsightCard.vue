@@ -47,6 +47,7 @@
 <script setup>
 import { computed } from 'vue'
 import { localDateStr, getMonthRange, getQuarterRange, getYearRange } from '../lib/date.js'
+import { useLanguageLookup } from '../composables/useLanguageLookup.js'
 
 const props = defineProps({
   entries: { type: Array, required: true },
@@ -54,6 +55,8 @@ const props = defineProps({
   viewMode: { type: String, default: 'month' },
   viewDate: { type: Date, default: () => new Date() }
 })
+
+const { nameFor, colorFor } = useLanguageLookup(() => props.languages)
 
 const dateRange = computed(() => {
   const d = props.viewDate
@@ -103,8 +106,7 @@ const topLanguage = computed(() => {
   const sorted = Object.entries(byLang).sort((a, b) => b[1] - a[1])
   if (sorted.length === 0) return null
   const [langId, mins] = sorted[0]
-  const lang = props.languages.find(l => l.id === langId)
-  return { name: lang ? lang.name : langId, hours: (mins / 60).toFixed(1), color: lang ? lang.color : '#16a34a' }
+  return { name: nameFor(langId), hours: (mins / 60).toFixed(1), color: colorFor(langId) }
 })
 
 const bestStreak = computed(() => {
@@ -130,8 +132,7 @@ const bestStreak = computed(() => {
       }
     }
     if (maxStreak > best.days) {
-      const lang = props.languages.find(l => l.id === langId)
-      best = { days: maxStreak, language: lang ? lang.name : langId }
+      best = { days: maxStreak, language: nameFor(langId) }
     }
   }
   return best

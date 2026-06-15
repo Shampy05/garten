@@ -168,6 +168,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useLanguageLookup } from '../composables/useLanguageLookup.js'
 
 const props = defineProps({
   languages: {
@@ -177,6 +178,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['add-entry'])
+
+const { languageFor } = useLanguageLookup(() => props.languages)
 
 const step = ref(0)
 const today = new Date().toISOString().split('T')[0]
@@ -200,7 +203,7 @@ const presets = [
 ]
 
 const selectedLanguage = computed(() => {
-  return props.languages.find(l => l.id === entry.value.languageId)
+  return languageFor(entry.value.languageId)
 })
 
 const availableTypes = computed(() => {

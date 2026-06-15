@@ -15,8 +15,19 @@
   <div v-else class="min-h-screen bg-gray-50">
     <div v-if="!loaded" class="flex items-center justify-center min-h-screen">
       <div class="text-center">
-        <div class="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p class="text-gray-500">Loading your garden...</p>
+        <div v-if="!loadError" class="text-center">
+          <div class="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p class="text-gray-500">Loading your garden...</p>
+        </div>
+        <div v-else>
+          <p class="text-gray-500 mb-4">Failed to load your garden.</p>
+          <button
+            @click="retryLoad"
+            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     </div>
     <div v-else class="max-w-6xl mx-auto px-4 py-8">
@@ -249,6 +260,7 @@
 import { ref, computed, watch, provide } from 'vue'
 import { useAuth } from './composables/useAuth.js'
 import { useStorage } from './composables/useStorage.js'
+import { useLanguageLookup } from './composables/useLanguageLookup.js'
 import { localDateStr, currentStreak } from './lib/date.js'
 import AuthScreen from './components/AuthScreen.vue'
 import LanguageSetup from './components/LanguageSetup.vue'
@@ -269,7 +281,9 @@ import Toast from './components/Toast.vue'
 const { user, loading: authLoading, signIn, signUp, signOut, resetPassword } = useAuth()
 provide('auth', { signIn, signUp, resetPassword })
 
-const { data, loaded, weeklyGoal, nativeLanguage, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, updateLanguage: storageUpdateLanguage, saveGoal, saveNativeLanguage } = useStorage()
+const { data, loaded, loadError, weeklyGoal, nativeLanguage, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, updateLanguage: storageUpdateLanguage, saveGoal, saveNativeLanguage, retryLoad } = useStorage()
+
+const { nameFor, colorFor } = useLanguageLookup(() => data.value.languages)
 
 const setupActive = ref(false)
 
@@ -363,13 +377,10 @@ const goalSegments = computed(() => {
 
   return Object.entries(byLang)
     .sort((a, b) => b[1] - a[1])
-    .map(([langId, mins]) => {
-      const lang = data.value.languages.find(l => l.id === langId)
-      return {
-        color: lang ? lang.color : '#16a34a',
-        percent: (mins / total) * filledPct
-      }
-    })
+    .map(([langId, mins]) => ({
+      color: colorFor(langId),
+      percent: (mins / total) * filledPct
+    }))
 })
 
 const saveGoalInput = () => {
@@ -416,13 +427,6 @@ const confirmDeleteEntry = (entry) => { deleteTarget.value = entry; showDeleteCo
 const cancelDelete = () => { deleteTarget.value = null; showDeleteConfirm.value = false }
 const executeDelete = () => { if (deleteTarget.value) storageDeleteEntry(deleteTarget.value.id); deleteTarget.value = null; showDeleteConfirm.value = false }
 
-const getLanguageName = (languageId) => {
-  const lang = data.value.languages.find(l => l.id === languageId)
-  return lang ? lang.name : languageId
-}
-
-const getLanguageColor = (languageId) => {
-  const lang = data.value.languages.find(l => l.id === languageId)
-  return lang ? lang.color : '#16a34a'
-}
+const getLanguageName = nameFor
+const getLanguageColor = colorFor
 </script>
