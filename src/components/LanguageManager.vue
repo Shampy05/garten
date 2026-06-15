@@ -103,6 +103,25 @@
                   {{ type }}
                 </span>
               </div>
+
+              <div class="mt-3 pt-3 border-t border-dashed" :style="{ borderColor: lang.color + '20' }">
+                <div class="text-[10px] text-gray-400 mb-1.5 font-semibold uppercase tracking-widest">Starting Point</div>
+                <div class="flex items-center gap-2">
+                  <select
+                    :value="levelForHours(lang.name, lang.prior_hours)"
+                    @change="updateStart(lang, $event.target.value)"
+                    class="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option v-for="level in LEVELS" :key="level.key" :value="level.key">{{ level.label }}</option>
+                  </select>
+                  <span class="text-[10px] text-gray-400 whitespace-nowrap">
+                    {{ Math.round(Number(lang.prior_hours) || 0) }}h credited
+                  </span>
+                </div>
+                <p class="text-[10px] text-gray-300 mt-1.5 leading-relaxed">
+                  Roughly where you were before tracking — counts toward your fluency horizon.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -132,6 +151,7 @@ import LanguageAutocomplete from './LanguageAutocomplete.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import { ACTIVITY_TYPES } from '../lib/types.js'
 import { PALETTE } from '../lib/color.js'
+import { LEVELS, hoursForLevel, levelForHours } from '../lib/proficiency.js'
 import { useLanguageForm } from '../composables/useLanguageForm.js'
 
 const props = defineProps({
@@ -167,6 +187,10 @@ function confirmDeleteLanguage(lang) {
 
 function updateColor(lang, newColor) {
   emit('update-language', { id: lang.id, color: newColor })
+}
+
+function updateStart(lang, levelKey) {
+  emit('update-language', { id: lang.id, prior_hours: hoursForLevel(lang.name, levelKey) })
 }
 
 function cancelDelete() {

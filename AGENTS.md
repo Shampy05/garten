@@ -22,7 +22,7 @@ This is a Vue 3 + Vite SPA deployed to GitHub Pages. It uses Supabase (PostgreSQ
 ## Data Model
 
 All data operations go through the `useStorage` composable which maps between JS camelCase and DB snake_case:
-- `languages`: Array of { id, name, color, types[] } — stored as-is in Supabase
+- `languages`: Array of { id, name, color, types[], prior_hours } — stored as-is in Supabase. `prior_hours` (numeric, default 0) is the "starting point" credited from experience before tracking; feeds the Fluency Horizon only.
 - `entries`: Array of { id, date, languageId, type, hours, minutes, notes } — `languageId` maps to `language_id` in DB
 - `user_settings`: { user_id, weekly_goal_hours } — per-user weekly study goal
 
@@ -67,6 +67,8 @@ Entries older than 2 years are not fetched — the heatmap only displays data wi
   - Title: "Top Languages"
 
 - **Insight card**: Between heatmap and recent sessions.
+
+- **Fluency Horizon card**: Below the insight card. One thin progress bar per language showing accumulated hours (prior starting point at 40% opacity + logged hours at full color) against a research-based proficiency target from `src/lib/proficiency.js` (FSI difficulty categories → hours to ~CEFR B2/C1 for English speakers). Status line gives a pace-based ETA computed from the trailing 28 days of logging. "Set starting point" opens the LanguageManager. Targets are framed as estimates, no emojis. Starting point is captured per-language via a CEFR level picker (not raw hours) in the LanguageManager seed packet, which maps the level to a fraction of that language's target.
 
 - **Recent sessions**: Below everything, inside its own card. Two-row layout: top row has language/type/date/duration, bottom row has notes (truncated) + edit/delete actions.
 

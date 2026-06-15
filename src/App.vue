@@ -150,6 +150,13 @@
         :view-date="viewDate"
       />
 
+      <!-- Fluency Horizon -->
+      <FluencyHorizon
+        :entries="data.entries"
+        :languages="data.languages"
+        @manage="showLangManager = true"
+      />
+
       <!-- Activity Breakdown -->
       <ActivityBreakdown
         :entries="filteredEntries"
@@ -247,6 +254,7 @@ import FilterBar from './components/FilterBar.vue'
 import TimeframeSelector from './components/TimeframeSelector.vue'
 import Heatmap from './components/Heatmap.vue'
 import InsightCard from './components/InsightCard.vue'
+import FluencyHorizon from './components/FluencyHorizon.vue'
 import ActivityBreakdown from './components/ActivityBreakdown.vue'
 import Leaderboard from './components/Leaderboard.vue'
 import EditSession from './components/EditSession.vue'
@@ -394,7 +402,7 @@ const navigateView = (direction) => {
 const addEntry = (entry) => { storageAddEntry(entry) }
 const addLanguage = (language) => { storageAddLanguage(language) }
 const deleteLanguage = (langId) => { storageDeleteLanguage(langId) }
-const updateLanguage = (data) => { storageUpdateLanguage(data.id, { color: data.color }) }
+const updateLanguage = (data) => { const { id, ...updates } = data; storageUpdateLanguage(id, updates) }
 const deleteEntry = (id) => { storageDeleteEntry(id) }
 const openEdit = (entry) => { editingEntry.value = entry; editingVisible.value = true }
 const saveEdit = (entry) => { storageUpdateEntry(entry); editingVisible.value = false; editingEntry.value = null }

@@ -1,0 +1,176 @@
+<template>
+  <div v-if="rows.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mt-6">
+    <div class="flex items-baseline justify-between mb-5">
+      <h3 class="text-lg font-semibold text-gray-800">Fluency Horizon</h3>
+      <button
+        @click="$emit('manage')"
+        class="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+      >
+        Set starting point
+      </button>
+    </div>
+
+    <div class="space-y-5">
+      <div v-for="row in visibleRows" :key="row.id">
+        <div class="flex items-baseline gap-2 mb-2">
+          <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: row.color }"></span>
+          <span class="text-sm font-medium text-gray-700 truncate">{{ row.name }}</span>
+          <span class="text-sm font-semibold ml-auto whitespace-nowrap" :style="{ color: row.color }">
+            {{ row.pctLabel }}
+          </span>
+        </div>
+
+        <!-- Track with CEFR milestone ticks -->
+        <div class="relative w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+          <div class="absolute inset-0 flex">
+            <div
+              v-if="row.priorPct > 0"
+              class="h-full transition-all duration-500"
+              :style="{ width: row.priorPct + '%', backgroundColor: row.color, opacity: 0.4 }"
+            ></div>
+            <div
+              v-if="row.loggedPct > 0"
+              class="h-full transition-all duration-500"
+              :style="{ width: row.loggedPct + '%', backgroundColor: row.color }"
+            ></div>
+          </div>
+          <div
+            v-for="tick in milestones"
+            :key="tick.key"
+            class="absolute top-0 h-full w-px bg-white/70"
+            :style="{ left: tick.left + '%' }"
+            :title="tick.label"
+          ></div>
+        </div>
+
+        <div class="flex items-center justify-between mt-1.5 gap-2">
+          <span class="text-xs" :class="row.reached ? 'text-green-600 font-medium' : 'text-gray-400'">
+            {{ row.statusLabel }}
+          </span>
+          <span class="text-[10px] text-gray-300 whitespace-nowrap">
+            {{ row.totalHours }} / {{ row.target }}h
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <button
+      v-if="dormantRows.length > 0"
+      @click="showAll = !showAll"
+      class="mt-4 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+    >
+      {{ showAll ? 'Hide untouched languages' : `Show ${dormantRows.length} more not yet started` }}
+    </button>
+
+    <p class="text-[10px] text-gray-300 mt-4 leading-relaxed">
+      Targets estimate the hours to professional working proficiency (~CEFR B2/C1) for
+      English speakers, based on FSI language-difficulty research. Ticks mark the A2, B1
+      and B2 milestones; forecasts use your last 4 weeks of logging.
+    </p>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue'
+import { localDateStr } from '../lib/date.js'
+import { targetHours, forecastMonths, LEVELS } from '../lib/proficiency.js'
+
+const props = defineProps({
+  entries: { type: Array, required: true },
+  languages: { type: Array, required: true },
+})
+
+defineEmits(['manage'])
+
+// Don't extrapolate a forecast from a trickle, and never print an absurd ETA.
+const MIN_PACE_HOURS_PER_WEEK = 0.5
+const MAX_FORECAST_MONTHS = 120 // 10 years
+
+const showAll = ref(false)
+
+// Milestone tick positions (A2, B1, B2) as a % of the target.
+const milestones = computed(() =>
+  LEVELS.filter((l) => ['a2', 'b1', 'b2'].includes(l.key)).map((l) => ({
+    key: l.key,
+    left: l.fraction * 100,
+    label: l.label,
+  }))
+)
+
+// Minutes logged per language, all-time and over the trailing 28 days.
+const stats = computed(() => {
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - 28)
+  const cutoffStr = localDateStr(cutoff)
+
+  const total = {}
+  const recent = {}
+  for (const e of props.entries) {
+    const mins = e.hours * 60 + e.minutes
+    total[e.languageId] = (total[e.languageId] || 0) + mins
+    if (e.date >= cutoffStr) recent[e.languageId] = (recent[e.languageId] || 0) + mins
+  }
+  return { total, recent }
+})
+
+function fmtForecast(months) {
+  if (months == null || months > MAX_FORECAST_MONTHS) return null
+  if (months < 1) return 'less than a month to go'
+  if (months < 18) return `~${Math.round(months)} months at this pace`
+  return `~${(months / 12).toFixed(1)} years at this pace`
+}
+
+const rows = computed(() => {
+  return props.languages
+    .map((lang) => {
+      const target = targetHours(lang.name)
+      const priorHours = Number(lang.prior_hours) || 0
+      const loggedHours = (stats.value.total[lang.id] || 0) / 60
+      const totalHours = priorHours + loggedHours
+      const reached = totalHours >= target
+
+      const priorPct = Math.min((priorHours / target) * 100, 100)
+      const loggedPct = Math.min((loggedHours / target) * 100, 100 - priorPct)
+      const pct = Math.min((totalHours / target) * 100, 100)
+
+      const recentHours = (stats.value.recent[lang.id] || 0) / 60
+      const weeklyPace = recentHours / 4
+      const remaining = Math.max(target - totalHours, 0)
+
+      let statusLabel
+      if (reached) {
+        statusLabel = 'Proficiency target reached'
+      } else {
+        const forecast =
+          weeklyPace >= MIN_PACE_HOURS_PER_WEEK
+            ? fmtForecast(forecastMonths(remaining, weeklyPace))
+            : null
+        statusLabel = forecast || `${Math.round(remaining)}h to go`
+      }
+
+      return {
+        id: lang.id,
+        name: lang.name,
+        color: lang.color,
+        target,
+        totalHours: totalHours.toFixed(totalHours > 0 && totalHours < 100 ? 1 : 0),
+        priorPct,
+        loggedPct,
+        reached,
+        statusLabel,
+        pctLabel: pct === 0 ? '0%' : pct < 1 ? '<1%' : `${Math.round(pct)}%`,
+        active: totalHours > 0 || recentHours > 0,
+        sortKey: totalHours / target,
+      }
+    })
+    .sort((a, b) => b.sortKey - a.sortKey)
+})
+
+// Languages with any progress lead; untouched ones collapse behind a toggle.
+const activeRows = computed(() => rows.value.filter((r) => r.active))
+const dormantRows = computed(() => rows.value.filter((r) => !r.active))
+const visibleRows = computed(() => {
+  if (activeRows.value.length === 0) return rows.value // fresh account: show targets
+  return showAll.value ? rows.value : activeRows.value
+})
+</script>

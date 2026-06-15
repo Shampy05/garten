@@ -19,6 +19,8 @@ A personal language learning tracker inspired by GitHub contribution heatmaps. T
 - **Language Autocomplete**: Curated list of ~130 languages — no free-form input, no misspellings
 - **Activity Type Pills**: Fixed types (reading, grammar, vocabulary, listening, speaking, writing, pronunciation) as toggleable pills
 - **Insight Card**: Auto-generated narrative — top language, longest streak, weekend/weekday bias
+- **Fluency Horizon**: Each language's accumulated hours plotted against a research-based proficiency target (FSI language-difficulty categories → hours to ~CEFR B2/C1 for English speakers), with a pace-based ETA from your last 4 weeks of logging
+- **Starting Point**: Set a rough prior level (Beginner → Advanced) per language so existing experience counts toward your horizon instead of starting from zero
 - **Persistent Storage**: Supabase (PostgreSQL) backend — data persists across devices
 - **Email/Password Auth**: Per-user data via Supabase RLS. Language picker on first sign-up
 
