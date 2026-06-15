@@ -154,6 +154,7 @@
       <FluencyHorizon
         :entries="data.entries"
         :languages="data.languages"
+        :native-language="nativeLanguage"
         @manage="showLangManager = true"
       />
 
@@ -213,10 +214,12 @@
       :languages="data.languages"
       :entries="data.entries"
       :weekly-goal="goalHours"
+      :native-language="nativeLanguage"
       :visible="showLangManager"
       @add-language="addLanguage"
       @delete-language="deleteLanguage"
       @update-language="updateLanguage"
+      @set-native-language="saveNativeLanguage"
       @close="showLangManager = false"
     />
 
@@ -266,7 +269,7 @@ import Toast from './components/Toast.vue'
 const { user, loading: authLoading, signIn, signUp, signOut, resetPassword } = useAuth()
 provide('auth', { signIn, signUp, resetPassword })
 
-const { data, loaded, weeklyGoal, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, updateLanguage: storageUpdateLanguage, saveGoal } = useStorage()
+const { data, loaded, weeklyGoal, nativeLanguage, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, updateLanguage: storageUpdateLanguage, saveGoal, saveNativeLanguage } = useStorage()
 
 const setupActive = ref(false)
 

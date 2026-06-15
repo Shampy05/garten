@@ -34,8 +34,201 @@ const TARGET_OVERRIDES = {
   Korean: 2200,
 }
 
-export function targetHours(languageName) {
-  return TARGET_OVERRIDES[languageName] ?? DEFAULT_TARGET_HOURS
+// --- Native-language-aware adjustment ---------------------------------------
+//
+// The FSI hours above assume an English L1. A Spanish speaker reaches
+// Portuguese far faster than an English speaker does; a Japanese speaker has a
+// real head start on Korean. There is no published "hours" dataset for
+// arbitrary native→target pairs, so we don't invent one. Instead we model
+// *relative* proximity and apply it as a discount on the trusted English
+// baseline — and only ever a discount, so a target can never come out harder
+// than the FSI figure, and an English L1 is always a no-op (backwards safe).
+//
+// Each language gets a lineage path (broad → specific). Two languages' relation
+// rank is the length of their shared prefix; a longer shared path means closer.
+// Ranks: 1 unrelated · 2 same family · 3 same branch · 4 same sub-branch ·
+// 5 mutually-intelligible cluster. A few genetically-unrelated but contact/areal
+// pairs (Japanese–Korean, Chinese–Japanese) are handled by an override map.
+//
+// Only families that contain a supported native language are tagged in detail;
+// everything else stays rank 1 (no adjustment), which is the honest default.
+
+const LINEAGE = {
+  // Germanic
+  English: ['IE', 'Germanic', 'AngloFrisian'],
+  Frisian: ['IE', 'Germanic', 'AngloFrisian'],
+  German: ['IE', 'Germanic', 'ContinentalWG', 'HighGerman'],
+  Luxembourgish: ['IE', 'Germanic', 'ContinentalWG', 'HighGerman'],
+  Yiddish: ['IE', 'Germanic', 'ContinentalWG', 'HighGerman'],
+  Dutch: ['IE', 'Germanic', 'ContinentalWG', 'LowFranconian'],
+  Afrikaans: ['IE', 'Germanic', 'ContinentalWG', 'LowFranconian'],
+  Swedish: ['IE', 'Germanic', 'NorthGmc', 'Scandinavian'],
+  Norwegian: ['IE', 'Germanic', 'NorthGmc', 'Scandinavian'],
+  Danish: ['IE', 'Germanic', 'NorthGmc', 'Scandinavian'],
+  Icelandic: ['IE', 'Germanic', 'NorthGmc', 'Insular'],
+  Faroese: ['IE', 'Germanic', 'NorthGmc', 'Insular'],
+  // Romance
+  Spanish: ['IE', 'Romance', 'IberoRomance', 'WestIberian'],
+  Portuguese: ['IE', 'Romance', 'IberoRomance', 'WestIberian'],
+  Galician: ['IE', 'Romance', 'IberoRomance', 'WestIberian'],
+  Catalan: ['IE', 'Romance', 'IberoRomance'],
+  French: ['IE', 'Romance', 'GalloRomance'],
+  Italian: ['IE', 'Romance', 'ItaloDalmatian'],
+  Corsican: ['IE', 'Romance', 'ItaloDalmatian'],
+  Romanian: ['IE', 'Romance', 'EasternRomance'],
+  Romansh: ['IE', 'Romance', 'GalloRomance'],
+  Latin: ['IE', 'Romance'],
+  // Slavic
+  Russian: ['IE', 'Slavic', 'EastSlavic', 'EastTight'],
+  Ukrainian: ['IE', 'Slavic', 'EastSlavic', 'EastTight'],
+  Belarusian: ['IE', 'Slavic', 'EastSlavic', 'EastTight'],
+  Polish: ['IE', 'Slavic', 'WestSlavic', 'Lechitic'],
+  Czech: ['IE', 'Slavic', 'WestSlavic', 'CzechSlovak'],
+  Slovak: ['IE', 'Slavic', 'WestSlavic', 'CzechSlovak'],
+  Bulgarian: ['IE', 'Slavic', 'SouthSlavic', 'EastSouth'],
+  Macedonian: ['IE', 'Slavic', 'SouthSlavic', 'EastSouth'],
+  Croatian: ['IE', 'Slavic', 'SouthSlavic', 'WestSouth'],
+  Serbian: ['IE', 'Slavic', 'SouthSlavic', 'WestSouth'],
+  Bosnian: ['IE', 'Slavic', 'SouthSlavic', 'WestSouth'],
+  Slovenian: ['IE', 'Slavic', 'SouthSlavic'],
+  // Indo-Aryan
+  Hindi: ['IE', 'IndoAryan', 'CentralZone', 'Hindustani'],
+  Urdu: ['IE', 'IndoAryan', 'CentralZone', 'Hindustani'],
+  Punjabi: ['IE', 'IndoAryan', 'NorthwestZone'],
+  Sindhi: ['IE', 'IndoAryan', 'NorthwestZone'],
+  Gujarati: ['IE', 'IndoAryan', 'WesternZone'],
+  Marathi: ['IE', 'IndoAryan', 'SouthernZone'],
+  Bengali: ['IE', 'IndoAryan', 'EasternZone', 'Gauda'],
+  Assamese: ['IE', 'IndoAryan', 'EasternZone', 'Gauda'],
+  Oriya: ['IE', 'IndoAryan', 'EasternZone'],
+  Nepali: ['IE', 'IndoAryan', 'NorthernZone'],
+  Sinhala: ['IE', 'IndoAryan', 'Insular'],
+  Sanskrit: ['IE', 'IndoAryan'],
+  // Iranian
+  Persian: ['IE', 'Iranian', 'SWIranian', 'Persic'],
+  Tajik: ['IE', 'Iranian', 'SWIranian', 'Persic'],
+  Kurdish: ['IE', 'Iranian', 'NWIranian'],
+  Pashto: ['IE', 'Iranian', 'EastIranian'],
+  Ossetian: ['IE', 'Iranian', 'EastIranian'],
+  // Other Indo-European branches
+  Greek: ['IE', 'Hellenic'],
+  Armenian: ['IE', 'ArmenianBr'],
+  Albanian: ['IE', 'AlbanianBr'],
+  Lithuanian: ['IE', 'Baltic'],
+  Latvian: ['IE', 'Baltic'],
+  Irish: ['IE', 'Celtic', 'Goidelic'],
+  'Scottish Gaelic': ['IE', 'Celtic', 'Goidelic'],
+  Welsh: ['IE', 'Celtic', 'Brythonic'],
+  Breton: ['IE', 'Celtic', 'Brythonic'],
+  // East Asian
+  Chinese: ['SinoTibetan', 'Sinitic'],
+  Tibetan: ['SinoTibetan', 'TibetoBurman'],
+  Burmese: ['SinoTibetan', 'TibetoBurman'],
+  Dzongkha: ['SinoTibetan', 'TibetoBurman'],
+  Japanese: ['Japonic'],
+  Korean: ['Koreanic'],
+  Vietnamese: ['AustroAsiatic', 'VietMuong'],
+  Khmer: ['AustroAsiatic', 'Khmeric'],
+  // Turkic
+  Turkish: ['Turkic', 'Oghuz'],
+  Azerbaijani: ['Turkic', 'Oghuz'],
+  Turkmen: ['Turkic', 'Oghuz'],
+  Kazakh: ['Turkic', 'Kipchak'],
+  Kyrgyz: ['Turkic', 'Kipchak'],
+  Tatar: ['Turkic', 'Kipchak'],
+  Uzbek: ['Turkic', 'Karluk'],
+  Uyghur: ['Turkic', 'Karluk'],
+  // Afro-Asiatic (Semitic + others)
+  Arabic: ['AfroAsiatic', 'Semitic', 'ArabicGrp'],
+  Maltese: ['AfroAsiatic', 'Semitic', 'ArabicGrp'],
+  Hebrew: ['AfroAsiatic', 'Semitic', 'Canaanite'],
+  Amharic: ['AfroAsiatic', 'Semitic', 'Ethiopic'],
+  Tigrinya: ['AfroAsiatic', 'Semitic', 'Ethiopic'],
+  // Austronesian
+  Indonesian: ['Austronesian', 'MalayoPolynesian', 'Malayic', 'IndoMalay'],
+  Malay: ['Austronesian', 'MalayoPolynesian', 'Malayic', 'IndoMalay'],
+  Javanese: ['Austronesian', 'MalayoPolynesian', 'Javanese'],
+  Sundanese: ['Austronesian', 'MalayoPolynesian', 'Sundanese'],
+  Tagalog: ['Austronesian', 'MalayoPolynesian', 'Philippine'],
+  Cebuano: ['Austronesian', 'MalayoPolynesian', 'Philippine'],
+  Malagasy: ['Austronesian', 'MalayoPolynesian', 'Barito'],
+  Maori: ['Austronesian', 'MalayoPolynesian', 'Polynesian'],
+  Hawaiian: ['Austronesian', 'MalayoPolynesian', 'Polynesian'],
+  Samoan: ['Austronesian', 'MalayoPolynesian', 'Polynesian'],
+  Tongan: ['Austronesian', 'MalayoPolynesian', 'Polynesian'],
+  Tahitian: ['Austronesian', 'MalayoPolynesian', 'Polynesian'],
+  Fijian: ['Austronesian', 'MalayoPolynesian', 'Oceanic'],
+  // Dravidian
+  Tamil: ['Dravidian', 'South', 'TamilKannada', 'TamilMalayalam'],
+  Malayalam: ['Dravidian', 'South', 'TamilKannada', 'TamilMalayalam'],
+  Kannada: ['Dravidian', 'South', 'TamilKannada'],
+  Telugu: ['Dravidian', 'SouthCentral'],
+}
+
+// Genetically-unrelated pairs with a real learning head start from sustained
+// contact or a shared writing system. Keyed by alphabetically-sorted pair.
+const AREAL = {
+  'Japanese|Korean': 4,
+  'Chinese|Japanese': 3,
+  'Chinese|Korean': 3,
+  'Chinese|Vietnamese': 3,
+}
+
+// Gap between how related the learner's L1 is to the target vs how related
+// English is. Bigger gap = bigger discount. Gap <= 0 means no edge over an
+// English speaker, so no change.
+const GAP_MULTIPLIER = { 1: 0.8, 2: 0.6, 3: 0.45 }
+const MAX_DISCOUNT = 0.35 // floor, for gap >= 4
+
+function commonPrefixLen(a, b) {
+  let i = 0
+  while (i < a.length && i < b.length && a[i] === b[i]) i++
+  return i
+}
+
+function arealKey(a, b) {
+  return a < b ? `${a}|${b}` : `${b}|${a}`
+}
+
+// Relation rank 1..5 (higher = closer). See LINEAGE comment for the scale.
+export function relationRank(a, b) {
+  if (a === b) return 6
+  let rank = 1
+  const la = LINEAGE[a]
+  const lb = LINEAGE[b]
+  if (la && lb) {
+    const shared = commonPrefixLen(la, lb)
+    rank = shared === 0 ? 1 : Math.min(shared + 1, 5)
+  }
+  const areal = AREAL[arealKey(a, b)]
+  if (areal && areal > rank) rank = areal
+  return rank
+}
+
+// Discount factor on the English-baseline target for a given native language.
+// Always in (0, 1]; 1 means "no closer than an English speaker".
+export function nativeMultiplier(nativeLanguage, targetLanguage) {
+  if (!nativeLanguage || nativeLanguage === targetLanguage) return 1
+  const gap = relationRank(nativeLanguage, targetLanguage) - relationRank('English', targetLanguage)
+  if (gap <= 0) return 1
+  return GAP_MULTIPLIER[gap] ?? MAX_DISCOUNT
+}
+
+// Native languages we model a meaningful adjustment for. Others fall back to
+// the English baseline (no adjustment) — the honest default.
+export const NATIVE_LANGUAGES = [
+  'Afrikaans', 'Arabic', 'Azerbaijani', 'Bengali', 'Bulgarian', 'Catalan',
+  'Chinese', 'Croatian', 'Czech', 'Danish', 'Dutch', 'French', 'German',
+  'Greek', 'Gujarati', 'Hebrew', 'Hindi', 'Indonesian', 'Italian', 'Japanese',
+  'Korean', 'Malay', 'Marathi', 'Norwegian', 'Persian', 'Polish', 'Portuguese',
+  'Punjabi', 'Romanian', 'Russian', 'Serbian', 'Spanish', 'Swedish', 'Tagalog',
+  'Tamil', 'Telugu', 'Turkish', 'Ukrainian', 'Urdu', 'Vietnamese',
+]
+
+export function targetHours(languageName, nativeLanguage = null) {
+  const base = TARGET_OVERRIDES[languageName] ?? DEFAULT_TARGET_HOURS
+  const adjusted = base * nativeMultiplier(nativeLanguage, languageName)
+  return Math.round(adjusted / 25) * 25 // keep it estimate-shaped
 }
 
 // Starting-point levels. The fraction is the share of the proficiency target a
@@ -50,21 +243,21 @@ export const LEVELS = [
   { key: 'c1', label: 'Advanced (C1+)', fraction: 1.0 },
 ]
 
-export function hoursForLevel(languageName, levelKey) {
+export function hoursForLevel(languageName, levelKey, nativeLanguage = null) {
   const level = LEVELS.find((l) => l.key === levelKey)
   if (!level) return 0
-  return Math.round(targetHours(languageName) * level.fraction)
+  return Math.round(targetHours(languageName, nativeLanguage) * level.fraction)
 }
 
 // Given an hour offset, return the closest matching level key — used to
 // re-display a stored prior_hours value as a level in the editor.
-export function levelForHours(languageName, hours) {
+export function levelForHours(languageName, hours, nativeLanguage = null) {
   const h = Number(hours) || 0
   if (h <= 0) return 'none'
   let best = LEVELS[0]
   let bestDiff = Infinity
   for (const level of LEVELS) {
-    const diff = Math.abs(hoursForLevel(languageName, level.key) - h)
+    const diff = Math.abs(hoursForLevel(languageName, level.key, nativeLanguage) - h)
     if (diff < bestDiff) {
       bestDiff = diff
       best = level

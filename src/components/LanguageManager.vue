@@ -64,6 +64,39 @@
           </div>
         </div>
 
+        <!-- Native language -->
+        <div class="border-b border-gray-100 px-5 py-4">
+          <div class="flex items-center gap-1.5 mb-1.5">
+            <span class="text-[10px] text-gray-400 font-semibold uppercase tracking-widest">Your native language</span>
+            <span class="relative group inline-flex">
+              <span
+                class="w-3.5 h-3.5 rounded-full border border-gray-300 text-gray-400 text-[9px] leading-none flex items-center justify-center cursor-help select-none"
+                tabindex="0"
+                aria-label="How native-language adjustment works"
+              >?</span>
+              <span class="pointer-events-none absolute left-0 top-5 z-20 hidden group-hover:block group-focus-within:block w-60 p-2.5 rounded-lg bg-gray-900 text-white text-[10px] font-normal normal-case tracking-normal leading-relaxed shadow-lg">
+                Languages in the same family share vocabulary and grammar, so a related first
+                language is a real head start (Spanish → Portuguese, say). We estimate the
+                discount from how closely related your language is to each target, based on
+                language-family trees. It only ever lowers a target, never raises it — and the
+                hour figures stay rough estimates.
+              </span>
+            </span>
+          </div>
+          <select
+            :value="nativeLanguage || ''"
+            @change="$emit('set-native-language', $event.target.value || null)"
+            class="w-full text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            <option value="">English (default)</option>
+            <option v-for="name in NATIVE_OPTIONS" :key="name" :value="name">{{ name }}</option>
+          </select>
+          <p class="text-[10px] text-gray-300 mt-1.5 leading-relaxed">
+            Closely related languages take less time. Setting this lowers the Fluency Horizon
+            target where your first language gives you a head start — never raises it.
+          </p>
+        </div>
+
         <!-- Language Seed Packets -->
         <div class="px-5 py-4 space-y-3">
           <div v-for="lang in languages" :key="lang.id"
@@ -108,7 +141,7 @@
                 <div class="text-[10px] text-gray-400 mb-1.5 font-semibold uppercase tracking-widest">Starting Point</div>
                 <div class="flex items-center gap-2">
                   <select
-                    :value="levelForHours(lang.name, lang.prior_hours)"
+                    :value="startLevel(lang)"
                     @change="updateStart(lang, $event.target.value)"
                     class="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500"
                   >
@@ -176,7 +209,7 @@ import LanguageAutocomplete from './LanguageAutocomplete.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import { ACTIVITY_TYPES } from '../lib/types.js'
 import { PALETTE } from '../lib/color.js'
-import { LEVELS, hoursForLevel, levelForHours } from '../lib/proficiency.js'
+import { LEVELS, hoursForLevel, levelForHours, NATIVE_LANGUAGES } from '../lib/proficiency.js'
 import { exportCSV, exportJSON } from '../lib/export.js'
 import { useLanguageForm } from '../composables/useLanguageForm.js'
 
@@ -193,13 +226,19 @@ const props = defineProps({
     type: Number,
     default: null
   },
+  nativeLanguage: {
+    type: String,
+    default: null
+  },
   visible: {
     type: Boolean,
     default: false
   }
 })
 
-const emit = defineEmits(['add-language', 'delete-language', 'update-language', 'close'])
+const emit = defineEmits(['add-language', 'delete-language', 'update-language', 'set-native-language', 'close'])
+
+const NATIVE_OPTIONS = NATIVE_LANGUAGES
 
 const existingNames = computed(() => props.languages.map(l => l.name))
 const existingColors = computed(() => props.languages.map(l => l.color))
@@ -224,7 +263,11 @@ function updateColor(lang, newColor) {
 }
 
 function updateStart(lang, levelKey) {
-  emit('update-language', { id: lang.id, prior_hours: hoursForLevel(lang.name, levelKey) })
+  emit('update-language', { id: lang.id, prior_hours: hoursForLevel(lang.name, levelKey, props.nativeLanguage) })
+}
+
+function startLevel(lang) {
+  return levelForHours(lang.name, lang.prior_hours, props.nativeLanguage)
 }
 
 const hasData = computed(() => props.entries.length > 0 || props.languages.length > 0)

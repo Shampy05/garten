@@ -73,8 +73,9 @@
     </button>
 
     <p class="text-[10px] text-gray-300 mt-4 leading-relaxed">
-      Targets estimate the hours to professional working proficiency (~CEFR B2/C1) for
-      English speakers, based on FSI language-difficulty research. Ticks mark the A2, B1
+      Targets estimate the hours to professional working proficiency (~CEFR B2/C1),
+      based on FSI language-difficulty research<template v-if="nativeLanguage">, adjusted
+      for how close {{ nativeLanguage }} is to each language</template>. Ticks mark the A2, B1
       and B2 milestones. Forecasts weight your recent sessions more heavily and flag whether
       your pace is rising or falling versus the previous month.
     </p>
@@ -96,6 +97,7 @@ import {
 const props = defineProps({
   entries: { type: Array, required: true },
   languages: { type: Array, required: true },
+  nativeLanguage: { type: String, default: null },
 })
 
 defineEmits(['manage'])
@@ -152,7 +154,7 @@ function fmtForecast(months) {
 const rows = computed(() => {
   return props.languages
     .map((lang) => {
-      const target = targetHours(lang.name)
+      const target = targetHours(lang.name, props.nativeLanguage)
       const priorHours = Number(lang.prior_hours) || 0
       const loggedHours = (stats.value.total[lang.id] || 0) / 60
       const totalHours = priorHours + loggedHours

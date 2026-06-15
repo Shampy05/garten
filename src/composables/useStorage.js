@@ -37,6 +37,7 @@ export function useStorage() {
   const data = ref({ languages: [], entries: [] })
   const loaded = ref(false)
   const weeklyGoal = ref(null)
+  const nativeLanguage = ref(null)
   const userId = ref(null)
   const toast = useToast()
 
@@ -66,8 +67,9 @@ export function useStorage() {
       loaded.value = true
     }
 
-    const { data: settings } = await supabase.from('user_settings').select('weekly_goal_hours').eq('user_id', userId.value).single()
+    const { data: settings } = await supabase.from('user_settings').select('weekly_goal_hours, native_language').eq('user_id', userId.value).single()
     weeklyGoal.value = settings?.weekly_goal_hours ?? null
+    nativeLanguage.value = settings?.native_language ?? null
   }
 
   onMounted(() => {
@@ -78,6 +80,8 @@ export function useStorage() {
       } else if (event === 'SIGNED_OUT') {
         userId.value = null
         data.value = { languages: [], entries: [] }
+        weeklyGoal.value = null
+        nativeLanguage.value = null
         loaded.value = false
       }
     })
@@ -185,16 +189,30 @@ export function useStorage() {
     weeklyGoal.value = hours
   }
 
+  const saveNativeLanguage = async (lang) => {
+    if (!userId.value) return
+
+    const value = lang || null
+    const { error } = await supabase.from('user_settings').upsert({ user_id: userId.value, native_language: value, updated_at: new Date().toISOString() })
+    if (error) {
+      toast.error('Failed to save native language. Please try again.')
+      return
+    }
+    nativeLanguage.value = value
+  }
+
   return {
     data,
     loaded,
     weeklyGoal,
+    nativeLanguage,
     addEntry,
     addLanguage,
     deleteLanguage,
     deleteEntry,
     updateEntry,
     updateLanguage,
-    saveGoal
+    saveGoal,
+    saveNativeLanguage
   }
 }

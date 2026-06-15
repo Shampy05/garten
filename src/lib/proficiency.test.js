@@ -6,6 +6,8 @@ import {
   forecastMonths,
   weightedWeeklyPace,
   paceMomentum,
+  relationRank,
+  nativeMultiplier,
   PACE_WINDOW_DAYS,
   DEFAULT_TARGET_HOURS,
 } from './proficiency.js'
@@ -35,6 +37,62 @@ describe('level <-> hours', () => {
   it('treats zero / missing prior hours as "none"', () => {
     expect(levelForHours('German', 0)).toBe('none')
     expect(levelForHours('German', undefined)).toBe('none')
+  })
+})
+
+describe('relationRank', () => {
+  it('ranks a mutually-intelligible cluster highest', () => {
+    expect(relationRank('Spanish', 'Portuguese')).toBe(5)
+    expect(relationRank('Czech', 'Slovak')).toBe(5)
+    expect(relationRank('Hindi', 'Urdu')).toBe(5)
+  })
+
+  it('ranks same sub-branch above same branch above same family', () => {
+    expect(relationRank('German', 'Dutch')).toBe(4) // Continental West Germanic
+    expect(relationRank('English', 'Dutch')).toBe(3) // both Germanic
+    expect(relationRank('English', 'Spanish')).toBe(2) // both Indo-European
+  })
+
+  it('returns 1 for unrelated or untagged languages', () => {
+    expect(relationRank('English', 'Japanese')).toBe(1)
+    expect(relationRank('Spanish', 'Swahili')).toBe(1)
+  })
+
+  it('uses areal overrides for contact pairs', () => {
+    expect(relationRank('Japanese', 'Korean')).toBe(4)
+    expect(relationRank('Chinese', 'Japanese')).toBe(3)
+  })
+})
+
+describe('nativeMultiplier', () => {
+  it('is a no-op for an English L1 (backwards compatible)', () => {
+    expect(nativeMultiplier('English', 'Spanish')).toBe(1)
+    expect(nativeMultiplier(null, 'Spanish')).toBe(1)
+  })
+
+  it('discounts when the L1 is closer to the target than English is', () => {
+    // Spanish->Portuguese: rank 5 vs English's rank 2 -> gap 3
+    expect(nativeMultiplier('Spanish', 'Portuguese')).toBe(0.45)
+    // Japanese->Korean: areal rank 4 vs English's rank 1 -> gap 3
+    expect(nativeMultiplier('Japanese', 'Korean')).toBe(0.45)
+  })
+
+  it('never discounts when the L1 is no closer than English', () => {
+    // Russian and English are both just "Indo-European" to French
+    expect(nativeMultiplier('Russian', 'French')).toBe(1)
+  })
+})
+
+describe('targetHours with native language', () => {
+  it('is unchanged for English speakers', () => {
+    expect(targetHours('Spanish')).toBe(750)
+    expect(targetHours('Spanish', 'English')).toBe(750)
+  })
+
+  it('lowers the target for a closely-related L1, never raises it', () => {
+    const adjusted = targetHours('Portuguese', 'Spanish')
+    expect(adjusted).toBeLessThan(750)
+    expect(adjusted).toBe(Math.round((750 * 0.45) / 25) * 25)
   })
 })
 

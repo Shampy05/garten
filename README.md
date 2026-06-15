@@ -21,6 +21,7 @@ A personal language learning tracker inspired by GitHub contribution heatmaps. T
 - **Insight Card**: Auto-generated narrative — top language, longest streak, weekend/weekday bias
 - **Fluency Horizon**: Each language's accumulated hours plotted against a research-based proficiency target (FSI language-difficulty categories → hours to ~CEFR B2/C1 for English speakers), with a recency-weighted pace ETA and a momentum signal (pace up/down vs the previous month)
 - **Starting Point**: Set a rough prior level (Beginner → Advanced) per language so existing experience counts toward your horizon instead of starting from zero
+- **Native-Language-Aware Targets**: Set your first language and the Fluency Horizon discounts targets by language-family proximity (e.g. a Spanish speaker reaches Portuguese far faster). Only ever lowers a target where your L1 gives a head start, never raises it; English speakers and unmodelled pairs are unchanged
 - **Data Export**: Download all sessions as CSV (flat spreadsheet table) or a JSON snapshot (denormalized with language names + a summary header and full backup of languages/goal) from the gear menu — fully client-side, for backups, analysis, or feeding to an LLM
 - **Persistent Storage**: Supabase (PostgreSQL) backend — data persists across devices
 - **Email/Password Auth**: Per-user data via Supabase RLS. Language picker on first sign-up
