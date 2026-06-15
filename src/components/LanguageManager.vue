@@ -30,13 +30,15 @@
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-600 mb-1">Color</label>
-              <div class="flex flex-wrap gap-1.5 mt-1">
+              <div class="flex flex-wrap gap-2.5 mt-1">
                 <button v-for="c in availableColors(color)" :key="c"
                   @click="color = c"
-                  class="w-8 h-8 rounded-full border-2 transition-all"
-                  :class="c.toLowerCase() === color?.toLowerCase() ? 'border-gray-800 scale-110' : 'border-gray-200 hover:border-gray-400'"
+                  class="w-8 h-8 rounded-full flex items-center justify-center ring-1 ring-black/10 transition-all"
+                  :class="c.toLowerCase() === color?.toLowerCase() ? 'ring-2 ring-offset-2 ring-gray-500' : 'hover:scale-110'"
                   :style="{ backgroundColor: c }"
-                ></button>
+                >
+                  <svg v-if="c.toLowerCase() === color?.toLowerCase()" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                </button>
               </div>
             </div>
             <div>
@@ -129,13 +131,16 @@
 
               <div class="mt-3 pt-3 border-t border-dashed" :style="{ borderColor: lang.color + '20' }">
                 <div class="text-[10px] text-gray-400 mb-1.5 font-semibold uppercase tracking-widest">Color</div>
-                <div class="flex flex-wrap gap-1.5">
+                <div class="flex flex-wrap gap-2.5">
                   <button v-for="c in availableColors(lang.color)" :key="c"
                     @click="updateColor(lang, c)"
-                    class="w-6 h-6 rounded-full border-2 transition-all"
-                    :class="c.toLowerCase() === lang.color?.toLowerCase() ? 'border-gray-700 scale-110' : 'border-transparent hover:border-gray-300'"
+                    :title="c.toLowerCase() === lang.color?.toLowerCase() ? 'Current color' : 'Use this color'"
+                    class="w-7 h-7 rounded-full flex items-center justify-center ring-1 ring-black/10 transition-all"
+                    :class="c.toLowerCase() === lang.color?.toLowerCase() ? 'ring-2 ring-offset-2 ring-gray-500' : 'hover:scale-110'"
                     :style="{ backgroundColor: c }"
-                  ></button>
+                  >
+                    <svg v-if="c.toLowerCase() === lang.color?.toLowerCase()" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  </button>
                 </div>
               </div>
 

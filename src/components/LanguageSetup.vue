@@ -32,14 +32,15 @@
         </div>
         <div>
           <label class="block text-xs font-medium text-gray-600 mb-1">Color</label>
-          <div class="flex gap-1.5 mt-1">
-            <button v-for="c in PALETTE" :key="c"
+          <div class="flex flex-wrap gap-2.5 mt-1">
+            <button v-for="c in availableColors" :key="c"
               @click="color = c"
-              :disabled="usedColors.has(c) && c !== color"
-              class="w-8 h-8 rounded-full border-2 transition-all"
-              :class="c === color ? 'border-gray-800 scale-110' : usedColors.has(c) && c !== color ? 'border-gray-200 opacity-30 cursor-not-allowed' : 'border-gray-200 hover:border-gray-400'"
+              class="w-8 h-8 rounded-full flex items-center justify-center ring-1 ring-black/10 transition-all"
+              :class="c === color ? 'ring-2 ring-offset-2 ring-gray-500' : 'hover:scale-110'"
               :style="{ backgroundColor: c }"
-            ></button>
+            >
+              <svg v-if="c === color" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            </button>
           </div>
         </div>
         <div>
@@ -105,6 +106,11 @@ const existingColors = computed(() => props.languages.map(l => l.color))
 const usedColors = computed(() => new Set(existingColors.value.map(c => c?.toLowerCase())))
 const showForm = ref(false)
 const { selectedLanguage, color, selectedTypes, autocompleteRef, onLanguageSelect, toggleType, getLanguageData, reset } = useLanguageForm(existingColors)
+
+// Only the colors actually selectable: unused ones plus the current pick.
+const availableColors = computed(() =>
+  PALETTE.filter(c => !usedColors.value.has(c.toLowerCase()) || c === color.value)
+)
 
 function saveLanguage() {
   const data = getLanguageData()
