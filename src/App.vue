@@ -327,7 +327,11 @@ const filteredEntries = computed(() => {
 const recentLimit = ref(10)
 const recentEntries = computed(() => {
   return [...data.value.entries]
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .sort((a, b) => {
+      const dateDiff = new Date(b.date) - new Date(a.date)
+      if (dateDiff !== 0) return dateDiff
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+    })
     .slice(0, recentLimit.value)
 })
 

@@ -25,7 +25,8 @@ function toCamel(row) {
     type: row.type,
     hours: row.hours,
     minutes: row.minutes,
-    notes: row.notes || null
+    notes: row.notes || null,
+    createdAt: row.created_at || null
   }
 }
 
@@ -114,7 +115,8 @@ export function useStorage() {
 
     const newEntry = {
       ...entry,
-      id: crypto.randomUUID()
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString()
     }
     const { error } = await supabase.from('entries').insert({
       ...toSnake(newEntry),
