@@ -284,6 +284,14 @@ begin
     ), '[]'::jsonb)
   );
 
+  -- Replace any previously shared harvest for this week so re-sharing
+  -- backfills old phase-3 dispatches instead of leaving them behind.
+  delete from activity_events
+  where actor_id = auth.uid()
+    and kind = 'summary'
+    and occurred_on >= v_week_start
+    and occurred_on <= current_date;
+
   insert into activity_events (actor_id, kind, minutes, language_name, language_color, session_count, occurred_on, details)
   values (auth.uid(), 'summary', v_mins, v_top_name, v_top_color, v_sessions, current_date, v_details);
 end;

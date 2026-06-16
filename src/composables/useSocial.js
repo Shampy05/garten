@@ -21,6 +21,10 @@ export function useSocial() {
   const feed = ref([])
   const waters = ref([])
   const watersReceived = ref([])
+  const recentCommentsOnMine = ref([])
+  const notificationsLastReadAt = ref(
+    Number(localStorage.getItem('garten:notificationsLastReadAt')) || 0
+  )
   const ownWeeklyMinutes = ref(0)
   const reactionsByEvent = ref({})
   const commentsByEvent = ref({})
@@ -224,24 +228,29 @@ export function useSocial() {
         { event: 'INSERT', schema: 'public', table: 'event_comments' },
         async (payload) => {
           const c = payload.new
-          if (!selectedEvent.value || selectedEvent.value.id !== c.event_id) return
-          const { data } = await supabase
-            .from('event_comments')
-            .select(
-              'id, event_id, author_id, body, created_at, ' +
-              'author:profiles!event_comments_author_id_fkey(username, display_name)'
-            )
-            .eq('id', c.id)
-            .single()
-          if (!data) return
-          if (!commentsByEvent.value[c.event_id]) commentsByEvent.value[c.event_id] = []
-          const arr = commentsByEvent.value[c.event_id]
-          if (!arr.some((x) => x.id === c.id)) {
-            arr.push({
-              ...data,
-              authorName: data.author?.display_name || data.author?.username || 'A gardener'
-            })
+          // Keep the open detail view live.
+          if (selectedEvent.value?.id === c.event_id) {
+            const { data } = await supabase
+              .from('event_comments')
+              .select(
+                'id, event_id, author_id, body, created_at, ' +
+                'author:profiles!event_comments_author_id_fkey(username, display_name)'
+              )
+              .eq('id', c.id)
+              .single()
+            if (data) {
+              if (!commentsByEvent.value[c.event_id]) commentsByEvent.value[c.event_id] = []
+              const arr = commentsByEvent.value[c.event_id]
+              if (!arr.some((x) => x.id === c.id)) {
+                arr.push({
+                  ...data,
+                  authorName: data.author?.display_name || data.author?.username || 'A gardener'
+                })
+              }
+            }
           }
+          // Refresh notification bell for comments on the user's own dispatches.
+          loadRecentCommentsOnMine()
         }
       )
       .on(
@@ -251,6 +260,7 @@ export function useSocial() {
           const c = payload.old
           const arr = commentsByEvent.value[c.event_id]
           if (arr) commentsByEvent.value[c.event_id] = arr.filter((x) => x.id !== c.id)
+          recentCommentsOnMine.value = recentCommentsOnMine.value.filter((x) => x.id !== c.id)
         }
       )
       .subscribe()
@@ -330,6 +340,31 @@ export function useSocial() {
     watersReceived.value = (data || []).map((w) => ({
       ...w,
       senderName: w.sender?.display_name || w.sender?.username || 'A gardener'
+    }))
+  }
+
+  async function loadRecentCommentsOnMine() {
+    if (!profile.value) return
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    const { data, error } = await supabase
+      .from('event_comments')
+      .select(
+        'id, event_id, author_id, body, created_at, ' +
+        'author:profiles!event_comments_author_id_fkey(username, display_name), ' +
+        'event:activity_events!event_comments_event_id_fkey(actor_id)'
+      )
+      .eq('event.actor_id', userId.value)
+      .neq('author_id', userId.value)
+      .gte('created_at', weekAgo)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    if (error) {
+      recentCommentsOnMine.value = []
+      return
+    }
+    recentCommentsOnMine.value = (data || []).map((c) => ({
+      ...c,
+      authorName: c.author?.display_name || c.author?.username || 'A gardener'
     }))
   }
 
@@ -481,6 +516,29 @@ export function useSocial() {
 
   const watersReceivedToday = computed(() => watersReceived.value.length)
 
+  const unseenWaters = computed(() => {
+    const read = notificationsLastReadAt.value
+    return watersReceived.value.filter((w) => {
+      const ts = new Date(w.watered_on + 'T00:00:00').getTime()
+      return ts > read
+    }).length
+  })
+
+  const unseenComments = computed(() => {
+    const read = notificationsLastReadAt.value
+    return recentCommentsOnMine.value.filter(
+      (c) => new Date(c.created_at).getTime() > read
+    ).length
+  })
+
+  const notificationCount = computed(() => unseenWaters.value + unseenComments.value)
+  const hasNotifications = computed(() => notificationCount.value > 0)
+
+  function markNotificationsRead() {
+    notificationsLastReadAt.value = Date.now()
+    localStorage.setItem('garten:notificationsLastReadAt', String(notificationsLastReadAt.value))
+  }
+
   function hasWateredMe(senderId) {
     return watersReceived.value.some((w) => w.sender_id === senderId)
   }
@@ -494,6 +552,7 @@ export function useSocial() {
         loadFeed(),
         loadWaters(),
         loadWatersReceived(),
+        loadRecentCommentsOnMine(),
         loadOwnWeeklyMinutes()
       ])
       await loadFeedReactions()
@@ -521,7 +580,7 @@ export function useSocial() {
       return { error: 'Could not plant your profile. Please try again.' }
     }
     profile.value = data
-    await Promise.all([loadFriends(), loadRequests(), loadFeed(), loadWatersReceived()])
+    await Promise.all([loadFriends(), loadRequests(), loadFeed(), loadWatersReceived(), loadRecentCommentsOnMine()])
     loadFeedReactions()
     subscribeFeed()
     subscribeReactions()
@@ -614,6 +673,7 @@ export function useSocial() {
     feed.value = []
     waters.value = []
     watersReceived.value = []
+    recentCommentsOnMine.value = []
     ownWeeklyMinutes.value = 0
     reactionsByEvent.value = {}
     commentsByEvent.value = {}
@@ -637,11 +697,18 @@ export function useSocial() {
     tendingToday,
     togetherWeekMinutes,
     watersReceivedToday,
+    recentCommentsOnMine,
+    notificationCount,
+    hasNotifications,
+    unseenWaters,
+    unseenComments,
+    markNotificationsRead,
     refresh,
     loadFriends,
     loadRequests,
     loadFeed,
     loadWatersReceived,
+    loadRecentCommentsOnMine,
     createProfile,
     updateProfile,
     toggleDiscoverable,

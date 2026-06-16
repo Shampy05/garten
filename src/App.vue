@@ -71,6 +71,19 @@
               Sign out
             </button>
             <button
+              @click="showNotificationsPanel = true; social.markNotificationsRead()"
+              class="relative w-10 h-10 rounded-xl bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm flex items-center justify-center text-gray-500 hover:text-gray-700 transition-all flex-shrink-0"
+              title="Notifications"
+            >
+              <Mail :size="20" />
+              <span
+                v-if="social.hasNotifications.value"
+                class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-medium border-2 border-white"
+              >
+                {{ social.notificationCount.value > 9 ? '9+' : social.notificationCount.value }}
+              </span>
+            </button>
+            <button
               @click="showLangManager = !showLangManager"
               class="w-10 h-10 rounded-xl bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm flex items-center justify-center text-gray-500 hover:text-gray-700 transition-all flex-shrink-0"
               title="Manage Languages"
@@ -296,13 +309,18 @@
       @cancel="cancelDelete"
     />
 
+    <NotificationsPanel
+      v-model="showNotificationsPanel"
+      @open-event="openNotificationEvent"
+    />
+
     <Toast />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, provide } from 'vue'
-import { Settings, Pencil, Trash2, Sprout, Users } from 'lucide-vue-next'
+import { Settings, Pencil, Trash2, Sprout, Users, Mail } from 'lucide-vue-next'
 import { useAuth } from './composables/useAuth.js'
 import { useStorage } from './composables/useStorage.js'
 import { useLanguageLookup } from './composables/useLanguageLookup.js'
@@ -325,6 +343,7 @@ import SproutIcon from './components/SproutIcon.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import Toast from './components/Toast.vue'
 import SocialView from './components/social/SocialView.vue'
+import NotificationsPanel from './components/social/NotificationsPanel.vue'
 import { useSocial } from './composables/useSocial.js'
 
 const { user, loading: authLoading, signIn, signUp, signOut, resetPassword } = useAuth()
@@ -332,7 +351,16 @@ provide('auth', { signIn, signUp, resetPassword })
 
 const social = useSocial()
 provide('social', social)
-const socialMode = ref(false)
+const SOCIAL_MODE_KEY = 'garten:socialMode'
+const socialMode = ref(localStorage.getItem(SOCIAL_MODE_KEY) === 'true')
+watch(socialMode, (val) => localStorage.setItem(SOCIAL_MODE_KEY, String(val)))
+const showNotificationsPanel = ref(false)
+
+function openNotificationEvent(event) {
+  showNotificationsPanel.value = false
+  socialMode.value = true
+  social.openEventDetail(event)
+}
 
 const { data, loaded, loadError, weeklyGoal, nativeLanguage, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, updateLanguage: storageUpdateLanguage, saveGoal, saveNativeLanguage, retryLoad } = useStorage()
 

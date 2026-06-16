@@ -13,9 +13,11 @@
           <span class="font-medium">{{ item.isSelf ? 'You' : item.actorName }}</span>
           spent
           <span class="font-medium text-gray-800">{{ fmtDuration(item.minutes) }}</span>
-          across
-          <span class="font-medium text-gray-800">{{ sessionCount }}</span>
-          {{ sessionCount === 1 ? 'session' : 'sessions' }}
+          <template v-if="sessionCount > 0">
+            across
+            <span class="font-medium text-gray-800">{{ sessionCount }}</span>
+            {{ sessionCount === 1 ? 'session' : 'sessions' }}
+          </template>
           <span v-if="topLanguage">— most tended: {{ topLanguage.name }}</span>
         </p>
 
