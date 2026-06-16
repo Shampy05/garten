@@ -31,6 +31,27 @@
       </div>
     </div>
     <div v-else class="max-w-6xl mx-auto px-4 py-8">
+      <!-- Mode toggle: My Garden / Friends -->
+      <div class="flex justify-center mb-6">
+        <div class="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-white border border-gray-200 shadow-sm">
+          <button
+            @click="socialMode = false"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors"
+            :class="!socialMode ? 'bg-green-600 text-white' : 'text-gray-500 hover:text-gray-700'"
+          >
+            <Sprout :size="15" /> My Garden
+          </button>
+          <button
+            @click="socialMode = true"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors"
+            :class="socialMode ? 'bg-green-600 text-white' : 'text-gray-500 hover:text-gray-700'"
+          >
+            <Users :size="15" /> Friends
+          </button>
+        </div>
+      </div>
+
+      <template v-if="!socialMode">
       <!-- Garden Status Card -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-6">
         <div class="flex items-start justify-between mb-4">
@@ -130,12 +151,22 @@
             @mode-change="updateViewMode"
             @navigate="navigateView"
           />
-          <StatsCard
-            :entries="filteredEntries"
-            :filter="activeFilter"
-            :view-mode="viewMode"
-            :view-date="viewDate"
-          />
+          <div class="flex items-center gap-4 flex-shrink-0">
+            <div>
+              <div class="font-display text-xl font-bold text-gray-800 leading-none">{{ heroActiveDays }}</div>
+              <div class="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">days</div>
+            </div>
+            <div class="w-px h-7 bg-gray-200"></div>
+            <div>
+              <div class="font-display text-xl font-bold text-gray-800 leading-none">{{ heroHours }}h</div>
+              <div class="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">logged</div>
+            </div>
+            <div class="w-px h-7 bg-gray-200"></div>
+            <div>
+              <div class="font-display text-xl font-bold text-gray-800 leading-none">{{ heroSessions }}</div>
+              <div class="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">sessions</div>
+            </div>
+          </div>
         </div>
         <div class="flex flex-col lg:flex-row lg:items-start gap-6">
           <div class="flex-1 min-w-0">
@@ -228,6 +259,9 @@
           </button>
         </div>
       </div>
+      </template>
+
+      <SocialView v-else />
     </div>
 
     <!-- Language Manager Modal -->
@@ -268,17 +302,16 @@
 
 <script setup>
 import { ref, computed, watch, provide } from 'vue'
-import { Settings, Pencil, Trash2, Sprout } from 'lucide-vue-next'
+import { Settings, Pencil, Trash2, Sprout, Users } from 'lucide-vue-next'
 import { useAuth } from './composables/useAuth.js'
 import { useStorage } from './composables/useStorage.js'
 import { useLanguageLookup } from './composables/useLanguageLookup.js'
 import { useTimeframe } from './composables/useTimeframe.js'
 import { useWeeklyGoal } from './composables/useWeeklyGoal.js'
-import { localDateStr, currentStreak } from './lib/date.js'
+import { localDateStr, currentStreak, getMonthRange, getQuarterRange, getYearRange } from './lib/date.js'
 import AuthScreen from './components/AuthScreen.vue'
 import LanguageSetup from './components/LanguageSetup.vue'
 import LogForm from './components/LogForm.vue'
-import StatsCard from './components/StatsCard.vue'
 import LanguageManager from './components/LanguageManager.vue'
 import FilterBar from './components/FilterBar.vue'
 import TimeframeSelector from './components/TimeframeSelector.vue'
@@ -291,9 +324,15 @@ import EditSession from './components/EditSession.vue'
 import SproutIcon from './components/SproutIcon.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import Toast from './components/Toast.vue'
+import SocialView from './components/social/SocialView.vue'
+import { useSocial } from './composables/useSocial.js'
 
 const { user, loading: authLoading, signIn, signUp, signOut, resetPassword } = useAuth()
 provide('auth', { signIn, signUp, resetPassword })
+
+const social = useSocial()
+provide('social', social)
+const socialMode = ref(false)
 
 const { data, loaded, loadError, weeklyGoal, nativeLanguage, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, updateLanguage: storageUpdateLanguage, saveGoal, saveNativeLanguage, retryLoad } = useStorage()
 
@@ -326,6 +365,29 @@ const filteredEntries = computed(() => {
     return true
   })
 })
+
+const heroPeriodRange = computed(() => {
+  const d = viewDate.value
+  let range
+  switch (viewMode.value) {
+    case 'month': range = getMonthRange(d); break
+    case 'quarter': range = getQuarterRange(d); break
+    case 'year': range = getYearRange(d); break
+    default: range = getMonthRange(d)
+  }
+  return { start: localDateStr(range.start), end: localDateStr(range.end) }
+})
+
+const heroPeriodEntries = computed(() => {
+  const { start, end } = heroPeriodRange.value
+  return filteredEntries.value.filter(e => e.date >= start && e.date <= end)
+})
+
+const heroActiveDays = computed(() => new Set(heroPeriodEntries.value.map(e => e.date)).size)
+const heroHours = computed(() =>
+  (heroPeriodEntries.value.reduce((sum, e) => sum + e.hours * 60 + e.minutes, 0) / 60).toFixed(1)
+)
+const heroSessions = computed(() => heroPeriodEntries.value.length)
 
 const recentLimit = ref(10)
 const recentEntries = computed(() => {
