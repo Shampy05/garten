@@ -37,6 +37,11 @@
       <ActivityFeed />
       <FriendsList />
       <FriendSearch />
+
+      <DispatchDetail
+        :visible="!!selectedEvent"
+        @close="social.closeEventDetail()"
+      />
     </div>
   </div>
 </template>
@@ -49,9 +54,10 @@ import FriendSearch from './FriendSearch.vue'
 import RequestsInbox from './RequestsInbox.vue'
 import ActivityFeed from './ActivityFeed.vue'
 import FriendsList from './FriendsList.vue'
+import DispatchDetail from './DispatchDetail.vue'
 
 const social = inject('social')
-const { profile, profileLoaded } = social
+const { profile, profileLoaded, selectedEvent } = social
 
 onMounted(() => {
   social.refresh()

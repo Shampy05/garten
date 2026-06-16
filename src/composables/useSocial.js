@@ -20,8 +20,15 @@ export function useSocial() {
   const outgoingRequests = ref([])
   const feed = ref([])
   const waters = ref([])
+  const watersReceived = ref([])
   const ownWeeklyMinutes = ref(0)
+  const reactionsByEvent = ref({})
+  const commentsByEvent = ref({})
+  const selectedEvent = ref(null)
   let feedChannel = null
+  let reactionsChannel = null
+  let commentsChannel = null
+  let watersChannel = null
 
   const hasProfile = computed(() => !!profile.value)
 
@@ -83,8 +90,15 @@ export function useSocial() {
   }
 
   function normalizeEvent(row) {
-    const { name, isSelf } = actorLabel(row.actor_id, row.actor)
-    return { ...row, actorName: name, isSelf }
+    const actor = actorLabel(row.actor_id, row.actor)
+    const coActor = row.co_actor_id ? actorLabel(row.co_actor_id, row.co_actor) : null
+    return {
+      ...row,
+      actorName: actor.name,
+      isSelf: actor.isSelf,
+      coActorName: coActor?.name,
+      coActorIsSelf: coActor?.isSelf
+    }
   }
 
   async function loadFeed() {
@@ -92,13 +106,53 @@ export function useSocial() {
     const { data, error } = await supabase
       .from('activity_events')
       .select(
-        'id, actor_id, kind, language_name, language_color, activity_type, minutes, streak_days, occurred_on, created_at, ' +
-        'actor:profiles!activity_events_actor_id_fkey(username, display_name)'
+        'id, actor_id, co_actor_id, kind, language_name, language_color, activity_type, minutes, streak_days, session_count, occurred_on, created_at, details, ' +
+        'actor:profiles!activity_events_actor_id_fkey(username, display_name), ' +
+        'co_actor:profiles!activity_events_co_actor_id_fkey(username, display_name)'
       )
       .order('created_at', { ascending: false })
       .limit(50)
     if (error) return
     feed.value = (data || []).map(normalizeEvent)
+  }
+
+  async function loadFeedReactions() {
+    if (!profile.value || feed.value.length === 0) return
+    const ids = feed.value.map((e) => e.id)
+    const { data, error } = await supabase
+      .from('event_reactions')
+      .select('id, event_id, reactor_id, kind')
+      .in('event_id', ids)
+    if (error) {
+      reactionsByEvent.value = {}
+      return
+    }
+    const next = {}
+    for (const r of data || []) {
+      if (!next[r.event_id]) next[r.event_id] = []
+      next[r.event_id].push(r)
+    }
+    reactionsByEvent.value = next
+  }
+
+  async function loadComments(eventId) {
+    if (!eventId) return
+    const { data, error } = await supabase
+      .from('event_comments')
+      .select(
+        'id, event_id, author_id, body, created_at, ' +
+        'author:profiles!event_comments_author_id_fkey(username, display_name)'
+      )
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: true })
+    if (error) {
+      commentsByEvent.value[eventId] = []
+      return
+    }
+    commentsByEvent.value[eventId] = (data || []).map((c) => ({
+      ...c,
+      authorName: c.author?.display_name || c.author?.username || 'A gardener'
+    }))
   }
 
   // One realtime channel for the dispatch stream. RLS scopes the inserts we
@@ -126,15 +180,157 @@ export function useSocial() {
     }
   }
 
+  function subscribeReactions() {
+    if (reactionsChannel) return
+    reactionsChannel = supabase
+      .channel('garden-reactions')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'event_reactions' },
+        (payload) => {
+          const r = payload.new
+          if (!reactionsByEvent.value[r.event_id]) {
+            reactionsByEvent.value[r.event_id] = []
+          }
+          const arr = reactionsByEvent.value[r.event_id]
+          if (!arr.some((x) => x.id === r.id)) arr.push(r)
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'event_reactions' },
+        (payload) => {
+          const r = payload.old
+          const arr = reactionsByEvent.value[r.event_id]
+          if (arr) reactionsByEvent.value[r.event_id] = arr.filter((x) => x.id !== r.id)
+        }
+      )
+      .subscribe()
+  }
+
+  function unsubscribeReactions() {
+    if (reactionsChannel) {
+      supabase.removeChannel(reactionsChannel)
+      reactionsChannel = null
+    }
+  }
+
+  function subscribeComments() {
+    if (commentsChannel) return
+    commentsChannel = supabase
+      .channel('garden-comments')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'event_comments' },
+        async (payload) => {
+          const c = payload.new
+          if (!selectedEvent.value || selectedEvent.value.id !== c.event_id) return
+          const { data } = await supabase
+            .from('event_comments')
+            .select(
+              'id, event_id, author_id, body, created_at, ' +
+              'author:profiles!event_comments_author_id_fkey(username, display_name)'
+            )
+            .eq('id', c.id)
+            .single()
+          if (!data) return
+          if (!commentsByEvent.value[c.event_id]) commentsByEvent.value[c.event_id] = []
+          const arr = commentsByEvent.value[c.event_id]
+          if (!arr.some((x) => x.id === c.id)) {
+            arr.push({
+              ...data,
+              authorName: data.author?.display_name || data.author?.username || 'A gardener'
+            })
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'event_comments' },
+        (payload) => {
+          const c = payload.old
+          const arr = commentsByEvent.value[c.event_id]
+          if (arr) commentsByEvent.value[c.event_id] = arr.filter((x) => x.id !== c.id)
+        }
+      )
+      .subscribe()
+  }
+
+  function unsubscribeComments() {
+    if (commentsChannel) {
+      supabase.removeChannel(commentsChannel)
+      commentsChannel = null
+    }
+  }
+
+  function subscribeWaters() {
+    if (watersChannel) return
+    watersChannel = supabase
+      .channel('garden-waters')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'waters' },
+        (payload) => {
+          const w = payload.new
+          if (w.recipient_id !== userId.value) return
+          if (!watersReceived.value.some((x) => x.id === w.id)) {
+            watersReceived.value.push({ ...w, senderName: 'A gardener' })
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'waters' },
+        (payload) => {
+          const w = payload.old
+          watersReceived.value = watersReceived.value.filter((x) => x.id !== w.id)
+        }
+      )
+      .subscribe()
+  }
+
+  function unsubscribeWaters() {
+    if (watersChannel) {
+      supabase.removeChannel(watersChannel)
+      watersChannel = null
+    }
+  }
+
   async function loadWaters() {
     if (!profile.value) return
     const today = new Date().toISOString().split('T')[0]
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('waters')
       .select('id, recipient_id, watered_on')
       .eq('sender_id', userId.value)
       .eq('watered_on', today)
+    if (error) {
+      // Gracefully degrade if the waters table is not yet deployed.
+      waters.value = []
+      return
+    }
     waters.value = data || []
+  }
+
+  async function loadWatersReceived() {
+    if (!profile.value) return
+    const today = new Date().toISOString().split('T')[0]
+    const { data, error } = await supabase
+      .from('waters')
+      .select(
+        'id, sender_id, watered_on, ' +
+        'sender:profiles!waters_sender_id_fkey(username, display_name)'
+      )
+      .eq('recipient_id', userId.value)
+      .eq('watered_on', today)
+    if (error) {
+      watersReceived.value = []
+      return
+    }
+    watersReceived.value = (data || []).map((w) => ({
+      ...w,
+      senderName: w.sender?.display_name || w.sender?.username || 'A gardener'
+    }))
   }
 
   async function loadOwnWeeklyMinutes() {
@@ -182,18 +378,129 @@ export function useSocial() {
   async function shareWeeklySummary() {
     const { error } = await supabase.rpc('share_weekly_summary')
     if (error) {
-      toast.error('Could not share your summary.')
+      toast.error('Could not share your harvest.')
       return
     }
-    toast.success('Summary shared with your circle.')
+    toast.success('Harvest shared with your circle.')
     await loadFeed()
+  }
+
+  async function deleteDispatch(id) {
+    if (!profile.value) return
+    const { error } = await supabase.from('activity_events').delete().eq('id', id)
+    if (error) {
+      toast.error('Could not remove dispatch.')
+      return
+    }
+    feed.value = feed.value.filter((e) => e.id !== id)
+    if (selectedEvent.value?.id === id) selectedEvent.value = null
+  }
+
+  async function toggleReaction(eventId, kind) {
+    if (!profile.value) return
+    const existing = (reactionsByEvent.value[eventId] || []).find(
+      (r) => r.reactor_id === userId.value && r.kind === kind
+    )
+    if (existing) {
+      await supabase.from('event_reactions').delete().eq('id', existing.id)
+      reactionsByEvent.value[eventId] = reactionsByEvent.value[eventId].filter(
+        (r) => r.id !== existing.id
+      )
+    } else {
+      const { data } = await supabase
+        .from('event_reactions')
+        .insert({ event_id: eventId, reactor_id: userId.value, kind })
+        .select('id, event_id, reactor_id, kind')
+        .single()
+      if (data) {
+        if (!reactionsByEvent.value[eventId]) reactionsByEvent.value[eventId] = []
+        reactionsByEvent.value[eventId].push(data)
+      }
+    }
+  }
+
+  async function addComment(eventId, body) {
+    if (!profile.value || !body.trim()) return
+    const { data, error } = await supabase
+      .from('event_comments')
+      .insert({ event_id: eventId, author_id: userId.value, body: body.trim() })
+      .select(
+        'id, event_id, author_id, body, created_at, ' +
+        'author:profiles!event_comments_author_id_fkey(username, display_name)'
+      )
+      .single()
+    if (error) {
+      toast.error('Could not post comment.')
+      return
+    }
+    if (!commentsByEvent.value[eventId]) commentsByEvent.value[eventId] = []
+    commentsByEvent.value[eventId].push({
+      ...data,
+      authorName: data.author?.display_name || data.author?.username || 'You'
+    })
+  }
+
+  async function deleteComment(commentId) {
+    await supabase.from('event_comments').delete().eq('id', commentId)
+    for (const eventId of Object.keys(commentsByEvent.value)) {
+      commentsByEvent.value[eventId] = commentsByEvent.value[eventId].filter(
+        (c) => c.id !== commentId
+      )
+    }
+  }
+
+  function openEventDetail(event) {
+    selectedEvent.value = event
+    loadComments(event.id)
+    if (!reactionsByEvent.value[event.id]) loadFeedReactions()
+  }
+
+  function closeEventDetail() {
+    selectedEvent.value = null
+  }
+
+  const tendingToday = computed(() => {
+    const today = new Date().toISOString().split('T')[0]
+    const seen = new Set()
+    const out = []
+    for (const item of feed.value) {
+      if (item.occurred_on !== today || item.kind !== 'session') continue
+      if (seen.has(item.actor_id)) continue
+      seen.add(item.actor_id)
+      out.push({ actorId: item.actor_id, name: item.actorName, isSelf: item.isSelf })
+    }
+    return out
+  })
+
+  const togetherWeekMinutes = computed(() => {
+    const friendMins = friends.value.reduce(
+      (sum, f) => sum + (Number(f.minutes_this_week) || 0), 0
+    )
+    return (Number(ownWeeklyMinutes.value) || 0) + friendMins
+  })
+
+  const watersReceivedToday = computed(() => watersReceived.value.length)
+
+  function hasWateredMe(senderId) {
+    return watersReceived.value.some((w) => w.sender_id === senderId)
   }
 
   async function refresh() {
     await loadProfile()
     if (profile.value) {
-      await Promise.all([loadFriends(), loadRequests(), loadFeed(), loadWaters(), loadOwnWeeklyMinutes()])
+      await Promise.all([
+        loadFriends(),
+        loadRequests(),
+        loadFeed(),
+        loadWaters(),
+        loadWatersReceived(),
+        loadOwnWeeklyMinutes()
+      ])
+      await loadFeedReactions()
       subscribeFeed()
+      subscribeReactions()
+      subscribeComments()
+      subscribeWaters()
     }
   }
 
@@ -214,8 +521,12 @@ export function useSocial() {
       return { error: 'Could not plant your profile. Please try again.' }
     }
     profile.value = data
-    await Promise.all([loadFriends(), loadRequests(), loadFeed()])
+    await Promise.all([loadFriends(), loadRequests(), loadFeed(), loadWatersReceived()])
+    loadFeedReactions()
     subscribeFeed()
+    subscribeReactions()
+    subscribeComments()
+    subscribeWaters()
     return { data }
   }
 
@@ -292,12 +603,21 @@ export function useSocial() {
   // fetch when it mounts, so solo users never pay for social queries.
   watch(userId, () => {
     unsubscribeFeed()
+    unsubscribeReactions()
+    unsubscribeComments()
+    unsubscribeWaters()
     profile.value = null
     profileLoaded.value = false
     friends.value = []
     incomingRequests.value = []
     outgoingRequests.value = []
     feed.value = []
+    waters.value = []
+    watersReceived.value = []
+    ownWeeklyMinutes.value = 0
+    reactionsByEvent.value = {}
+    commentsByEvent.value = {}
+    selectedEvent.value = null
   })
 
   return {
@@ -308,16 +628,37 @@ export function useSocial() {
     incomingRequests,
     outgoingRequests,
     feed,
+    waters,
+    watersReceived,
+    ownWeeklyMinutes,
+    reactionsByEvent,
+    commentsByEvent,
+    selectedEvent,
+    tendingToday,
+    togetherWeekMinutes,
+    watersReceivedToday,
     refresh,
     loadFriends,
     loadRequests,
     loadFeed,
+    loadWatersReceived,
     createProfile,
     updateProfile,
     toggleDiscoverable,
     searchUsers,
     sendRequest,
     acceptRequest,
-    removeFriendship
+    removeFriendship,
+    hasWatered,
+    hasWateredMe,
+    waterFriend,
+    unwaterFriend,
+    shareWeeklySummary,
+    deleteDispatch,
+    toggleReaction,
+    addComment,
+    deleteComment,
+    openEventDetail,
+    closeEventDetail
   }
 }

@@ -1,6 +1,12 @@
 <template>
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6">
-    <h3 class="font-display text-lg font-semibold text-gray-800 mb-3">Garden dispatches</h3>
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-display text-lg font-semibold text-gray-800">Garden dispatches</h3>
+    </div>
+
+    <WatersReceivedBanner />
+    <TogetherThisWeek />
+    <WhosTendingToday />
 
     <div v-if="feed.length === 0" class="text-center py-8 text-gray-400">
       <Sprout :size="28" class="mx-auto mb-2 text-gray-300" />
@@ -10,9 +16,30 @@
 
     <div v-else>
       <div
-        v-for="item in feed"
+        v-for="item in summaryItems"
         :key="item.id"
-        class="flex items-start gap-3 py-2.5 border-b border-gray-100 last:border-0"
+        class="relative group"
+      >
+        <HarvestCard
+          :item="item"
+          @click="openDetail(item)"
+          class="cursor-pointer"
+        />
+        <button
+          v-if="item.isSelf"
+          @click.stop="confirmRemove(item)"
+          class="absolute top-3 right-3 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+          title="Remove harvest"
+        >
+          <Trash2 :size="14" />
+        </button>
+      </div>
+
+      <div
+        v-for="item in nonSummaryItems"
+        :key="item.id"
+        class="group flex items-start gap-3 py-3 border-b border-gray-100 last:border-0 cursor-pointer"
+        @click="openDetail(item)"
       >
         <div
           class="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-sm flex-shrink-0 mt-0.5"
@@ -41,24 +68,90 @@
               </span>
             </template>
 
-            <template v-else-if="item.kind === 'summary'">
-              spent <span class="font-medium">{{ fmtDuration(item.minutes) }}</span>
-              in their<span v-if="item.language_name"> {{ item.language_name }}</span> garden this week
+            <template v-else-if="item.kind === 'bloom'">
+              and <span class="font-medium">{{ item.coActorIsSelf ? 'you' : item.coActorName }}</span>
+              cross-pollinated
+              <span class="inline-flex items-center gap-1 align-baseline">
+                <span class="w-2 h-2 rounded-full inline-block" :style="{ backgroundColor: item.language_color || '#9ca3af' }"></span>
+                <span class="font-medium">{{ item.language_name || 'a language' }}</span>
+              </span>
             </template>
           </p>
           <div class="text-xs text-gray-400 mt-0.5">{{ relDay(item.occurred_on) }}</div>
+
+          <div class="flex items-center justify-between mt-2">
+            <ReactionBar :event-id="item.id" compact @toggle="(k) => social.toggleReaction(item.id, k)" />
+            <div class="flex items-center gap-3">
+              <WaterButton
+                v-if="!item.isSelf"
+                :recipient-id="item.actor_id"
+                :name="item.actorName"
+                compact
+              />
+              <button
+                v-if="item.isSelf"
+                @click.stop="confirmRemove(item)"
+                class="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                title="Remove dispatch"
+              >
+                <Trash2 :size="14" />
+              </button>
+              <button
+                @click.stop="openDetail(item)"
+                class="text-gray-400 hover:text-green-600 transition-colors"
+                title="Open garden notes"
+              >
+                <MessageCircle :size="14" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
+
+  <ConfirmDialog
+    :visible="!!removeTarget"
+    title="Remove dispatch?"
+    :message="removeTarget ? 'This removes the dispatch from your garden circle. You can always share another harvest later.' : ''"
+    confirm-label="Remove"
+    danger
+    @confirm="executeRemove"
+    @cancel="removeTarget = null"
+  />
 </template>
 
 <script setup>
-import { inject } from 'vue'
-import { Sprout } from 'lucide-vue-next'
+import { computed, inject, ref } from 'vue'
+import { Sprout, MessageCircle, Trash2 } from 'lucide-vue-next'
+import ConfirmDialog from '../ConfirmDialog.vue'
+import WatersReceivedBanner from './WatersReceivedBanner.vue'
+import TogetherThisWeek from './TogetherThisWeek.vue'
+import WhosTendingToday from './WhosTendingToday.vue'
+import HarvestCard from './HarvestCard.vue'
+import ReactionBar from './ReactionBar.vue'
+import WaterButton from './WaterButton.vue'
 
 const social = inject('social')
 const { feed } = social
+
+const removeTarget = ref(null)
+
+const summaryItems = computed(() => feed.value.filter((i) => i.kind === 'summary'))
+const nonSummaryItems = computed(() => feed.value.filter((i) => i.kind !== 'summary'))
+
+function openDetail(item) {
+  social.openEventDetail(item)
+}
+
+function confirmRemove(item) {
+  removeTarget.value = item
+}
+
+async function executeRemove() {
+  if (removeTarget.value) await social.deleteDispatch(removeTarget.value.id)
+  removeTarget.value = null
+}
 
 function fmtDuration(mins) {
   const m = Number(mins) || 0
@@ -69,9 +162,6 @@ function fmtDuration(mins) {
   return `${r}m`
 }
 
-// Date-granular relative label from the study date (occurred_on), matching the
-// app's day-centric feel. Dispatches are ordered by when they were logged, but
-// read in terms of the day they happened.
 function relDay(dateStr) {
   if (!dateStr) return ''
   const today = new Date()

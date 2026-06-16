@@ -12,7 +12,8 @@
       <div
         v-for="f in friends"
         :key="f.friendship_id"
-        class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 group"
+        class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 group cursor-pointer hover:bg-green-50/60 transition-colors"
+        @click="openFriend(f)"
       >
         <div class="w-9 h-9 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-display font-bold flex-shrink-0">
           {{ (f.display_name || f.username)[0].toUpperCase() }}
@@ -39,7 +40,7 @@
           </div>
         </div>
         <button
-          @click="confirmRemove(f)"
+          @click.stop="confirmRemove(f)"
           class="flex-shrink-0 text-gray-300 hover:text-red-500 p-1.5 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
           title="Remove friend"
         >
@@ -60,16 +61,29 @@
     @confirm="executeRemove"
     @cancel="removeTarget = null"
   />
+
+  <FriendProfile
+    v-if="selectedFriend"
+    :friend="selectedFriend"
+    :visible="true"
+    @close="selectedFriend = null"
+  />
 </template>
 
 <script setup>
 import { ref, inject } from 'vue'
 import { Sprout, X } from 'lucide-vue-next'
 import ConfirmDialog from '../ConfirmDialog.vue'
+import FriendProfile from './FriendProfile.vue'
 
 const social = inject('social')
 const { friends } = social
 const removeTarget = ref(null)
+const selectedFriend = ref(null)
+
+function openFriend(f) {
+  selectedFriend.value = f
+}
 
 function confirmRemove(f) {
   removeTarget.value = f
