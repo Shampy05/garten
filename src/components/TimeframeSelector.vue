@@ -1,6 +1,5 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-6">
-    <div class="flex flex-wrap items-center justify-center sm:justify-between gap-2">
+  <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2">
         <button
           v-for="mode in modes"
@@ -32,7 +31,6 @@
           <ChevronRight class="w-5 h-5" />
         </button>
       </div>
-    </div>
   </div>
 </template>
 

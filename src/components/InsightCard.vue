@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mt-6">
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6">
     <h3 class="font-display text-lg font-semibold text-gray-800 mb-4">Insights</h3>
     <div v-if="periodEntries.length === 0" class="text-sm text-gray-400 italic flex items-center gap-2">
       <Sprout :size="18" class="text-gray-300 flex-shrink-0" />

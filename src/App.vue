@@ -113,55 +113,64 @@
         />
       </div>
 
-      <!-- Stats -->
-      <StatsCard
-        :entries="filteredEntries"
-        :languages="data.languages"
-        :filter="activeFilter"
-        :view-mode="viewMode"
-        :view-date="viewDate"
-      />
-
-      <!-- Filters -->
+      <!-- Filter (bare pills, no card shell) -->
       <FilterBar
         :languages="data.languages"
         @filter-change="updateFilter"
+        class="mb-4"
       />
 
-      <!-- Heatmap + Leaderboard -->
-      <div class="flex flex-col lg:flex-row lg:items-start gap-6">
-        <div class="flex-1 min-w-0">
+      <!-- Hero: Heatmap -->
+      <div class="bg-white rounded-2xl shadow-md border border-gray-100 p-4 sm:p-8 mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
           <TimeframeSelector
+            class="flex-1"
             :view-mode="viewMode"
             :view-date="viewDate"
             @mode-change="updateViewMode"
             @navigate="navigateView"
           />
-          <Heatmap
+          <StatsCard
             :entries="filteredEntries"
-            :languages="data.languages"
             :filter="activeFilter"
             :view-mode="viewMode"
             :view-date="viewDate"
           />
         </div>
-        <div class="w-full lg:w-56 flex-shrink-0">
-          <Leaderboard
-            :entries="data.entries"
-            :languages="data.languages"
-            :view-mode="viewMode"
-            :view-date="viewDate"
-          />
+        <div class="flex flex-col lg:flex-row lg:items-start gap-6">
+          <div class="flex-1 min-w-0">
+            <Heatmap
+              :entries="filteredEntries"
+              :languages="data.languages"
+              :filter="activeFilter"
+              :view-mode="viewMode"
+              :view-date="viewDate"
+            />
+          </div>
+          <div class="w-full lg:w-48 flex-shrink-0">
+            <Leaderboard
+              :entries="data.entries"
+              :languages="data.languages"
+              :view-mode="viewMode"
+              :view-date="viewDate"
+            />
+          </div>
         </div>
       </div>
 
-      <!-- Insights -->
-      <InsightCard
-        :entries="filteredEntries"
-        :languages="data.languages"
-        :view-mode="viewMode"
-        :view-date="viewDate"
-      />
+      <!-- Analytics grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <InsightCard
+          :entries="filteredEntries"
+          :languages="data.languages"
+          :view-mode="viewMode"
+          :view-date="viewDate"
+        />
+        <ActivityBreakdown
+          :entries="filteredEntries"
+          :languages="data.languages"
+        />
+      </div>
 
       <!-- Fluency Horizon -->
       <FluencyHorizon
@@ -171,13 +180,7 @@
         @manage="showLangManager = true"
       />
 
-      <!-- Activity Breakdown -->
-      <ActivityBreakdown
-        :entries="filteredEntries"
-        :languages="data.languages"
-      />
-
-      <!-- Recent Entries -->
+      <!-- Recent Sessions -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mt-6">
         <h3 class="font-display text-lg font-semibold text-gray-800 mb-4">Recent Sessions</h3>
         <div class="space-y-2">
