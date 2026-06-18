@@ -41,9 +41,22 @@
                   </span>
                 </template>
 
-                <template v-else-if="event.kind === 'summary'">
-                  shared a weekly harvest of <span class="font-medium">{{ fmtDuration(event.minutes) }}</span>
+                <template v-else-if="event.kind === 'circle_report'">
+                  shared a weekly report of <span class="font-medium">{{ fmtDuration(event.minutes) }}</span>
                   <span v-if="event.language_name"> — mostly {{ event.language_name }}</span>
+                </template>
+
+                <template v-else-if="event.kind === 'commitment_progress'">
+                  <template v-if="event.details?.milestone === 100">
+                    hit their weekly commitment for
+                  </template>
+                  <template v-else>
+                    reached {{ event.details?.milestone }}% of their commitment for
+                  </template>
+                  <span class="inline-flex items-center gap-1 align-baseline">
+                    <span class="w-2 h-2 rounded-full inline-block" :style="{ backgroundColor: event.language_color || '#9ca3af' }"></span>
+                    <span class="font-medium">{{ event.language_name || 'a language' }}</span>
+                  </span>
                 </template>
 
                 <template v-else-if="event.kind === 'bloom'">

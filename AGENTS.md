@@ -87,7 +87,7 @@ The app shares one visual language. Reuse these instead of hand-rolling card/but
 
 - **Data export**: Quiet "Export your data" footer inside the LanguageManager modal (gear/settings surface). Two buttons — Download CSV / Download JSON — wired to `src/lib/export.js`. CSV is a flat one-row-per-session table (`date,language,type,hours,minutes,total_minutes,notes`) with language names resolved; JSON is a denormalized snapshot (summary header + sessions with language names inlined + a backup of languages/prior_hours and weekly goal). Pure client-side via Blob download, no backend. Buttons disable when there is nothing to export. Filenames are date-stamped (`garten-sessions-YYYY-MM-DD.csv`, `garten-export-YYYY-MM-DD.json`).
 
-- **Recent sessions**: Below everything, inside its own card. Two-row layout: top row has language/type/date/duration, bottom row has notes (truncated) + edit/delete actions.
+- **Recent sessions**: Below everything, inside its own card. A **day-grouped timeline** (`groupedRecentEntries` in App.vue): sessions are bucketed under relative-day headers (`relativeDayLabel`: Today / Yesterday / weekday within 7 days / "Mon, Jun 15" older) with that day's total time on the right under a hairline `border-line`. Each row has a thin left language-color accent bar, language · type, duration (`fmtMinutes`, drops a leading 0h), notes (truncated), and edit/delete on hover. Still paginated by `recentLimit` ("Show more").
 
 - **Tooltips**: Teleported to body, fixed positioning, scroll-dismiss.
 
@@ -109,9 +109,32 @@ The following UX research informed the current design. Apply these when making f
 
 7. **Progressive disclosure**: The LogForm shows only the CTA at rest. Expanding reveals steps one at a time. The leaderboard shows summary rankings; detailed daily patterns require one more click (language filter in the heatmap).
 
-## Authentication
+## Garden Circle (social)
 
-Email/password auth via Supabase. On sign-up, users pick languages from a curated autocomplete list before entering the app. On sign-in, they go straight to the app. RLS policies scope all data to the authenticated user.
+The Friends tab is an opt-in social layer for users who create a `profiles` row. It is owned by `useSocial.js` and rendered by `src/components/social/SocialView.vue`.
+
+Social tables (all scoped to self + accepted friends via RLS or SECURITY DEFINER functions):
+- `profiles`, `friendships` — handle and friend relationships.
+- `circle_commitments` — weekly public language commitment per user.
+- `focus_sessions` — timed focus sessions with real-time presence; completed sessions auto-log an `entries` row.
+- `activity_events` — celebration feed only (`milestone`, `bloom`, `commitment_progress`, `circle_report`, `new_language`). Per-session and summary dispatches were removed. `new_language` (migration `20260620000000`) fires the first time a gardener ever logs a session in a language ("planted a new language"), deduped to once per (gardener, language) via a partial unique index — a rare, meaningful crossing rather than per-session noise.
+- `event_reactions`, `event_comments`, `waters` — reactions, notes, and daily "water" taps attached to celebration events.
+- `nudges` — `cheer` / `nudge` (against a commitment) or `invite` (against a `focus_session_id`); shown in the notifications bell.
+
+Two "deepen the circle" features (migration `20260619000000`):
+- **Commitment streaks** — `circle_commitment_streaks()` (SECURITY DEFINER) returns consecutive weeks each gardener met ≥1 weekly commitment, for self + friends. The in-progress current week only counts once met, so an unfinished week never breaks the streak. Surfaced as an amber Flame "Nw" badge on each `CommitmentCard` (`commitmentStreaks` map in `useSocial`).
+- **Targeted focus invites** — `inviteToFocus(sessionId, recipientIds)` inserts `invite` nudges linked to the focus session. The StartFocusSessionModal has an optional friend-invite chip row; invitees see "X invited you to focus on [lang] · N min" in their notifications bell.
+
+**Grow buddies** (migration `20260621000000`) — a pact between two friends to grow a shared language toward a *combined* weekly goal, so progress pools both gardeners' minutes and checking in on each other is intrinsic (unlike solo commitments). `buddy_pacts` (proposer_id + canonical user_a < user_b pair + language_name + target_minutes + status pending/accepted/ended; one live pact per pair per language via a partial unique index). `buddy_pacts_with_progress()` (SECURITY DEFINER) returns the caller's live pacts with this-week combined/`my_minutes`/`buddy_minutes` and a `joint_streak` from `buddy_joint_streak()` (consecutive weeks the pair hit the combined goal; in-progress week counts only once met). `useSocial` owns `buddyPacts` (accepted) / `pendingBuddyPacts` (incoming) / `outgoingBuddyPacts` and `proposeBuddyPact` / `acceptBuddyPact` / `declineBuddyPact` / `endBuddyPact`, with a realtime channel. UI: a top-level `BuddyInbox` (accept/decline invites, mirrors `RequestsInbox`), and inside the Commitments tab a `GrowBuddiesPanel` above the solo commitments with `BuddyPactCard`s (paired avatars, combined progress bar, You/buddy split, amber Flame joint-streak badge, bloom flourish at 100%) and a `ProposeBuddyModal` (pick friend + shared language + combined target). Pacts are friend-only (RLS + `are_friends`).
+
+UI layout on the Friends page (top to bottom): a **circle-pulse hero** (identity + a live status line: "N gardeners focusing now" with a breathing dot, plus "Xh tended together this week" from `circleWeekMinutes`, a week snapshot of the leaderboard total), requests inbox, focus sessions, then a **segmented tabbed panel** (Leaderboard / Commitments / Celebrations) so the data-heavy sections share one card instead of stacking — mirrors the analytics tabs in App.vue (`activeTab` in SocialView). When the user has **no friends yet**, the tabs are replaced by a single "Plant your circle" invite card (embedded `FriendSearch`) rather than a row of empty boxes. Below: friends list and friend search.
+
+Live/whimsy details, kept in the design-system register (no emojis in data displays): `focusingNow` (distinct, non-expired active sessions) drives the hero dot, the focus-sessions presence line, a breathing ring on your active timer, and a breathing live-dot on friends' session avatars (`animate-breathe` token). The leaderboard uses the forest-green `garden` ramp for rank badges (no amber/orange medals); your own row carries a subtle ring. CommitmentCard speaks garden (Not planted yet / Sprouting / Growing / In bloom, with a bloom flourish at 100% and a sunshine Cheer button); `CommitmentsPanel` shows "N of M in bloom this week" social proof. The reaction palette offers water / sun / bloom / leaf / **bee**.
+
+**Celebrations tab (`CelebrationFeed.vue`)** is framed as "moments worth witnessing", not a self-stat log. Three reinforcing pieces beyond the raw feed:
+- **Coming up (anticipation)** — a calm strip atop the feed showing the most imminent crossings (max 2, ranked by urgency): a nearing streak milestone (`upcomingMilestones`, computed from entries in App.vue from `STREAK_MILESTONES` [7,14,30,50,100,200,365], surfaced only when ≤7 days out, threaded App.vue → SocialView → CelebrationFeed) and self-commitments close to completion (from `commitments` in the composable). A milestone you can see approaching motivates before it lands.
+- **Reactions land back** — on your *own* celebrations, a garden-green line names who reacted ("Maria & Sam celebrated this"), resolved from `reactionsByEvent` + the `friends` list. The witnessing is the reward, not the stat.
+- **Freshness decay** — celebrations within 7 days (by `occurred_on`) read bright; older ones fade under a quiet "Earlier" divider (`firstStaleId` / `isStale`), so the feed never becomes an undifferentiated wall.
 
 ## Activity Types
 
