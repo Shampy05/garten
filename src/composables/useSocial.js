@@ -38,6 +38,10 @@ export function useSocial() {
   const circleWeekMinutes = ref(0)
   // Map of user_id -> consecutive met-commitment weeks, for self + friends.
   const commitmentStreaks = ref({})
+  // Grow buddies: shared-language pacts with a combined weekly goal.
+  const buddyPacts = ref([])
+  const pendingBuddyPacts = ref([])
+  const outgoingBuddyPacts = ref([])
 
   let feedChannel = null
   let reactionsChannel = null
@@ -46,6 +50,7 @@ export function useSocial() {
   let commitmentsChannel = null
   let focusSessionsChannel = null
   let nudgesChannel = null
+  let buddyPactsChannel = null
 
   const hasProfile = computed(() => !!profile.value)
 
@@ -252,6 +257,95 @@ export function useSocial() {
       return
     }
     commitments.value = commitments.value.filter((c) => c.id !== id)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Grow buddies
+  // ---------------------------------------------------------------------------
+
+  // Compare uuids as strings to derive the canonical (user_a < user_b) pair.
+  function canonicalPair(a, b) {
+    return a < b ? { user_a: a, user_b: b } : { user_a: b, user_b: a }
+  }
+
+  async function loadBuddyPacts() {
+    if (!profile.value) return
+    const { data, error } = await supabase.rpc('buddy_pacts_with_progress')
+    if (error) {
+      buddyPacts.value = []
+      pendingBuddyPacts.value = []
+      outgoingBuddyPacts.value = []
+      return
+    }
+    const me = userId.value
+    const rows = (data || []).map((p) => ({ ...p, isSelf: false }))
+    buddyPacts.value = rows.filter((p) => p.status === 'accepted')
+    pendingBuddyPacts.value = rows.filter((p) => p.status === 'pending' && p.proposer_id !== me)
+    outgoingBuddyPacts.value = rows.filter((p) => p.status === 'pending' && p.proposer_id === me)
+  }
+
+  async function proposeBuddyPact(friendId, language, targetMinutes) {
+    if (!profile.value) return { error: 'No profile' }
+    const { user_a, user_b } = canonicalPair(userId.value, friendId)
+    const { error } = await supabase.from('buddy_pacts').insert({
+      proposer_id: userId.value,
+      user_a,
+      user_b,
+      language_name: language.name,
+      language_color: language.color,
+      target_minutes: Math.max(1, Math.round(Number(targetMinutes) || 0))
+    })
+    if (error) {
+      if (error.code === '23505') {
+        toast.error('You already have a pact for that language together.')
+      } else {
+        toast.error('Could not send the invite.')
+      }
+      return { error }
+    }
+    toast.success('Invite sent — grow together.')
+    await loadBuddyPacts()
+    return {}
+  }
+
+  async function acceptBuddyPact(id) {
+    if (!profile.value) return
+    const { error } = await supabase
+      .from('buddy_pacts')
+      .update({ status: 'accepted', updated_at: new Date().toISOString() })
+      .eq('id', id)
+    if (error) {
+      toast.error('Could not accept the pact.')
+      return
+    }
+    toast.success('Growing together now.')
+    await loadBuddyPacts()
+  }
+
+  async function declineBuddyPact(id) {
+    if (!profile.value) return
+    const { error } = await supabase.from('buddy_pacts').delete().eq('id', id)
+    if (error) {
+      toast.error('Could not decline the pact.')
+      return
+    }
+    await loadBuddyPacts()
+  }
+
+  // Ending an accepted pact keeps the row (status = 'ended') so its history and
+  // the unique slot stay coherent; cancelling a pending one just removes it.
+  async function endBuddyPact(id) {
+    if (!profile.value) return
+    const { error } = await supabase
+      .from('buddy_pacts')
+      .update({ status: 'ended', updated_at: new Date().toISOString() })
+      .eq('id', id)
+    if (error) {
+      toast.error('Could not end the pact.')
+      return
+    }
+    buddyPacts.value = buddyPacts.value.filter((p) => p.id !== id)
+    await loadBuddyPacts()
   }
 
   // ---------------------------------------------------------------------------
@@ -710,6 +804,25 @@ export function useSocial() {
     }
   }
 
+  function subscribeBuddyPacts() {
+    if (buddyPactsChannel) return
+    buddyPactsChannel = supabase
+      .channel('garden-buddy-pacts')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'buddy_pacts' },
+        () => loadBuddyPacts()
+      )
+      .subscribe()
+  }
+
+  function unsubscribeBuddyPacts() {
+    if (buddyPactsChannel) {
+      supabase.removeChannel(buddyPactsChannel)
+      buddyPactsChannel = null
+    }
+  }
+
   async function loadWaters() {
     if (!profile.value) return
     const today = new Date().toISOString().split('T')[0]
@@ -920,7 +1033,8 @@ export function useSocial() {
         loadFocusSessions(),
         loadLeaderboard(),
         loadNudgesReceived(),
-        loadCommitmentStreaks()
+        loadCommitmentStreaks(),
+        loadBuddyPacts()
       ])
       await Promise.all([loadFeedReactions(), ensureCircleReport(), expireFocusSessions()])
       subscribeFeed()
@@ -930,6 +1044,7 @@ export function useSocial() {
       subscribeCommitments()
       subscribeFocusSessions()
       subscribeNudges()
+      subscribeBuddyPacts()
     }
   }
 
@@ -960,7 +1075,8 @@ export function useSocial() {
       loadFocusSessions(),
       loadLeaderboard(),
       loadNudgesReceived(),
-      loadCommitmentStreaks()
+      loadCommitmentStreaks(),
+      loadBuddyPacts()
     ])
     loadFeedReactions()
     ensureCircleReport()
@@ -971,6 +1087,7 @@ export function useSocial() {
     subscribeCommitments()
     subscribeFocusSessions()
     subscribeNudges()
+    subscribeBuddyPacts()
     return { data }
   }
 
@@ -1053,6 +1170,7 @@ export function useSocial() {
     unsubscribeCommitments()
     unsubscribeFocusSessions()
     unsubscribeNudges()
+    unsubscribeBuddyPacts()
     profile.value = null
     profileLoaded.value = false
     friends.value = []
@@ -1069,6 +1187,9 @@ export function useSocial() {
     leaderboardWindow.value = 'week'
     circleWeekMinutes.value = 0
     commitmentStreaks.value = {}
+    buddyPacts.value = []
+    pendingBuddyPacts.value = []
+    outgoingBuddyPacts.value = []
     reactionsByEvent.value = {}
     commentsByEvent.value = {}
     selectedEvent.value = null
@@ -1124,6 +1245,9 @@ export function useSocial() {
     leaderboardWindow,
     circleWeekMinutes,
     commitmentStreaks,
+    buddyPacts,
+    pendingBuddyPacts,
+    outgoingBuddyPacts,
     nudgesReceived,
     recentCommentsOnMine,
     notificationCount,
@@ -1159,6 +1283,11 @@ export function useSocial() {
     loadCommitments,
     setCommitment,
     deleteCommitment,
+    loadBuddyPacts,
+    proposeBuddyPact,
+    acceptBuddyPact,
+    declineBuddyPact,
+    endBuddyPact,
     loadFocusSessions,
     startFocusSession,
     joinFocusSession,

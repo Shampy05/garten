@@ -64,6 +64,7 @@
       </div>
 
       <RequestsInbox />
+      <BuddyInbox />
       <FocusSessions :languages="languages" />
 
       <!-- Empty circle: one inviting prompt instead of a row of dead cards -->
@@ -101,15 +102,20 @@
         <div :key="activeTab" class="animate-fade-up">
           <CircleLeaderboard v-if="activeTab === 'leaderboard'" />
 
-          <CommitmentsPanel
-            v-else-if="activeTab === 'commitments'"
-            :commitments="commitments"
-            @add="openCommitmentModal(null)"
-            @edit="openCommitmentModal"
-            @delete="removeCommitment"
-            @cheer="sendCheer"
-            @nudge="sendNudge"
-          />
+          <div v-else-if="activeTab === 'commitments'" class="space-y-6">
+            <GrowBuddiesPanel
+              @propose="showBuddyModal = true"
+              @end="endBuddyPact"
+            />
+            <CommitmentsPanel
+              :commitments="commitments"
+              @add="openCommitmentModal(null)"
+              @edit="openCommitmentModal"
+              @delete="removeCommitment"
+              @cheer="sendCheer"
+              @nudge="sendNudge"
+            />
+          </div>
 
           <CelebrationFeed
             v-else-if="activeTab === 'celebrations'"
@@ -133,6 +139,14 @@
         @close="showCommitmentModal = false; editingCommitment = null"
         @save="saveCommitment"
       />
+
+      <ProposeBuddyModal
+        :visible="showBuddyModal"
+        :languages="availableLanguages"
+        :friends="friends"
+        @close="showBuddyModal = false"
+        @propose="proposeBuddy"
+      />
     </div>
   </div>
 </template>
@@ -150,6 +164,9 @@ import CircleLeaderboard from './CircleLeaderboard.vue'
 import CommitmentsPanel from './CommitmentsPanel.vue'
 import SetCommitmentModal from './SetCommitmentModal.vue'
 import CelebrationFeed from './CelebrationFeed.vue'
+import BuddyInbox from './BuddyInbox.vue'
+import GrowBuddiesPanel from './GrowBuddiesPanel.vue'
+import ProposeBuddyModal from './ProposeBuddyModal.vue'
 
 const props = defineProps({
   languages: { type: Array, default: () => [] },
@@ -161,6 +178,7 @@ const { profile, profileLoaded, selectedEvent, commitments, friends, focusingNow
 
 const showCommitmentModal = ref(false)
 const editingCommitment = ref(null)
+const showBuddyModal = ref(false)
 
 const availableLanguages = computed(() => props.languages)
 
@@ -188,6 +206,15 @@ async function saveCommitment({ language, targetMinutes }) {
   await social.setCommitment(language, targetMinutes)
   showCommitmentModal.value = false
   editingCommitment.value = null
+}
+
+async function proposeBuddy({ friendId, language, targetMinutes }) {
+  const res = await social.proposeBuddyPact(friendId, language, targetMinutes)
+  if (!res?.error) showBuddyModal.value = false
+}
+
+async function endBuddyPact(pact) {
+  await social.endBuddyPact(pact.id)
 }
 
 async function sendCheer(commitment) {
