@@ -36,6 +36,8 @@ export function useSocial() {
   const leaderboard = ref([])
   const leaderboardWindow = ref('week')
   const circleWeekMinutes = ref(0)
+  // Map of user_id -> consecutive met-commitment weeks, for self + friends.
+  const commitmentStreaks = ref({})
 
   let feedChannel = null
   let reactionsChannel = null
@@ -226,6 +228,18 @@ export function useSocial() {
     return { data }
   }
 
+  async function loadCommitmentStreaks() {
+    if (!profile.value) return
+    const { data, error } = await supabase.rpc('circle_commitment_streaks')
+    if (error) {
+      commitmentStreaks.value = {}
+      return
+    }
+    const next = {}
+    for (const row of data || []) next[row.user_id] = row.weeks
+    commitmentStreaks.value = next
+  }
+
   async function deleteCommitment(id) {
     if (!profile.value) return
     const { error } = await supabase
@@ -321,6 +335,24 @@ export function useSocial() {
     return { data }
   }
 
+  // Invite specific friends to a focus session — each gets an 'invite' nudge
+  // that points back at the session, surfaced in their notifications bell.
+  async function inviteToFocus(sessionId, recipientIds = []) {
+    if (!profile.value || recipientIds.length === 0) return
+    const rows = recipientIds.map((rid) => ({
+      sender_id: userId.value,
+      recipient_id: rid,
+      kind: 'invite',
+      focus_session_id: sessionId
+    }))
+    const { error } = await supabase.from('nudges').insert(rows)
+    if (error) {
+      toast.error('Could not send the invite.')
+      return
+    }
+    toast.success(recipientIds.length === 1 ? 'Invite sent.' : 'Invites sent.')
+  }
+
   async function cancelFocusSession(sessionId) {
     if (!profile.value) return
     const { error } = await supabase
@@ -399,9 +431,10 @@ export function useSocial() {
     const { data, error } = await supabase
       .from('nudges')
       .select(
-        'id, sender_id, recipient_id, kind, commitment_id, created_at, ' +
+        'id, sender_id, recipient_id, kind, commitment_id, focus_session_id, created_at, ' +
         'sender:profiles!nudges_sender_id_fkey(username, display_name), ' +
-        'commitment:circle_commitments!nudges_commitment_id_fkey(language_name, language_color, target_minutes)'
+        'commitment:circle_commitments!nudges_commitment_id_fkey(language_name, language_color, target_minutes), ' +
+        'session:focus_sessions!nudges_focus_session_id_fkey(language_name, language_color, duration_minutes, status, ends_at)'
       )
       .eq('recipient_id', userId.value)
       .gte('created_at', weekAgo)
@@ -886,7 +919,8 @@ export function useSocial() {
         loadCommitments(),
         loadFocusSessions(),
         loadLeaderboard(),
-        loadNudgesReceived()
+        loadNudgesReceived(),
+        loadCommitmentStreaks()
       ])
       await Promise.all([loadFeedReactions(), ensureCircleReport(), expireFocusSessions()])
       subscribeFeed()
@@ -925,7 +959,8 @@ export function useSocial() {
       loadCommitments(),
       loadFocusSessions(),
       loadLeaderboard(),
-      loadNudgesReceived()
+      loadNudgesReceived(),
+      loadCommitmentStreaks()
     ])
     loadFeedReactions()
     ensureCircleReport()
@@ -1033,6 +1068,7 @@ export function useSocial() {
     leaderboard.value = []
     leaderboardWindow.value = 'week'
     circleWeekMinutes.value = 0
+    commitmentStreaks.value = {}
     reactionsByEvent.value = {}
     commentsByEvent.value = {}
     selectedEvent.value = null
@@ -1087,6 +1123,7 @@ export function useSocial() {
     leaderboard,
     leaderboardWindow,
     circleWeekMinutes,
+    commitmentStreaks,
     nudgesReceived,
     recentCommentsOnMine,
     notificationCount,
@@ -1125,11 +1162,13 @@ export function useSocial() {
     loadFocusSessions,
     startFocusSession,
     joinFocusSession,
+    inviteToFocus,
     cancelFocusSession,
     completeFocusSession,
     expireFocusSessions,
     loadLeaderboard,
     loadNudgesReceived,
+    loadCommitmentStreaks,
     sendNudge,
     ensureCircleReport
   }

@@ -63,7 +63,7 @@
 
 <script setup>
 import { computed, inject } from 'vue'
-import { X, Droplets, MessageSquare, Sun, Bell } from 'lucide-vue-next'
+import { X, Droplets, MessageSquare, Sun, Bell, Zap } from 'lucide-vue-next'
 
 const props = defineProps({
   modelValue: { type: Boolean, required: true }
@@ -84,6 +84,7 @@ function iconClasses(type) {
   if (type === 'water') return 'bg-sky-100 text-sky-600'
   if (type === 'comment') return 'bg-amber-100 text-amber-600'
   if (type === 'cheer') return 'bg-garden-100 text-garden-600'
+  if (type === 'invite') return 'bg-garden-100 text-garden-600'
   return 'bg-stone-100 text-stone-600'
 }
 
@@ -91,6 +92,7 @@ function iconFor(type) {
   if (type === 'water') return Droplets
   if (type === 'comment') return MessageSquare
   if (type === 'cheer') return Sun
+  if (type === 'invite') return Zap
   return Bell
 }
 
@@ -99,7 +101,19 @@ function messageFor(item) {
   if (item.type === 'comment') return 'commented on ' + item.eventTitle + ':'
   if (item.type === 'cheer') return 'cheered your commitment.'
   if (item.type === 'nudge') return 'nudged your commitment.'
+  if (item.type === 'invite') return 'invited you to focus.'
   return 'sent you a notification.'
+}
+
+function nudgeBody(n) {
+  if (n.kind === 'invite') {
+    if (!n.session) return ''
+    const mins = n.session.duration_minutes
+    return `Focus on ${n.session.language_name}${mins ? ` · ${mins} min` : ''}`
+  }
+  return n.commitment
+    ? `${n.kind === 'cheer' ? 'Cheered' : 'Nudged'} your ${n.commitment.language_name} commitment`
+    : ''
 }
 
 function eventTitle(eventId) {
@@ -135,9 +149,7 @@ const items = computed(() => {
     type: n.kind,
     actorName: n.senderName,
     eventTitle: '',
-    body: n.commitment
-      ? `${n.kind === 'cheer' ? 'Cheered' : 'Nudged'} your ${n.commitment.language_name} commitment`
-      : '',
+    body: nudgeBody(n),
     created_at: n.created_at,
     eventId: null
   }))

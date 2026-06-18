@@ -87,7 +87,7 @@ The app shares one visual language. Reuse these instead of hand-rolling card/but
 
 - **Data export**: Quiet "Export your data" footer inside the LanguageManager modal (gear/settings surface). Two buttons — Download CSV / Download JSON — wired to `src/lib/export.js`. CSV is a flat one-row-per-session table (`date,language,type,hours,minutes,total_minutes,notes`) with language names resolved; JSON is a denormalized snapshot (summary header + sessions with language names inlined + a backup of languages/prior_hours and weekly goal). Pure client-side via Blob download, no backend. Buttons disable when there is nothing to export. Filenames are date-stamped (`garten-sessions-YYYY-MM-DD.csv`, `garten-export-YYYY-MM-DD.json`).
 
-- **Recent sessions**: Below everything, inside its own card. Two-row layout: top row has language/type/date/duration, bottom row has notes (truncated) + edit/delete actions.
+- **Recent sessions**: Below everything, inside its own card. A **day-grouped timeline** (`groupedRecentEntries` in App.vue): sessions are bucketed under relative-day headers (`relativeDayLabel`: Today / Yesterday / weekday within 7 days / "Mon, Jun 15" older) with that day's total time on the right under a hairline `border-line`. Each row has a thin left language-color accent bar, language · type, duration (`fmtMinutes`, drops a leading 0h), notes (truncated), and edit/delete on hover. Still paginated by `recentLimit` ("Show more").
 
 - **Tooltips**: Teleported to body, fixed positioning, scroll-dismiss.
 
@@ -119,7 +119,11 @@ Social tables (all scoped to self + accepted friends via RLS or SECURITY DEFINER
 - `focus_sessions` — timed focus sessions with real-time presence; completed sessions auto-log an `entries` row.
 - `activity_events` — celebration feed only (`milestone`, `bloom`, `commitment_progress`, `circle_report`). Per-session and summary dispatches were removed.
 - `event_reactions`, `event_comments`, `waters` — reactions, notes, and daily "water" taps attached to celebration events.
-- `nudges` — `cheer` / `nudge` sent against a commitment; shown in the notifications bell.
+- `nudges` — `cheer` / `nudge` (against a commitment) or `invite` (against a `focus_session_id`); shown in the notifications bell.
+
+Two "deepen the circle" features (migration `20260619000000`):
+- **Commitment streaks** — `circle_commitment_streaks()` (SECURITY DEFINER) returns consecutive weeks each gardener met ≥1 weekly commitment, for self + friends. The in-progress current week only counts once met, so an unfinished week never breaks the streak. Surfaced as an amber Flame "Nw" badge on each `CommitmentCard` (`commitmentStreaks` map in `useSocial`).
+- **Targeted focus invites** — `inviteToFocus(sessionId, recipientIds)` inserts `invite` nudges linked to the focus session. The StartFocusSessionModal has an optional friend-invite chip row; invitees see "X invited you to focus on [lang] · N min" in their notifications bell.
 
 UI layout on the Friends page (top to bottom): a **circle-pulse hero** (identity + a live status line: "N gardeners focusing now" with a breathing dot, plus "Xh tended together this week" from `circleWeekMinutes`, a week snapshot of the leaderboard total), requests inbox, focus sessions, then a **segmented tabbed panel** (Leaderboard / Commitments / Celebrations) so the data-heavy sections share one card instead of stacking — mirrors the analytics tabs in App.vue (`activeTab` in SocialView). When the user has **no friends yet**, the tabs are replaced by a single "Plant your circle" invite card (embedded `FriendSearch`) rather than a row of empty boxes. Below: friends list and friend search.
 

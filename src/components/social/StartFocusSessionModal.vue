@@ -66,6 +66,29 @@
             </div>
           </div>
 
+          <div v-if="friends.length > 0">
+            <label class="block text-xs font-medium text-stone-500 uppercase tracking-wide mb-1.5">Invite friends (optional)</label>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="f in friends"
+                :key="f.friend_id"
+                @click="toggleInvite(f.friend_id)"
+                class="inline-flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full text-sm border transition-all"
+                :class="invited.includes(f.friend_id)
+                  ? 'border-garden-400 bg-garden-50 text-garden-800'
+                  : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'"
+              >
+                <span
+                  class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                  :class="invited.includes(f.friend_id) ? 'bg-garden-100 text-garden-700' : 'bg-stone-100 text-stone-500'"
+                >
+                  {{ (f.display_name || f.username)[0].toUpperCase() }}
+                </span>
+                {{ f.display_name || f.username }}
+              </button>
+            </div>
+          </div>
+
           <button
             @click="start"
             :disabled="!selectedLang"
@@ -86,7 +109,8 @@ import { ACTIVITY_TYPES } from '../../lib/types.js'
 
 const props = defineProps({
   visible: { type: Boolean, required: true },
-  languages: { type: Array, default: () => [] }
+  languages: { type: Array, default: () => [] },
+  friends: { type: Array, default: () => [] }
 })
 
 const emit = defineEmits(['close', 'start'])
@@ -94,27 +118,40 @@ const emit = defineEmits(['close', 'start'])
 const selectedLang = ref(props.languages[0] || null)
 const duration = ref(25)
 const activityType = ref('vocabulary')
+const invited = ref([])
 const durations = [15, 25, 45, 60]
 const activityTypes = ACTIVITY_TYPES
 
 // Languages can finish loading after this modal mounts (or be passed in late),
 // so default the selection whenever the modal opens and nothing is chosen yet.
+// Also clear any prior invite selection so it doesn't leak into the next session.
 watch(
   () => props.visible,
   (open) => {
-    if (open && !selectedLang.value) selectedLang.value = props.languages[0] || null
+    if (open) {
+      if (!selectedLang.value) selectedLang.value = props.languages[0] || null
+      invited.value = []
+    }
   }
 )
+
+function toggleInvite(id) {
+  invited.value = invited.value.includes(id)
+    ? invited.value.filter((x) => x !== id)
+    : [...invited.value, id]
+}
 
 function start() {
   if (!selectedLang.value) return
   emit('start', {
     language: selectedLang.value,
     durationMinutes: duration.value,
-    activityType: activityType.value
+    activityType: activityType.value,
+    invitees: [...invited.value]
   })
   selectedLang.value = props.languages[0] || null
   duration.value = 25
   activityType.value = 'vocabulary'
+  invited.value = []
 }
 </script>

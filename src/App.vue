@@ -286,42 +286,49 @@
       <!-- Recent Sessions -->
       <div class="gp-card gp-pad mt-6 animate-fade-up">
         <h3 class="gp-title text-lg mb-4">Recent Sessions</h3>
-        <div class="space-y-2">
-          <div
-            v-for="entry in recentEntries"
-            :key="entry.id"
-            class="group p-3 rounded-xl bg-stone-50/70 hover:bg-stone-100/70 transition-colors"
-          >
-            <div class="flex items-center gap-2">
-              <div class="w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-white shadow-sm"
-                :style="{ backgroundColor: getLanguageColor(entry.languageId) }"
-              ></div>
-              <span class="font-semibold text-stone-700 text-sm">{{ getLanguageName(entry.languageId) }}</span>
-              <span class="text-stone-300 text-xs">·</span>
-              <span class="text-stone-500 text-xs capitalize">{{ entry.type }}</span>
-              <span class="text-stone-300 text-xs">·</span>
-              <span class="text-stone-400 text-xs tabular-nums">{{ entry.date }}</span>
-              <span class="text-sm font-semibold text-stone-600 ml-auto mr-2 tabular-nums">
-                {{ entry.hours }}h {{ entry.minutes }}m
-              </span>
+
+        <div v-if="groupedRecentEntries.length" class="space-y-5">
+          <div v-for="group in groupedRecentEntries" :key="group.date">
+            <!-- Day header -->
+            <div class="flex items-baseline gap-2 pb-2 mb-2 border-b border-line">
+              <span class="text-xs font-semibold uppercase tracking-wide text-stone-500">{{ group.label }}</span>
+              <span class="text-xs text-stone-300">·</span>
+              <span class="text-xs font-medium text-stone-400 tabular-nums">{{ group.totalFormatted }}</span>
             </div>
-            <div class="flex items-center gap-3 mt-1.5 pl-5">
-              <p v-if="entry.notes" class="text-xs text-stone-400 truncate flex-1">{{ entry.notes }}</p>
-              <div class="flex items-center gap-1 ml-auto flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                <button @click="openEdit(entry)" class="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors" title="Edit">
-                  <Pencil :size="14" />
-                </button>
-                <button @click="confirmDeleteEntry(entry)" class="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
-                  <Trash2 :size="14" />
-                </button>
+
+            <!-- Day sessions -->
+            <div class="space-y-1.5">
+              <div
+                v-for="entry in group.entries"
+                :key="entry.id"
+                class="group relative flex flex-col rounded-xl bg-stone-50/70 hover:bg-stone-100/70 transition-colors pl-4 pr-3 py-2.5 overflow-hidden"
+              >
+                <div class="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl"
+                  :style="{ backgroundColor: getLanguageColor(entry.languageId) }"
+                ></div>
+                <div class="flex items-center gap-2">
+                  <span class="font-semibold text-stone-700 text-sm truncate">{{ getLanguageName(entry.languageId) }}</span>
+                  <span class="text-stone-300 text-xs">·</span>
+                  <span class="text-stone-500 text-xs capitalize">{{ entry.type }}</span>
+                  <span class="text-sm font-semibold text-stone-600 ml-auto tabular-nums">
+                    {{ fmtMinutes(entry.hours * 60 + entry.minutes) }}
+                  </span>
+                </div>
+                <div class="flex items-center gap-3 mt-1">
+                  <p v-if="entry.notes" class="text-xs text-stone-400 truncate flex-1">{{ entry.notes }}</p>
+                  <div class="flex items-center gap-1 ml-auto flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    <button @click="openEdit(entry)" class="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors" title="Edit">
+                      <Pencil :size="14" />
+                    </button>
+                    <button @click="confirmDeleteEntry(entry)" class="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
+                      <Trash2 :size="14" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div v-if="recentEntries.length === 0" class="text-center py-10 text-stone-400">
-            <SproutIcon class="w-12 h-12 mx-auto mb-3 opacity-50 animate-sway" />
-            <p class="text-sm">No sessions yet — plant your first seed above.</p>
-          </div>
           <button
             v-if="recentEntries.length < data.entries.length"
             @click="recentLimit += 10"
@@ -329,6 +336,11 @@
           >
             Show more
           </button>
+        </div>
+
+        <div v-else class="text-center py-10 text-stone-400">
+          <SproutIcon class="w-12 h-12 mx-auto mb-3 opacity-50 animate-sway" />
+          <p class="text-sm">No sessions yet — plant your first seed above.</p>
         </div>
       </div>
       </template>
@@ -521,6 +533,41 @@ const recentEntries = computed(() => {
       return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
     })
     .slice(0, recentLimit.value)
+})
+
+const fmtMinutes = (totalMinutes) => {
+  const h = Math.floor(totalMinutes / 60)
+  const m = totalMinutes % 60
+  if (h && m) return `${h}h ${m}m`
+  if (h) return `${h}h`
+  return `${m}m`
+}
+
+const relativeDayLabel = (dateStr) => {
+  const date = new Date(dateStr + 'T00:00:00')
+  const today = new Date(localDateStr(new Date()) + 'T00:00:00')
+  const diffDays = Math.round((today - date) / 86400000)
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Yesterday'
+  if (diffDays > 1 && diffDays < 7) return date.toLocaleDateString(undefined, { weekday: 'long' })
+  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+const groupedRecentEntries = computed(() => {
+  const groups = []
+  const byDate = new Map()
+  for (const entry of recentEntries.value) {
+    let group = byDate.get(entry.date)
+    if (!group) {
+      group = { date: entry.date, label: relativeDayLabel(entry.date), totalMinutes: 0, totalFormatted: '', entries: [] }
+      byDate.set(entry.date, group)
+      groups.push(group)
+    }
+    group.entries.push(entry)
+    group.totalMinutes += entry.hours * 60 + entry.minutes
+  }
+  for (const group of groups) group.totalFormatted = fmtMinutes(group.totalMinutes)
+  return groups
 })
 
 const todayStreak = computed(() => currentStreak(data.value.entries.map(e => e.date)))

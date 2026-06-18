@@ -110,6 +110,7 @@
     <StartFocusSessionModal
       :visible="showStart"
       :languages="languages"
+      :friends="friends"
       @close="showStart = false"
       @start="onStart"
     />
@@ -126,7 +127,7 @@ defineProps({
 })
 
 const social = inject('social')
-const { focusSessions, hasActiveFocusSession, focusingNow } = social
+const { focusSessions, hasActiveFocusSession, focusingNow, friends } = social
 
 const showStart = ref(false)
 const now = ref(Date.now())
@@ -193,9 +194,10 @@ function timeLeft(session) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-async function onStart({ language, durationMinutes, activityType }) {
+async function onStart({ language, durationMinutes, activityType, invitees }) {
   showStart.value = false
-  await social.startFocusSession(language, durationMinutes, activityType)
+  const { data } = await social.startFocusSession(language, durationMinutes, activityType)
+  if (data && invitees?.length) await social.inviteToFocus(data.id, invitees)
 }
 
 async function join(session) {

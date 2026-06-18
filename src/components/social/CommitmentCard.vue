@@ -9,8 +9,17 @@
           <span class="text-white text-xs font-bold">{{ commitment.ownerName[0].toUpperCase() }}</span>
         </div>
         <div class="min-w-0">
-          <div class="text-sm font-medium text-stone-700 truncate">
-            {{ commitment.ownerName }}
+          <div class="flex items-center gap-1.5">
+            <span class="text-sm font-medium text-stone-700 truncate">
+              {{ commitment.ownerName }}
+            </span>
+            <span
+              v-if="streakWeeks > 0"
+              class="inline-flex items-center gap-0.5 text-xs font-medium text-amber-600 flex-shrink-0"
+              :title="`${streakWeeks}-week commitment streak`"
+            >
+              <Flame :size="12" /> {{ streakWeeks }}w
+            </span>
           </div>
           <div class="text-xs text-stone-500">
             {{ commitment.language_name }} · {{ fmtHours(commitment.target_minutes) }} this week
@@ -71,14 +80,17 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { X, Pencil, Sun, Bell, Flower2 } from 'lucide-vue-next'
+import { computed, inject } from 'vue'
+import { X, Pencil, Sun, Bell, Flower2, Flame } from 'lucide-vue-next'
 
 const props = defineProps({
   commitment: { type: Object, required: true }
 })
 
 const emit = defineEmits(['edit', 'delete', 'cheer', 'nudge'])
+
+const social = inject('social')
+const streakWeeks = computed(() => social.commitmentStreaks.value[props.commitment.user_id] || 0)
 
 const percent = computed(() => {
   const t = props.commitment.target_minutes || 1
