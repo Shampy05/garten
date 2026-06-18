@@ -1,13 +1,11 @@
 <template>
-  <div class="bg-gradient-to-br from-garden-50 to-emerald-50 rounded-xl border border-garden-100 p-3 sm:p-4 mb-4">
+  <div class="bg-gradient-to-br from-garden-50 to-emerald-50/60 rounded-xl border border-garden-100 p-3.5 mb-3">
     <div class="flex items-center justify-between gap-3">
-      <div>
-        <div class="text-xs font-medium text-garden-600 uppercase tracking-wide">Growing together</div>
-        <div class="text-lg sm:text-xl font-display font-bold text-stone-800 mt-0.5">
-          {{ fmtHours(togetherWeekMinutes) }}
-        </div>
-        <div class="text-xs text-stone-500 mt-0.5">
-          across your gardens this week
+      <div class="min-w-0">
+        <div class="text-[10px] font-semibold text-garden-600 uppercase tracking-wider">Growing together</div>
+        <div class="flex items-baseline gap-2 mt-0.5 flex-wrap">
+          <span class="text-lg font-display font-bold text-stone-800 tabular-nums">{{ fmtHours(togetherWeekMinutes) }}</span>
+          <span class="text-xs text-stone-500">across your gardens this week</span>
         </div>
       </div>
       <button
@@ -20,7 +18,7 @@
       </button>
     </div>
 
-    <div v-if="friendBars.length > 0" class="mt-3 flex flex-wrap gap-2">
+    <div v-if="friendBars.length > 0" class="mt-2.5 flex flex-wrap gap-2">
       <div
         v-for="bar in friendBars"
         :key="bar.id"
