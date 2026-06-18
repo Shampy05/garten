@@ -35,6 +35,9 @@ export function useSocial() {
   const focusSessions = ref([])
   const leaderboard = ref([])
   const leaderboardWindow = ref('week')
+  // Per-gardener language + activity texture for the leaderboard, keyed by
+  // user_id, for the active leaderboard window. { languages[], activities[], total }.
+  const circleBreakdown = ref({})
   const circleWeekMinutes = ref(0)
   // Map of user_id -> consecutive met-commitment weeks, for self + friends.
   const commitmentStreaks = ref({})
@@ -513,6 +516,42 @@ export function useSocial() {
     if (window === 'week') {
       circleWeekMinutes.value = leaderboard.value.reduce((s, r) => s + (Number(r.minutes) || 0), 0)
     }
+    // Texture rides the same window as the leaderboard, so toggling the window
+    // reloads both in step.
+    await loadCircleBreakdown(window)
+  }
+
+  // Pivot the flat (user, language, activity, minutes) rows into a per-gardener
+  // map the leaderboard can render as a language-mix ribbon + activity legend.
+  async function loadCircleBreakdown(window = leaderboardWindow.value) {
+    if (!profile.value) return
+    const { data, error } = await supabase.rpc('circle_breakdown', { p_window: window })
+    if (error) {
+      circleBreakdown.value = {}
+      return
+    }
+    const map = {}
+    for (const r of data || []) {
+      const u = map[r.user_id] || (map[r.user_id] = { total: 0, _lang: {}, _act: {} })
+      const mins = Number(r.minutes) || 0
+      u.total += mins
+      if (!u._lang[r.language_name]) {
+        u._lang[r.language_name] = { name: r.language_name, color: r.language_color, minutes: 0 }
+      }
+      u._lang[r.language_name].minutes += mins
+      u._act[r.activity_type] = (u._act[r.activity_type] || 0) + mins
+    }
+    const next = {}
+    for (const [uid, u] of Object.entries(map)) {
+      next[uid] = {
+        total: u.total,
+        languages: Object.values(u._lang).sort((a, b) => b.minutes - a.minutes),
+        activities: Object.entries(u._act)
+          .map(([type, minutes]) => ({ type, minutes }))
+          .sort((a, b) => b.minutes - a.minutes)
+      }
+    }
+    circleBreakdown.value = next
   }
 
   // ---------------------------------------------------------------------------
@@ -1185,6 +1224,7 @@ export function useSocial() {
     focusSessions.value = []
     leaderboard.value = []
     leaderboardWindow.value = 'week'
+    circleBreakdown.value = {}
     circleWeekMinutes.value = 0
     commitmentStreaks.value = {}
     buddyPacts.value = []
@@ -1243,6 +1283,7 @@ export function useSocial() {
     focusingNow,
     leaderboard,
     leaderboardWindow,
+    circleBreakdown,
     circleWeekMinutes,
     commitmentStreaks,
     buddyPacts,
@@ -1296,6 +1337,7 @@ export function useSocial() {
     completeFocusSession,
     expireFocusSessions,
     loadLeaderboard,
+    loadCircleBreakdown,
     loadNudgesReceived,
     loadCommitmentStreaks,
     sendNudge,
