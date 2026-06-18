@@ -127,7 +127,7 @@ export function useSocial() {
         'actor:profiles!activity_events_actor_id_fkey(username, display_name), ' +
         'co_actor:profiles!activity_events_co_actor_id_fkey(username, display_name)'
       )
-      .in('kind', ['milestone', 'bloom', 'commitment_progress', 'circle_report'])
+      .in('kind', ['milestone', 'bloom', 'commitment_progress', 'circle_report', 'new_language'])
       .order('created_at', { ascending: false })
       .limit(50)
     if (error) return
@@ -502,7 +502,7 @@ export function useSocial() {
         { event: 'INSERT', schema: 'public', table: 'activity_events' },
         (payload) => {
           const item = normalizeEvent(payload.new)
-          if (!['milestone', 'bloom', 'commitment_progress', 'circle_report'].includes(item.kind)) return
+          if (!['milestone', 'bloom', 'commitment_progress', 'circle_report', 'new_language'].includes(item.kind)) return
           if (feed.value.some((e) => e.id === item.id)) return
           feed.value = [item, ...feed.value].slice(0, 50)
         }

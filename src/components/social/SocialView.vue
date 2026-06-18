@@ -111,7 +111,10 @@
             @nudge="sendNudge"
           />
 
-          <CelebrationFeed v-else-if="activeTab === 'celebrations'" />
+          <CelebrationFeed
+            v-else-if="activeTab === 'celebrations'"
+            :upcoming-milestones="upcomingMilestones"
+          />
         </div>
       </div>
 
@@ -149,7 +152,8 @@ import SetCommitmentModal from './SetCommitmentModal.vue'
 import CelebrationFeed from './CelebrationFeed.vue'
 
 const props = defineProps({
-  languages: { type: Array, default: () => [] }
+  languages: { type: Array, default: () => [] },
+  upcomingMilestones: { type: Array, default: () => [] }
 })
 
 const social = inject('social')

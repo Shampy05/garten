@@ -117,7 +117,7 @@ Social tables (all scoped to self + accepted friends via RLS or SECURITY DEFINER
 - `profiles`, `friendships` — handle and friend relationships.
 - `circle_commitments` — weekly public language commitment per user.
 - `focus_sessions` — timed focus sessions with real-time presence; completed sessions auto-log an `entries` row.
-- `activity_events` — celebration feed only (`milestone`, `bloom`, `commitment_progress`, `circle_report`). Per-session and summary dispatches were removed.
+- `activity_events` — celebration feed only (`milestone`, `bloom`, `commitment_progress`, `circle_report`, `new_language`). Per-session and summary dispatches were removed. `new_language` (migration `20260620000000`) fires the first time a gardener ever logs a session in a language ("planted a new language"), deduped to once per (gardener, language) via a partial unique index — a rare, meaningful crossing rather than per-session noise.
 - `event_reactions`, `event_comments`, `waters` — reactions, notes, and daily "water" taps attached to celebration events.
 - `nudges` — `cheer` / `nudge` (against a commitment) or `invite` (against a `focus_session_id`); shown in the notifications bell.
 
@@ -128,6 +128,11 @@ Two "deepen the circle" features (migration `20260619000000`):
 UI layout on the Friends page (top to bottom): a **circle-pulse hero** (identity + a live status line: "N gardeners focusing now" with a breathing dot, plus "Xh tended together this week" from `circleWeekMinutes`, a week snapshot of the leaderboard total), requests inbox, focus sessions, then a **segmented tabbed panel** (Leaderboard / Commitments / Celebrations) so the data-heavy sections share one card instead of stacking — mirrors the analytics tabs in App.vue (`activeTab` in SocialView). When the user has **no friends yet**, the tabs are replaced by a single "Plant your circle" invite card (embedded `FriendSearch`) rather than a row of empty boxes. Below: friends list and friend search.
 
 Live/whimsy details, kept in the design-system register (no emojis in data displays): `focusingNow` (distinct, non-expired active sessions) drives the hero dot, the focus-sessions presence line, a breathing ring on your active timer, and a breathing live-dot on friends' session avatars (`animate-breathe` token). The leaderboard uses the forest-green `garden` ramp for rank badges (no amber/orange medals); your own row carries a subtle ring. CommitmentCard speaks garden (Not planted yet / Sprouting / Growing / In bloom, with a bloom flourish at 100% and a sunshine Cheer button); `CommitmentsPanel` shows "N of M in bloom this week" social proof. The reaction palette offers water / sun / bloom / leaf / **bee**.
+
+**Celebrations tab (`CelebrationFeed.vue`)** is framed as "moments worth witnessing", not a self-stat log. Three reinforcing pieces beyond the raw feed:
+- **Coming up (anticipation)** — a calm strip atop the feed showing the most imminent crossings (max 2, ranked by urgency): a nearing streak milestone (`upcomingMilestones`, computed from entries in App.vue from `STREAK_MILESTONES` [7,14,30,50,100,200,365], surfaced only when ≤7 days out, threaded App.vue → SocialView → CelebrationFeed) and self-commitments close to completion (from `commitments` in the composable). A milestone you can see approaching motivates before it lands.
+- **Reactions land back** — on your *own* celebrations, a garden-green line names who reacted ("Maria & Sam celebrated this"), resolved from `reactionsByEvent` + the `friends` list. The witnessing is the reward, not the stat.
+- **Freshness decay** — celebrations within 7 days (by `occurred_on`) read bright; older ones fade under a quiet "Earlier" divider (`firstStaleId` / `isStale`), so the feed never becomes an undifferentiated wall.
 
 ## Activity Types
 
