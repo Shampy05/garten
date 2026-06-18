@@ -4,31 +4,31 @@
     <div v-if="step === 0">
       <button
         @click="step = 1"
-        class="w-full flex items-center justify-center gap-2 px-8 py-3.5 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-all font-medium shadow-sm hover:shadow-md active:scale-[0.98]"
+        class="gp-btn-primary w-full px-8 py-3.5 group"
       >
-        <span>🌱</span>
+        <span class="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-6">🌱</span>
         <span>Log a session</span>
       </button>
     </div>
 
     <!-- Expanded state -->
-    <div v-else class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 transition-all">
+    <div v-else class="gp-card gp-pad animate-grow-in">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-semibold text-gray-800">Log Session</h3>
-        <button @click="reset" class="text-sm text-gray-400 hover:text-gray-600 transition-colors">Cancel</button>
+        <h3 class="gp-title text-lg">Log a session</h3>
+        <button @click="reset" class="text-sm text-stone-400 hover:text-stone-600 transition-colors">Cancel</button>
       </div>
 
       <!-- Progress dots -->
       <div class="flex items-center justify-center gap-0 mb-6">
         <template v-for="s in 4" :key="s">
           <div v-if="s > 1" class="w-8 h-0.5 rounded-full transition-colors duration-300"
-            :class="s <= step ? 'bg-green-400' : 'bg-gray-200'"
+            :class="s <= step ? 'bg-garden-400' : 'bg-stone-200'"
           ></div>
           <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-300"
             :class="
-              s === step ? 'bg-green-600 text-white shadow-sm ring-2 ring-green-200' :
-              s < step ? 'bg-green-100 text-green-700' :
-              'bg-gray-100 text-gray-400'
+              s === step ? 'bg-gradient-to-b from-garden-500 to-garden-600 text-white shadow-sm ring-2 ring-garden-200' :
+              s < step ? 'bg-garden-100 text-garden-700' :
+              'bg-stone-100 text-stone-400'
             "
           >
             <span v-if="s < step">✓</span>
@@ -39,15 +39,15 @@
 
       <!-- Step 1: Language -->
       <div v-if="step === 1" class="animate-fadeIn">
-        <p class="text-sm text-gray-500 mb-3">Which language did you study?</p>
+        <p class="text-sm text-stone-500 mb-3">Which language did you study?</p>
         <div class="flex flex-wrap gap-2">
           <button
             v-for="lang in languages" :key="lang.id"
             @click="selectLanguage(lang)"
             class="flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-medium transition-all border-2"
             :class="entry.languageId === lang.id
-              ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
-              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:shadow-sm'"
+              ? 'border-garden-500 bg-garden-50 text-garden-700 shadow-sm'
+              : 'border-line bg-white text-stone-700 hover:border-stone-300 hover:shadow-sm'"
             :style="entry.languageId === lang.id ? { borderColor: lang.color, backgroundColor: lang.color + '12', color: lang.color } : {}"
           >
             <span class="w-3.5 h-3.5 rounded-full flex-shrink-0" :style="{ backgroundColor: lang.color }"></span>
@@ -58,107 +58,106 @@
 
       <!-- Step 2: Type -->
       <div v-if="step === 2" class="animate-fadeIn">
-        <p class="text-sm text-gray-500 mb-3">What type of activity?</p>
+        <p class="text-sm text-stone-500 mb-3">What type of activity?</p>
         <div v-if="availableTypes.length > 0" class="flex flex-wrap gap-2">
           <button
             v-for="type in availableTypes" :key="type"
             @click="selectType(type)"
             class="px-4 py-3 rounded-xl text-sm font-medium transition-all border-2 capitalize"
             :class="entry.type === type
-              ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
-              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:shadow-sm'"
+              ? 'border-garden-500 bg-garden-50 text-garden-700 shadow-sm'
+              : 'border-line bg-white text-stone-600 hover:border-stone-300 hover:shadow-sm'"
           >
             {{ type }}
           </button>
         </div>
-        <p v-else class="text-sm text-gray-400">No activity types defined. Add some in language settings.</p>
-        <button @click="step--" class="mt-4 text-xs text-gray-500 hover:text-gray-700 transition-colors">← Back</button>
+        <p v-else class="text-sm text-stone-400">No activity types defined. Add some in language settings.</p>
+        <button @click="step--" class="mt-4 text-xs text-stone-500 hover:text-stone-700 transition-colors">← Back</button>
       </div>
 
       <!-- Step 3: Duration -->
       <div v-if="step === 3" class="animate-fadeIn">
-        <p class="text-sm text-gray-500 mb-3">How long did you study?</p>
+        <p class="text-sm text-stone-500 mb-3">How long did you study?</p>
         <div class="grid grid-cols-3 gap-2 mb-4">
           <button v-for="preset in presets" :key="preset.label"
             @click="selectPreset(preset)"
             class="py-3 rounded-xl text-sm font-medium transition-all border-2"
             :class="activePreset === preset.label
-              ? 'border-green-500 bg-green-50 text-green-700'
-              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:shadow-sm'"
+              ? 'border-garden-500 bg-garden-50 text-garden-700'
+              : 'border-line bg-white text-stone-600 hover:border-stone-300 hover:shadow-sm'"
           >
             {{ preset.label }}
           </button>
         </div>
-        <div class="border-t border-gray-100 pt-3">
-          <p class="text-xs text-gray-400 mb-2">Or set custom time:</p>
+        <div class="border-t border-stone-100 pt-3">
+          <p class="text-xs text-stone-400 mb-2">Or set custom time:</p>
           <div class="flex gap-2 items-end">
             <div>
-              <label class="block text-xs text-gray-400 mb-1">Hours</label>
+              <label class="block text-xs text-stone-400 mb-1">Hours</label>
               <input v-model.number="entry.hours" type="number" min="0" max="24" placeholder="0"
-                class="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                class="gp-input w-20 py-2"
               />
             </div>
             <div>
-              <label class="block text-xs text-gray-400 mb-1">Minutes</label>
+              <label class="block text-xs text-stone-400 mb-1">Minutes</label>
               <input v-model.number="entry.minutes" type="number" min="0" max="59" placeholder="0"
-                class="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                class="gp-input w-20 py-2"
               />
             </div>
             <button @click="step++"
-              class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors font-medium"
+              class="gp-btn-primary px-4 py-2 text-sm"
               :disabled="entry.hours === 0 && entry.minutes === 0"
-              :class="entry.hours === 0 && entry.minutes === 0 ? 'opacity-50 cursor-not-allowed' : ''"
             >
               Next →
             </button>
           </div>
         </div>
-        <button @click="step--" class="mt-4 text-xs text-gray-500 hover:text-gray-700 transition-colors">← Back</button>
+        <button @click="step--" class="mt-4 text-xs text-stone-500 hover:text-stone-700 transition-colors">← Back</button>
       </div>
 
       <!-- Step 4: Confirm -->
       <div v-if="step === 4" class="animate-fadeIn">
-        <p class="text-sm text-gray-500 mb-4">Review and plant your seed!</p>
-        <div class="bg-gray-50 rounded-xl p-4 space-y-3">
+        <p class="text-sm text-stone-500 mb-4">Review and plant your seed!</p>
+        <div class="bg-stone-50 rounded-xl p-4 space-y-3 border border-line">
           <div class="flex items-center justify-between">
-            <span class="text-sm text-gray-500">Language</span>
-            <span class="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+            <span class="text-sm text-stone-500">Language</span>
+            <span class="text-sm font-semibold text-stone-800 flex items-center gap-1.5">
               <span class="w-2.5 h-2.5 rounded-full inline-block" :style="{ backgroundColor: selectedLanguage?.color }"></span>
               {{ selectedLanguage?.name }}
             </span>
           </div>
-          <div class="border-t border-gray-200/60"></div>
+          <div class="border-t border-stone-200/70"></div>
           <div class="flex items-center justify-between">
-            <span class="text-sm text-gray-500">Type</span>
-            <span class="text-sm font-semibold text-gray-800 capitalize">{{ entry.type }}</span>
+            <span class="text-sm text-stone-500">Type</span>
+            <span class="text-sm font-semibold text-stone-800 capitalize">{{ entry.type }}</span>
           </div>
-          <div class="border-t border-gray-200/60"></div>
+          <div class="border-t border-stone-200/70"></div>
           <div class="flex items-center justify-between">
-            <span class="text-sm text-gray-500">Duration</span>
-            <span class="text-sm font-semibold text-gray-800">{{ formatDuration }}</span>
+            <span class="text-sm text-stone-500">Duration</span>
+            <span class="text-sm font-semibold text-stone-800 tabular-nums">{{ formatDuration }}</span>
           </div>
-          <div class="border-t border-gray-200/60"></div>
+          <div class="border-t border-stone-200/70"></div>
           <div class="flex items-center justify-between">
-            <span class="text-sm text-gray-500">Date</span>
+            <span class="text-sm text-stone-500">Date</span>
             <input v-model="entry.date" type="date"
-              class="text-sm text-right border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-500 w-40"
+              class="gp-input text-right py-1.5 w-40"
             />
           </div>
-          <div class="border-t border-gray-200/60"></div>
+          <div class="border-t border-stone-200/70"></div>
           <div>
-            <span class="text-sm text-gray-500">Notes (optional)</span>
+            <span class="text-sm text-stone-500">Notes (optional)</span>
             <textarea v-model="entry.notes" rows="2" placeholder="What did you study?"
-              class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+              class="gp-input mt-1 resize-none"
             ></textarea>
           </div>
         </div>
         <div class="flex gap-3 mt-4">
-          <button @click="step--" class="px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">← Back</button>
+          <button @click="step--" class="px-4 py-2.5 text-sm text-stone-500 hover:text-stone-700 transition-colors">← Back</button>
           <button @click="submitEntry"
-            class="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl transition-all font-medium shadow-sm hover:shadow-md active:scale-[0.98]"
+            class="gp-btn-primary flex-1 py-3 group"
           >
-            <span>🌱</span>
-            <span>Plant Seed</span>
+            <span class="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-6">🌱</span>
+            <span>Plant seed</span>
           </button>
         </div>
       </div>

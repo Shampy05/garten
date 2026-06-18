@@ -1,31 +1,31 @@
 <template>
   <div class="flex flex-wrap items-center justify-between gap-2">
-      <div class="flex items-center gap-2">
+      <div class="inline-flex items-center gap-1 p-1 rounded-xl bg-stone-100/80 border border-line">
         <button
           v-for="mode in modes"
           :key="mode.value"
           @click="$emit('mode-change', mode.value)"
-          class="px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all"
-          :class="viewMode === mode.value ? 'bg-green-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+          class="px-3 sm:px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200"
+          :class="viewMode === mode.value ? 'bg-white text-garden-700 shadow-pill' : 'text-stone-500 hover:text-stone-700'"
         >
           {{ mode.label }}
         </button>
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-1.5">
         <button
           @click="$emit('navigate', -1)"
-          class="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+          class="p-2 rounded-lg hover:bg-stone-100 text-stone-500 transition-colors"
           title="Previous"
         >
           <ChevronLeft class="w-5 h-5" />
         </button>
-        <span class="text-sm font-semibold text-gray-800 text-center select-none">
+        <span class="text-sm font-semibold text-stone-800 text-center select-none tabular-nums min-w-[7rem]">
           {{ dateLabel }}
         </span>
         <button
           @click="$emit('navigate', 1)"
-          class="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+          class="p-2 rounded-lg hover:bg-stone-100 text-stone-500 transition-colors"
           title="Next"
         >
           <ChevronRight class="w-5 h-5" />

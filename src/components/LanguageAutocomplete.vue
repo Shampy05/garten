@@ -11,18 +11,18 @@
       @keydown.enter.prevent="selectHighlighted"
       @keydown.esc="showDropdown = false"
       @blur="onBlur"
-      class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+      class="gp-input"
     />
     <ul
       v-if="showDropdown && matches.length > 0"
-      class="absolute z-20 w-full bg-white border border-gray-200 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg"
+      class="absolute z-20 w-full bg-white border border-line rounded-xl mt-1 max-h-48 overflow-y-auto shadow-card"
     >
       <li
         v-for="(lang, i) in matches"
         :key="lang"
         @mousedown.prevent="select(lang)"
         class="px-3 py-2 text-sm cursor-pointer transition-colors"
-        :class="i === highlightIndex ? 'bg-green-50 text-green-700' : 'text-gray-700 hover:bg-gray-50'"
+        :class="i === highlightIndex ? 'bg-garden-50 text-garden-700' : 'text-stone-700 hover:bg-stone-50'"
       >
         {{ lang }}
       </li>

@@ -1,18 +1,18 @@
 <template>
-  <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100 p-3 sm:p-4 mb-4">
+  <div class="bg-gradient-to-br from-garden-50 to-emerald-50 rounded-xl border border-garden-100 p-3 sm:p-4 mb-4">
     <div class="flex items-center justify-between gap-3">
       <div>
-        <div class="text-xs font-medium text-green-600 uppercase tracking-wide">Growing together</div>
-        <div class="text-lg sm:text-xl font-display font-bold text-gray-800 mt-0.5">
+        <div class="text-xs font-medium text-garden-600 uppercase tracking-wide">Growing together</div>
+        <div class="text-lg sm:text-xl font-display font-bold text-stone-800 mt-0.5">
           {{ fmtHours(togetherWeekMinutes) }}
         </div>
-        <div class="text-xs text-gray-500 mt-0.5">
+        <div class="text-xs text-stone-500 mt-0.5">
           across your gardens this week
         </div>
       </div>
       <button
         @click="social.shareWeeklySummary()"
-        class="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-green-200 rounded-lg text-xs font-medium text-green-700 hover:bg-green-50 transition-colors"
+        class="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-garden-200 rounded-lg text-xs font-medium text-garden-700 hover:bg-garden-50 transition-colors"
         title="Share your weekly harvest with the circle"
       >
         <Share2 :size="13" />
@@ -24,15 +24,15 @@
       <div
         v-for="bar in friendBars"
         :key="bar.id"
-        class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/70 border border-green-100/50"
+        class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/70 border border-garden-100/50"
       >
         <div
           class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
-          :class="bar.isSelf ? 'bg-gray-200 text-gray-600' : 'bg-green-100 text-green-700'"
+          :class="bar.isSelf ? 'bg-stone-200 text-stone-600' : 'bg-garden-100 text-garden-700'"
         >
           {{ bar.name[0].toUpperCase() }}
         </div>
-        <span class="text-xs text-gray-600 font-medium">{{ fmtHours(bar.minutes) }}</span>
+        <span class="text-xs text-stone-600 font-medium">{{ fmtHours(bar.minutes) }}</span>
       </div>
     </div>
   </div>

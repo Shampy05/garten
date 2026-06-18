@@ -6,16 +6,16 @@
       </div>
       <div class="min-w-0 flex-1">
         <div class="flex items-center justify-between gap-2">
-          <p class="text-sm font-medium text-gray-800">Weekly harvest</p>
-          <span class="text-xs text-gray-400">{{ relDay(item.occurred_on) }}</span>
+          <p class="text-sm font-medium text-stone-800">Weekly harvest</p>
+          <span class="text-xs text-stone-400">{{ relDay(item.occurred_on) }}</span>
         </div>
-        <p class="text-sm text-gray-600 mt-0.5">
+        <p class="text-sm text-stone-600 mt-0.5">
           <span class="font-medium">{{ item.isSelf ? 'You' : item.actorName }}</span>
           spent
-          <span class="font-medium text-gray-800">{{ fmtDuration(item.minutes) }}</span>
+          <span class="font-medium text-stone-800">{{ fmtDuration(item.minutes) }}</span>
           <template v-if="sessionCount > 0">
             across
-            <span class="font-medium text-gray-800">{{ sessionCount }}</span>
+            <span class="font-medium text-stone-800">{{ sessionCount }}</span>
             {{ sessionCount === 1 ? 'session' : 'sessions' }}
           </template>
           <span v-if="topLanguage">— most tended: {{ topLanguage.name }}</span>
@@ -35,7 +35,7 @@
             <span
               v-for="lang in languages"
               :key="lang.name"
-              class="inline-flex items-center gap-1 text-[10px] text-gray-500"
+              class="inline-flex items-center gap-1 text-[10px] text-stone-500"
             >
               <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: lang.color || '#9ca3af' }"></span>
               {{ lang.name }}

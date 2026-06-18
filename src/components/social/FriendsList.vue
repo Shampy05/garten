@@ -1,9 +1,9 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6">
-    <h3 class="font-display text-lg font-semibold text-gray-800 mb-3">Garden circle</h3>
+  <div class="gp-card gp-pad">
+    <h3 class="gp-title text-lg mb-3">Garden circle</h3>
 
-    <div v-if="friends.length === 0" class="text-center py-8 text-gray-400">
-      <Sprout :size="28" class="mx-auto mb-2 text-gray-300" />
+    <div v-if="friends.length === 0" class="text-center py-8 text-stone-400">
+      <Sprout :size="28" class="mx-auto mb-2 text-stone-300" />
       <p class="text-sm">No friends yet.</p>
       <p class="text-xs mt-1">Find gardeners below to grow your circle.</p>
     </div>
@@ -12,15 +12,15 @@
       <div
         v-for="f in friends"
         :key="f.friendship_id"
-        class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 group cursor-pointer hover:bg-green-50/60 transition-colors"
+        class="flex items-center gap-3 p-3 rounded-lg bg-stone-50 group cursor-pointer hover:bg-garden-50/60 transition-colors"
         @click="openFriend(f)"
       >
-        <div class="w-9 h-9 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-display font-bold flex-shrink-0">
+        <div class="w-9 h-9 rounded-full bg-garden-100 text-garden-700 flex items-center justify-center font-display font-bold flex-shrink-0">
           {{ (f.display_name || f.username)[0].toUpperCase() }}
         </div>
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2">
-            <span class="text-sm font-medium text-gray-700 truncate">{{ f.display_name || f.username }}</span>
+            <span class="text-sm font-medium text-stone-700 truncate">{{ f.display_name || f.username }}</span>
             <span
               v-if="f.current_streak > 0"
               class="text-xs font-medium text-orange-500 flex-shrink-0"
@@ -33,15 +33,15 @@
             <template v-if="f.active_languages && f.active_languages.length">
               <span v-for="lang in f.active_languages" :key="lang.name" class="inline-flex items-center gap-1 min-w-0">
                 <span class="w-2 h-2 rounded-full flex-shrink-0" :style="{ backgroundColor: lang.color }"></span>
-                <span class="text-xs text-gray-500 truncate">{{ lang.name }}</span>
+                <span class="text-xs text-stone-500 truncate">{{ lang.name }}</span>
               </span>
             </template>
-            <span v-else class="text-xs text-gray-400 italic">{{ lastActiveLabel(f) }}</span>
+            <span v-else class="text-xs text-stone-400 italic">{{ lastActiveLabel(f) }}</span>
           </div>
         </div>
         <button
           @click.stop="confirmRemove(f)"
-          class="flex-shrink-0 text-gray-300 hover:text-red-500 p-1.5 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
+          class="flex-shrink-0 text-stone-300 hover:text-red-500 p-1.5 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
           title="Remove friend"
         >
           <X :size="15" />

@@ -6,8 +6,8 @@
       @click.stop="emit('toggle', kind.kind)"
       class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors"
       :class="hasReacted(kind.kind)
-        ? 'bg-green-50 border-green-200 text-green-700'
-        : 'bg-white border-gray-200 text-gray-500 hover:border-green-200 hover:text-green-600'
+        ? 'bg-garden-50 border-garden-200 text-garden-700'
+        : 'bg-white border-line text-stone-500 hover:border-garden-200 hover:text-garden-600'
       "
       :title="kind.label"
     >

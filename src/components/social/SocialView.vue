@@ -4,24 +4,25 @@
     <UsernameGate v-if="profileLoaded && !profile" />
 
     <!-- First load of the profile -->
-    <div v-else-if="!profileLoaded" class="flex items-center justify-center py-20">
-      <div class="w-7 h-7 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+    <div v-else-if="!profileLoaded" class="flex flex-col items-center justify-center py-20">
+      <div class="w-7 h-7 border-4 border-garden-500 border-t-transparent rounded-full animate-spin"></div>
     </div>
 
     <!-- Social home -->
     <div v-else class="space-y-6">
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-        <div class="flex items-start justify-between gap-3">
+      <div class="gp-card gp-pad relative overflow-hidden animate-grow-in">
+        <div class="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-garden-50/70 to-transparent"></div>
+        <div class="relative flex items-start justify-between gap-3">
           <div>
-            <h2 class="font-display text-2xl sm:text-3xl font-bold text-gray-900">Your garden circle</h2>
-            <p class="text-sm text-gray-500 mt-1">Tend alongside the people you're learning with.</p>
+            <h2 class="gp-title text-2xl sm:text-3xl text-stone-900">Your garden circle</h2>
+            <p class="text-sm text-stone-500 mt-1">Tend alongside the people you're learning with.</p>
           </div>
           <div class="text-right flex-shrink-0">
-            <div class="text-sm font-medium text-gray-700">@{{ profile.username }}</div>
+            <div class="text-sm font-medium text-stone-700">@{{ profile.username }}</div>
             <button
               @click="social.toggleDiscoverable()"
               class="mt-0.5 inline-flex items-center gap-1 text-xs transition-colors"
-              :class="profile.discoverable ? 'text-gray-400 hover:text-gray-600' : 'text-amber-600 hover:text-amber-700'"
+              :class="profile.discoverable ? 'text-stone-400 hover:text-stone-600' : 'text-amber-600 hover:text-amber-700'"
               :title="profile.discoverable
                 ? 'Friends can find you by username. Tap to hide.'
                 : 'You are hidden from search. Tap to become discoverable.'"

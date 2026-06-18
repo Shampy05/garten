@@ -2,20 +2,153 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  background-color: #fafafa;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+/* ---------------------------------------------------------------------------
+   Base — a warm "garden journal" canvas. A soft paper tone with the faintest
+   wash of light at the top (sky) settling into a cooler base (soil), so the
+   page feels organic without competing with the content.
+--------------------------------------------------------------------------- */
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
+body {
+  min-height: 100vh;
+  color: #2c2a26;
+  background-color: #f6f7f2;
+  background-image:
+    radial-gradient(1100px 480px at 50% -8%, rgba(86, 171, 109, 0.10), transparent 70%),
+    radial-gradient(900px 520px at 100% 0%, rgba(120, 190, 230, 0.06), transparent 60%),
+    linear-gradient(180deg, #f9faf5 0%, #f3f5ef 100%);
+  background-attachment: fixed;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Fraunces reads best a touch tighter for headings and tabular for numbers. */
+.font-display {
+  letter-spacing: -0.012em;
+}
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Quiet, organic scrollbars that match the palette. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cdd3c8 transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #cdd3c8;
+  border: 3px solid transparent;
+  border-radius: 9999px;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #b6bdb0;
+}
+
+/* A green, on-brand selection highlight. */
+::selection {
+  background-color: rgba(40, 122, 65, 0.18);
+}
+
+/* Consistent, keyboard-only focus ring across the app. */
+:focus-visible {
+  outline: 2px solid rgba(40, 122, 65, 0.55);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Component layer — the shared building blocks of the redesign. Templates
+   compose these so every card, button and field shares one visual language.
+--------------------------------------------------------------------------- */
+@layer components {
+  /* Surfaces */
+  .gp-card {
+    @apply bg-white rounded-2xl border border-line shadow-card;
+  }
+  .gp-card-hover {
+    @apply transition-all duration-300 hover:shadow-card-hover hover:-translate-y-0.5;
+  }
+  .gp-pad {
+    @apply p-4 sm:p-6;
+  }
+
+  /* Section headings */
+  .gp-title {
+    @apply font-display font-semibold text-stone-800 tracking-tight;
+  }
+
+  /* Primary CTA — a soft forest-green gradient with a glassy top highlight. */
+  .gp-btn-primary {
+    @apply relative inline-flex items-center justify-center gap-2 rounded-xl font-medium text-white
+           bg-gradient-to-b from-garden-500 to-garden-600
+           shadow-[0_1px_0_rgba(255,255,255,0.25)_inset,0_8px_20px_-10px_rgba(32,96,53,0.7)]
+           transition-all duration-200
+           hover:from-garden-400 hover:to-garden-600 hover:shadow-[0_1px_0_rgba(255,255,255,0.3)_inset,0_12px_26px_-10px_rgba(32,96,53,0.8)]
+           active:scale-[0.985]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  /* Quiet secondary button */
+  .gp-btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-medium
+           text-stone-600 bg-white border border-line
+           transition-all duration-200 hover:border-stone-300 hover:text-stone-800 hover:shadow-pill
+           active:scale-[0.985];
+  }
+
+  /* Text inputs / textareas / selects */
+  .gp-input {
+    @apply w-full px-3 py-2.5 rounded-xl border border-line bg-white text-sm text-stone-800
+           placeholder:text-stone-400
+           transition-shadow duration-200
+           focus:outline-none focus:border-garden-400 focus:ring-2 focus:ring-garden-500/25;
+  }
+
+  /* Pill / chip */
+  .gp-chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium
+           transition-all duration-200;
+  }
+
+  /* Icon button (settings / mail / nav) */
+  .gp-icon-btn {
+    @apply inline-flex items-center justify-center rounded-xl bg-white border border-line
+           text-stone-500 transition-all duration-200
+           hover:border-stone-300 hover:text-stone-700 hover:shadow-pill active:scale-95;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Heatmap grid (unchanged behavior — only the cell interaction polish lives
+   here so the documented color semantics in Heatmap.vue stay intact).
+--------------------------------------------------------------------------- */
 .garden-cell {
-  transition: all 0.2s ease;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .garden-cell:hover {
-  transform: scale(1.1);
+  transform: scale(1.18);
   z-index: 10;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 10px rgba(20, 32, 20, 0.18);
 }
 
 .heatmap-grid {

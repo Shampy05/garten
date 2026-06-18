@@ -1,24 +1,24 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-lg font-semibold text-gray-800">Your Garden</h3>
+  <div>
+    <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+      <h3 class="gp-title text-lg">Your Garden</h3>
       <div class="flex items-center gap-2 text-sm flex-wrap">
           <div v-if="!useMosaic" class="flex items-center gap-1">
-          <span class="text-gray-500 text-xs">Less</span>
+          <span class="text-stone-400 text-xs">Less</span>
           <div class="flex gap-1">
             <div v-for="(level, index) in colorLevels" :key="index"
               class="rounded-sm"
               :style="{ backgroundColor: level, width: '12px', height: '12px' }"
             ></div>
           </div>
-          <span class="text-gray-500 text-xs">More</span>
+          <span class="text-stone-400 text-xs">More</span>
         </div>
         <div v-else class="flex items-center gap-1.5 flex-wrap">
-          <span class="text-xs text-gray-400">Active:</span>
+          <span class="text-xs text-stone-400">Active:</span>
           <span v-for="(lang, i) in activeLanguages" :key="lang.id" class="flex items-center gap-1">
             <span class="w-2.5 h-2.5 rounded-sm inline-block flex-shrink-0" :style="{ backgroundColor: lang.color }"></span>
-            <span class="text-xs text-gray-500">{{ lang.name }}</span>
-            <span v-if="i < activeLanguages.length - 1" class="text-gray-300">·</span>
+            <span class="text-xs text-stone-500">{{ lang.name }}</span>
+            <span v-if="i < activeLanguages.length - 1" class="text-stone-300">·</span>
           </span>
         </div>
       </div>
@@ -29,7 +29,7 @@
       <div class="w-full max-w-[770px]">
         <div class="flex gap-1 mb-1">
           <div v-for="day in dayLabels" :key="day"
-            class="flex-1 text-xs text-gray-400 text-center py-1 font-medium"
+            class="flex-1 text-xs text-stone-400 text-center py-1 font-medium"
           >
             {{ day }}
           </div>
@@ -55,7 +55,7 @@
                   :style="color ? { backgroundColor: color } : {}"
                 ></div>
               </div>
-              <span class="absolute top-0.5 left-1 text-[9px] font-medium text-gray-500/60 leading-none select-none z-10">
+              <span class="absolute top-0.5 left-1 text-[9px] font-medium text-stone-500/70 leading-none select-none z-10">
                 {{ getDayNumber(day) }}
               </span>
             </div>
@@ -71,12 +71,12 @@
       <div ref="scrollEl" @scroll="updateFade" class="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div class="flex gap-8 justify-center">
         <div v-for="(monthData, mi) in quarterMonths" :key="mi" class="flex-shrink-0 min-w-0">
-          <div class="text-sm font-medium text-gray-600 mb-2 text-center">{{ monthData.label }}</div>
+          <div class="text-sm font-medium text-stone-600 mb-2 text-center">{{ monthData.label }}</div>
           <div class="flex gap-1">
             <div class="flex flex-col gap-1 mr-1">
               <div :style="{ height: dayLabelSizeQ + 'px' }"></div>
               <div v-for="day in dayLabels" :key="day"
-                class="text-xs text-gray-400 flex items-center"
+                class="text-xs text-stone-400 flex items-center"
                 :style="{ height: cellSizeQ + 'px' }"
               >
                 {{ day }}
@@ -105,7 +105,7 @@
                         :style="color ? { backgroundColor: color } : {}"
                       ></div>
                     </div>
-                    <span class="absolute top-px left-0.5 text-[6px] font-medium text-gray-500/60 leading-none select-none z-10">
+                    <span class="absolute top-px left-0.5 text-[6px] font-medium text-stone-500/70 leading-none select-none z-10">
                       {{ getDayNumber(day) }}
                     </span>
                   </div>
@@ -127,13 +127,13 @@
         <div class="flex gap-1">
           <div class="flex flex-col gap-1 mr-2">
             <div class="h-3"></div>
-            <div v-for="day in dayLabels" :key="day" class="h-3 text-xs text-gray-400 flex items-center">
+            <div v-for="day in dayLabels" :key="day" class="h-3 text-xs text-stone-400 flex items-center">
               {{ day }}
             </div>
           </div>
           <div class="flex gap-1">
             <div v-for="(week, wi) in weeks" :key="wi" class="flex flex-col gap-1">
-              <div v-if="wi % 4 === 0" class="h-3 text-xs text-gray-400">{{ getMonthLabel(week) }}</div>
+              <div v-if="wi % 4 === 0" class="h-3 text-xs text-stone-400">{{ getMonthLabel(week) }}</div>
               <div v-else class="h-3"></div>
               <div v-for="(day, di) in week" :key="di"
                 class="garden-cell w-3 h-3 rounded-[1px] cursor-pointer relative overflow-hidden"

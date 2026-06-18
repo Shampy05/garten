@@ -1,10 +1,10 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-    <div class="w-full max-w-sm">
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-8">
-        <SproutIcon class="w-10 h-10 mb-3" />
-        <h1 class="font-display text-3xl font-bold text-gray-900 mb-1">Garten</h1>
-        <p class="text-sm text-gray-500 mb-6">
+  <div class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-sm animate-grow-in">
+      <div class="gp-card shadow-hero p-6 sm:p-8">
+        <SproutIcon class="w-12 h-12 mb-3 animate-sway" />
+        <h1 class="font-display text-3xl font-bold text-stone-900 mb-1 tracking-tight">Garten</h1>
+        <p class="text-sm text-stone-500 mb-6">
           {{ view === 'reset' ? 'Reset your password' : 'Sign in to cultivate your garden' }}
         </p>
 
@@ -15,22 +15,22 @@
             type="email"
             placeholder="Email"
             required
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            class="gp-input"
           />
           <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
-          <p v-if="message" class="text-sm text-green-600">{{ message }}</p>
+          <p v-if="message" class="text-sm text-garden-600">{{ message }}</p>
           <button
             type="submit"
             :disabled="submitting"
-            class="w-full py-2 px-4 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+            class="gp-btn-primary w-full py-2.5 text-sm"
           >
-            {{ submitting ? 'Please wait...' : 'Send Reset Link' }}
+            {{ submitting ? 'Please wait…' : 'Send Reset Link' }}
           </button>
         </form>
-        <p v-if="view === 'reset'" class="mt-4 text-sm text-center text-gray-500">
+        <p v-if="view === 'reset'" class="mt-4 text-sm text-center text-stone-500">
           <button
             @click="view = 'auth'; error = ''; message = ''"
-            class="text-green-600 hover:underline font-medium"
+            class="text-garden-600 hover:text-garden-700 hover:underline font-medium"
           >
             Back to Sign In
           </button>
@@ -43,7 +43,7 @@
             type="email"
             placeholder="Email"
             required
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            class="gp-input"
           />
           <input
             v-model="password"
@@ -51,32 +51,32 @@
             placeholder="Password"
             required
             minlength="6"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            class="gp-input"
           />
           <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
-          <p v-if="message" class="text-sm text-green-600">{{ message }}</p>
+          <p v-if="message" class="text-sm text-garden-600">{{ message }}</p>
           <button
             type="submit"
             :disabled="submitting"
-            class="w-full py-2 px-4 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+            class="gp-btn-primary w-full py-2.5 text-sm"
           >
-            {{ submitting ? 'Please wait...' : isSignUp ? 'Create Account' : 'Sign In' }}
+            {{ submitting ? 'Please wait…' : isSignUp ? 'Create Account' : 'Sign In' }}
           </button>
         </form>
         <p v-if="!isSignUp && view !== 'reset'" class="mt-3 text-sm text-center">
           <button
             @click="view = 'reset'; error = ''; message = ''"
-            class="text-gray-400 hover:text-gray-600"
+            class="text-stone-400 hover:text-stone-600"
           >
             Forgot password?
           </button>
         </p>
 
-        <p v-if="view !== 'reset'" class="mt-4 text-sm text-center text-gray-500">
+        <p v-if="view !== 'reset'" class="mt-4 text-sm text-center text-stone-500">
           {{ isSignUp ? 'Already have an account?' : "Don't have an account?" }}
           <button
             @click="isSignUp = !isSignUp; error = ''; message = ''"
-            class="text-green-600 hover:underline font-medium ml-1"
+            class="text-garden-600 hover:text-garden-700 hover:underline font-medium ml-1"
           >
             {{ isSignUp ? 'Sign In' : 'Sign Up' }}
           </button>

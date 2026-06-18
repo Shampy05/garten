@@ -4,7 +4,7 @@
     class="inline-flex items-center gap-1 text-xs font-medium transition-colors"
     :class="watered
       ? 'text-sky-600'
-      : 'text-gray-400 hover:text-sky-500'
+      : 'text-stone-400 hover:text-sky-500'
     "
     :title="watered ? `You watered ${name} today` : `Water ${name}'s garden`"
   >

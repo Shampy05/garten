@@ -4,10 +4,10 @@
       <div
         v-for="toast in toasts"
         :key="toast.id"
-        class="pointer-events-auto max-w-sm px-4 py-3 rounded-xl shadow-lg border text-sm font-medium flex items-center gap-2.5 animate-slideUp"
+        class="pointer-events-auto max-w-sm px-4 py-3 rounded-xl shadow-card border text-sm font-medium flex items-center gap-2.5 animate-slideUp"
         :class="toast.type === 'error'
           ? 'bg-red-50 text-red-700 border-red-200'
-          : 'bg-green-50 text-green-700 border-green-200'"
+          : 'bg-garden-50 text-garden-700 border-garden-200'"
       >
         <CircleAlert v-if="toast.type === 'error'" class="w-4 h-4 flex-shrink-0" />
         <Check v-else class="w-4 h-4 flex-shrink-0" />

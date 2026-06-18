@@ -1,15 +1,15 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6">
+  <div class="gp-card gp-pad">
     <div class="flex items-center justify-between mb-3">
-      <h3 class="font-display text-lg font-semibold text-gray-800">Garden dispatches</h3>
+      <h3 class="gp-title text-lg">Garden dispatches</h3>
     </div>
 
     <WatersReceivedBanner />
     <TogetherThisWeek />
     <WhosTendingToday />
 
-    <div v-if="feed.length === 0" class="text-center py-8 text-gray-400">
-      <Sprout :size="28" class="mx-auto mb-2 text-gray-300" />
+    <div v-if="feed.length === 0" class="text-center py-8 text-stone-400">
+      <Sprout :size="28" class="mx-auto mb-2 text-stone-300" />
       <p class="text-sm">No dispatches yet.</p>
       <p class="text-xs mt-1">When you or a friend logs a session, it lands here.</p>
     </div>
@@ -28,7 +28,7 @@
         <button
           v-if="item.isSelf"
           @click.stop="confirmRemove(item)"
-          class="absolute top-3 right-3 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+          class="absolute top-3 right-3 p-1.5 text-stone-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
           title="Remove harvest"
         >
           <Trash2 :size="14" />
@@ -38,17 +38,17 @@
       <div
         v-for="item in nonSummaryItems"
         :key="item.id"
-        class="group flex items-start gap-3 py-3 border-b border-gray-100 last:border-0 cursor-pointer"
+        class="group flex items-start gap-3 py-3 border-b border-stone-100 last:border-0 cursor-pointer"
         @click="openDetail(item)"
       >
         <div
           class="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-sm flex-shrink-0 mt-0.5"
-          :class="item.isSelf ? 'bg-gray-100 text-gray-500' : 'bg-green-50 text-green-700'"
+          :class="item.isSelf ? 'bg-stone-100 text-stone-500' : 'bg-garden-50 text-garden-700'"
         >
           {{ item.actorName[0].toUpperCase() }}
         </div>
         <div class="min-w-0 flex-1">
-          <p class="text-sm text-gray-700 leading-snug">
+          <p class="text-sm text-stone-700 leading-snug">
             <span class="font-medium">{{ item.isSelf ? 'You' : item.actorName }}</span>
 
             <template v-if="item.kind === 'session'">
@@ -57,7 +57,7 @@
                 <span class="w-2 h-2 rounded-full inline-block" :style="{ backgroundColor: item.language_color || '#9ca3af' }"></span>
                 <span class="font-medium">{{ item.language_name || 'a language' }}</span>
               </span>
-              for {{ fmtDuration(item.minutes) }}<span v-if="item.activity_type" class="text-gray-400"> · {{ item.activity_type }}</span>
+              for {{ fmtDuration(item.minutes) }}<span v-if="item.activity_type" class="text-stone-400"> · {{ item.activity_type }}</span>
             </template>
 
             <template v-else-if="item.kind === 'milestone'">
@@ -77,7 +77,7 @@
               </span>
             </template>
           </p>
-          <div class="text-xs text-gray-400 mt-0.5">{{ relDay(item.occurred_on) }}</div>
+          <div class="text-xs text-stone-400 mt-0.5">{{ relDay(item.occurred_on) }}</div>
 
           <div class="flex items-center justify-between mt-2">
             <ReactionBar :event-id="item.id" compact @toggle="(k) => social.toggleReaction(item.id, k)" />
@@ -91,14 +91,14 @@
               <button
                 v-if="item.isSelf"
                 @click.stop="confirmRemove(item)"
-                class="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                class="text-stone-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                 title="Remove dispatch"
               >
                 <Trash2 :size="14" />
               </button>
               <button
                 @click.stop="openDetail(item)"
-                class="text-gray-400 hover:text-green-600 transition-colors"
+                class="text-stone-400 hover:text-garden-600 transition-colors"
                 title="Open garden notes"
               >
                 <MessageCircle :size="14" />
