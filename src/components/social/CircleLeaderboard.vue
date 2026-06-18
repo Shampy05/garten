@@ -27,37 +27,92 @@
       <div
         v-for="row in visibleRows"
         :key="row.user_id"
-        class="flex items-center gap-3 p-3 rounded-xl border transition-colors"
+        class="rounded-xl border transition-colors"
         :class="rowClasses(row)"
       >
-        <div
-          class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
-          :class="rankClasses(row.rank)"
+        <!-- The neat line. Tapping it reveals the activity texture below. -->
+        <button
+          type="button"
+          class="w-full flex items-center gap-3 p-3 text-left"
+          :class="{ 'cursor-default': !hasDetail(row) }"
+          @click="toggle(row)"
         >
-          {{ row.rank }}
-        </div>
-        <div
-          class="w-9 h-9 rounded-full flex items-center justify-center font-display font-bold text-sm flex-shrink-0"
-          :class="row.isSelf ? 'bg-stone-100 text-stone-600' : 'bg-garden-50 text-garden-700'"
-        >
-          {{ (row.display_name || row.username)[0].toUpperCase() }}
-        </div>
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-medium text-stone-700 truncate">
-              {{ row.isSelf ? 'You' : (row.display_name || row.username) }}
-            </span>
-            <span
-              v-if="row.current_streak > 0"
-              class="text-xs font-medium text-orange-500 flex-shrink-0"
+          <div
+            class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
+            :class="rankClasses(row.rank)"
+          >
+            {{ row.rank }}
+          </div>
+          <div
+            class="w-9 h-9 rounded-full flex items-center justify-center font-display font-bold text-sm flex-shrink-0"
+            :class="row.isSelf ? 'bg-stone-100 text-stone-600' : 'bg-garden-50 text-garden-700'"
+          >
+            {{ (row.display_name || row.username)[0].toUpperCase() }}
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-stone-700 truncate">
+                {{ row.isSelf ? 'You' : (row.display_name || row.username) }}
+              </span>
+              <span
+                v-if="row.current_streak > 0"
+                class="text-xs font-medium text-orange-500 flex-shrink-0"
+              >
+                {{ row.current_streak }}d
+              </span>
+            </div>
+            <!-- Language-mix ribbon: texture as colour, no text. Shows at a
+                 glance who's all-in on one language vs spread across many. -->
+            <div
+              v-if="langs(row).length > 0"
+              class="mt-1.5 flex h-1.5 rounded-full overflow-hidden bg-stone-100"
             >
-              {{ row.current_streak }}d
+              <div
+                v-for="l in langs(row)"
+                :key="l.name"
+                class="h-1.5"
+                :style="{ width: pct(row, l.minutes) + '%', backgroundColor: l.color }"
+                :title="`${l.name} · ${fmtHours(l.minutes)}`"
+              ></div>
+            </div>
+          </div>
+          <div class="text-right flex-shrink-0">
+            <div class="text-sm font-bold text-stone-800 tabular-nums">{{ fmtHours(row.minutes) }}</div>
+            <div class="text-[10px] text-stone-400 uppercase tracking-wide">hours</div>
+          </div>
+          <ChevronDown
+            v-if="hasDetail(row)"
+            :size="15"
+            class="flex-shrink-0 text-stone-300 transition-transform duration-200"
+            :class="{ 'rotate-180': expanded === row.user_id }"
+          />
+        </button>
+
+        <!-- Expanded texture: what they're actually growing. -->
+        <div
+          v-if="expanded === row.user_id && hasDetail(row)"
+          class="px-3 pb-3 -mt-0.5 space-y-2.5 animate-fade-up"
+        >
+          <div class="flex flex-wrap gap-x-3 gap-y-1">
+            <span
+              v-for="l in langs(row)"
+              :key="l.name"
+              class="inline-flex items-center gap-1.5 text-xs text-stone-500"
+            >
+              <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: l.color }"></span>
+              <span class="text-stone-600 font-medium">{{ l.name }}</span>
+              <span class="tabular-nums">{{ fmtHours(l.minutes) }}</span>
             </span>
           </div>
-        </div>
-        <div class="text-right flex-shrink-0">
-          <div class="text-sm font-bold text-stone-800 tabular-nums">{{ fmtHours(row.minutes) }}</div>
-          <div class="text-[10px] text-stone-400 uppercase tracking-wide">hours</div>
+          <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-500 pt-2 border-t border-line">
+            <template v-for="(a, i) in acts(row)" :key="a.type">
+              <span>
+                <span class="text-stone-600 font-medium capitalize">{{ a.type }}</span>
+                <span class="tabular-nums"> {{ fmtHours(a.minutes) }}</span>
+              </span>
+              <span v-if="i < acts(row).length - 1" class="text-stone-300">·</span>
+            </template>
+          </div>
         </div>
       </div>
     </div>
@@ -65,11 +120,11 @@
 </template>
 
 <script setup>
-import { computed, inject } from 'vue'
-import { Trophy } from 'lucide-vue-next'
+import { computed, inject, ref } from 'vue'
+import { Trophy, ChevronDown } from 'lucide-vue-next'
 
 const social = inject('social')
-const { leaderboard, leaderboardWindow } = social
+const { leaderboard, leaderboardWindow, circleBreakdown } = social
 
 const window = leaderboardWindow
 const windows = [
@@ -78,9 +133,17 @@ const windows = [
   { key: 'all_time', label: 'All time' }
 ]
 
+const expanded = ref(null)
+
 function setWindow(w) {
   if (window.value === w) return
+  expanded.value = null
   social.loadLeaderboard(w)
+}
+
+function toggle(row) {
+  if (!hasDetail(row)) return
+  expanded.value = expanded.value === row.user_id ? null : row.user_id
 }
 
 const visibleRows = computed(() => {
@@ -89,6 +152,26 @@ const visibleRows = computed(() => {
   if (!me || top.some((r) => r.isSelf)) return top
   return [...top, me]
 })
+
+// Per-gardener texture, defensively defaulted while the breakdown loads.
+function detail(row) {
+  return circleBreakdown.value[row.user_id] || null
+}
+function langs(row) {
+  return detail(row)?.languages || []
+}
+function acts(row) {
+  return detail(row)?.activities || []
+}
+function hasDetail(row) {
+  return langs(row).length > 0
+}
+function pct(row, mins) {
+  const total = detail(row)?.total || 0
+  if (total <= 0) return 0
+  // Floor a hair so a sliver language still paints; widths are visual, not exact.
+  return Math.max(2, (mins / total) * 100)
+}
 
 // Garden palette, not medal colors: deepest green leads, lighter tints follow,
 // and you always carry a subtle ring so you can spot yourself in the row.
