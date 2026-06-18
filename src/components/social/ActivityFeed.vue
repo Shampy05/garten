@@ -6,7 +6,6 @@
 
     <WatersReceivedBanner />
     <TogetherThisWeek />
-    <WhosTendingToday />
 
     <div v-if="feed.length === 0" class="text-center py-8 text-stone-400">
       <Sprout :size="28" class="mx-auto mb-2 text-stone-300" />
@@ -135,7 +134,6 @@ import { Sprout, MessageCircle, Trash2 } from 'lucide-vue-next'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import WatersReceivedBanner from './WatersReceivedBanner.vue'
 import TogetherThisWeek from './TogetherThisWeek.vue'
-import WhosTendingToday from './WhosTendingToday.vue'
 import HarvestCard from './HarvestCard.vue'
 import ReactionBar from './ReactionBar.vue'
 import WaterButton from './WaterButton.vue'
