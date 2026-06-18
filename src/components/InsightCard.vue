@@ -1,45 +1,45 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6">
-    <h3 class="font-display text-lg font-semibold text-gray-800 mb-4">Insights</h3>
-    <div v-if="periodEntries.length === 0" class="text-sm text-gray-400 italic flex items-center gap-2">
-      <Sprout :size="18" class="text-gray-300 flex-shrink-0" />
+  <div class="gp-card gp-pad gp-card-hover">
+    <h3 class="gp-title text-lg mb-4">Insights</h3>
+    <div v-if="periodEntries.length === 0" class="text-sm text-stone-400 italic flex items-center gap-2">
+      <Sprout :size="18" class="text-stone-300 flex-shrink-0" />
       Not enough data to generate insights yet. Start logging your sessions!
     </div>
     <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-      <div class="bg-gray-50 rounded-lg p-3">
-        <div class="text-xs text-gray-500 mb-1">Total logged</div>
-        <div class="font-display text-lg font-bold text-gray-800">{{ totalHours }}h</div>
-        <div class="text-[10px] text-gray-400">this {{ periodLabel }}</div>
+      <div class="bg-stone-50 rounded-xl p-3 border border-line">
+        <div class="text-xs text-stone-500 mb-1">Total logged</div>
+        <div class="font-display text-lg font-bold text-stone-800 tabular-nums">{{ totalHours }}h</div>
+        <div class="text-[10px] text-stone-400">this {{ periodLabel }}</div>
       </div>
-      <div class="bg-gray-50 rounded-lg p-3">
-        <div class="text-xs text-gray-500 mb-1">Languages</div>
-        <div class="font-display text-lg font-bold text-gray-800">{{ languageCount }}</div>
-        <div class="text-[10px] text-gray-400">active</div>
+      <div class="bg-stone-50 rounded-xl p-3 border border-line">
+        <div class="text-xs text-stone-500 mb-1">Languages</div>
+        <div class="font-display text-lg font-bold text-stone-800 tabular-nums">{{ languageCount }}</div>
+        <div class="text-[10px] text-stone-400">active</div>
       </div>
-      <div class="bg-gray-50 rounded-lg p-3">
-        <div class="text-xs text-gray-500 mb-1">Daily avg</div>
-        <div class="font-display text-lg font-bold text-gray-800">{{ dailyAvg }}</div>
-        <div class="text-[10px] text-gray-400">min / day</div>
+      <div class="bg-stone-50 rounded-xl p-3 border border-line">
+        <div class="text-xs text-stone-500 mb-1">Daily avg</div>
+        <div class="font-display text-lg font-bold text-stone-800 tabular-nums">{{ dailyAvg }}</div>
+        <div class="text-[10px] text-stone-400">min / day</div>
       </div>
-      <div v-if="bestStreak.days >= 3" class="bg-gray-50 rounded-lg p-3">
-        <div class="text-xs text-gray-500 mb-1">Best streak</div>
-        <div class="font-display text-lg font-bold text-gray-800">{{ bestStreak.days }}d</div>
-        <div class="text-[10px] text-gray-400">{{ bestStreak.language }}</div>
+      <div v-if="bestStreak.days >= 3" class="bg-stone-50 rounded-xl p-3 border border-line">
+        <div class="text-xs text-stone-500 mb-1">Best streak</div>
+        <div class="font-display text-lg font-bold text-stone-800 tabular-nums">{{ bestStreak.days }}d</div>
+        <div class="text-[10px] text-stone-400">{{ bestStreak.language }}</div>
       </div>
-      <div v-if="busiestDay" class="bg-gray-50 rounded-lg p-3">
-        <div class="text-xs text-gray-500 mb-1">Busiest day</div>
-        <div class="font-display text-lg font-bold text-gray-800">{{ busiestDay }}</div>
-        <div class="text-[10px] text-gray-400">{{ busiestDayHours }}h logged</div>
+      <div v-if="busiestDay" class="bg-stone-50 rounded-xl p-3 border border-line">
+        <div class="text-xs text-stone-500 mb-1">Busiest day</div>
+        <div class="font-display text-lg font-bold text-stone-800">{{ busiestDay }}</div>
+        <div class="text-[10px] text-stone-400">{{ busiestDayHours }}h logged</div>
       </div>
-      <div v-if="topLanguage && languageCount > 1" class="bg-gray-50 rounded-lg p-3">
-        <div class="text-xs text-gray-500 mb-1">Top language</div>
+      <div v-if="topLanguage && languageCount > 1" class="bg-stone-50 rounded-xl p-3 border border-line">
+        <div class="text-xs text-stone-500 mb-1">Top language</div>
         <div class="font-display text-lg font-bold" :style="{ color: topLanguage.color }">{{ topLanguage.name }}</div>
-        <div class="text-[10px] text-gray-400">{{ topLanguage.hours }}h</div>
+        <div class="text-[10px] text-stone-400">{{ topLanguage.hours }}h</div>
       </div>
-      <div v-if="languageCount === 1" class="bg-gray-50 rounded-lg p-3">
-        <div class="text-xs text-gray-500 mb-1">Sessions</div>
-        <div class="font-display text-lg font-bold text-gray-800">{{ sessionCount }}</div>
-        <div class="text-[10px] text-gray-400">logged this {{ periodLabel }}</div>
+      <div v-if="languageCount === 1" class="bg-stone-50 rounded-xl p-3 border border-line">
+        <div class="text-xs text-stone-500 mb-1">Sessions</div>
+        <div class="font-display text-lg font-bold text-stone-800 tabular-nums">{{ sessionCount }}</div>
+        <div class="text-[10px] text-stone-400">logged this {{ periodLabel }}</div>
       </div>
     </div>
   </div>

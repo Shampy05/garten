@@ -1,10 +1,10 @@
 <template>
-  <div v-if="rows.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6">
+  <div v-if="rows.length > 0" class="gp-card gp-pad gp-card-hover">
     <div class="flex items-baseline justify-between mb-5">
-      <h3 class="font-display text-lg font-semibold text-gray-800">Fluency Horizon</h3>
+      <h3 class="gp-title text-lg">Fluency Horizon</h3>
       <button
         @click="$emit('manage')"
-        class="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+        class="text-xs text-stone-400 hover:text-garden-600 transition-colors"
       >
         Set starting point
       </button>
@@ -14,20 +14,20 @@
       <div v-for="row in visibleRows" :key="row.id">
         <div class="flex items-baseline gap-2 mb-2">
           <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: row.color }"></span>
-          <span class="text-sm font-medium text-gray-700 truncate">{{ row.name }}</span>
+          <span class="text-sm font-medium text-stone-700 truncate">{{ row.name }}</span>
           <span
             v-if="row.badge"
-            class="text-[10px] font-medium text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full whitespace-nowrap"
+            class="text-[10px] font-semibold text-garden-700 bg-garden-50 ring-1 ring-garden-100 px-1.5 py-0.5 rounded-full whitespace-nowrap"
           >
             {{ row.badge }}
           </span>
-          <span class="text-sm font-semibold ml-auto whitespace-nowrap" :style="{ color: row.color }">
+          <span class="text-sm font-semibold ml-auto whitespace-nowrap tabular-nums" :style="{ color: row.color }">
             {{ row.pctLabel }}
           </span>
         </div>
 
         <!-- Track with CEFR milestone ticks -->
-        <div class="relative w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+        <div class="relative w-full bg-stone-100 rounded-full h-2.5 overflow-hidden ring-1 ring-inset ring-black/5">
           <div class="absolute inset-0 flex">
             <div
               v-if="row.priorPct > 0"
@@ -52,19 +52,19 @@
 
         <div class="flex items-center justify-between mt-1.5 gap-2">
           <div class="flex items-baseline gap-2 min-w-0">
-            <span class="text-xs whitespace-nowrap" :class="row.reached ? 'text-green-600 font-medium' : 'text-gray-400'">
+            <span class="text-xs whitespace-nowrap" :class="row.reached ? 'text-garden-600 font-medium' : 'text-stone-400'">
               {{ row.statusLabel }}
             </span>
             <span
               v-if="row.momentumLabel"
               class="text-[10px] font-medium whitespace-nowrap"
-              :class="row.momentumDir === 'up' ? 'text-green-600' : 'text-gray-400'"
+              :class="row.momentumDir === 'up' ? 'text-garden-600' : 'text-stone-400'"
               :title="`Pace ${row.momentumDir === 'up' ? 'up' : 'down'} vs the previous 4 weeks`"
             >
               {{ row.momentumLabel }} vs last month
             </span>
           </div>
-          <span class="text-[10px] text-gray-300 whitespace-nowrap">
+          <span class="text-[10px] text-stone-300 whitespace-nowrap tabular-nums">
             {{ row.totalHours }} / {{ row.goal }}h
           </span>
         </div>
@@ -74,12 +74,12 @@
     <button
       v-if="dormantRows.length > 0"
       @click="showAll = !showAll"
-      class="mt-4 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+      class="mt-4 text-xs text-stone-400 hover:text-garden-600 transition-colors"
     >
       {{ showAll ? 'Hide untouched languages' : `Show ${dormantRows.length} more not yet started` }}
     </button>
 
-    <p class="text-[10px] text-gray-300 mt-4 leading-relaxed">
+    <p class="text-[10px] text-stone-300 mt-4 leading-relaxed">
       Targets estimate the hours to professional working proficiency (~CEFR B2/C1),
       based on FSI language-difficulty research<template v-if="nativeLanguage">, adjusted
       for how close {{ nativeLanguage }} is to each language</template>. Ticks mark the A2, B1

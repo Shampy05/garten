@@ -1,18 +1,18 @@
 <template>
   <div class="flex items-center gap-4 flex-shrink-0">
     <div class="text-center sm:text-right">
-      <div class="font-display text-xl font-bold text-gray-800 leading-none">{{ activeDays }}</div>
-      <div class="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">days</div>
+      <div class="font-display text-xl font-bold text-stone-800 leading-none tabular-nums">{{ activeDays }}</div>
+      <div class="text-[10px] text-stone-400 uppercase tracking-wide mt-0.5">days</div>
     </div>
-    <div class="w-px h-7 bg-gray-200"></div>
+    <div class="w-px h-7 bg-line"></div>
     <div class="text-center sm:text-right">
-      <div class="font-display text-xl font-bold text-gray-800 leading-none">{{ periodHours }}h</div>
-      <div class="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">logged</div>
+      <div class="font-display text-xl font-bold text-stone-800 leading-none tabular-nums">{{ periodHours }}h</div>
+      <div class="text-[10px] text-stone-400 uppercase tracking-wide mt-0.5">logged</div>
     </div>
-    <div class="w-px h-7 bg-gray-200"></div>
+    <div class="w-px h-7 bg-line"></div>
     <div class="text-center sm:text-right">
-      <div class="font-display text-xl font-bold text-gray-800 leading-none">{{ periodSessions }}</div>
-      <div class="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">sessions</div>
+      <div class="font-display text-xl font-bold text-stone-800 leading-none tabular-nums">{{ periodSessions }}</div>
+      <div class="text-[10px] text-stone-400 uppercase tracking-wide mt-0.5">sessions</div>
     </div>
   </div>
 </template>

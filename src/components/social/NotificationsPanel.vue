@@ -5,12 +5,12 @@
     @click.self="close"
   >
     <div class="absolute inset-0 bg-black/30" @click="close"></div>
-    <div class="relative w-full max-w-sm bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <h3 class="text-sm font-semibold text-gray-800">Notifications</h3>
+    <div class="relative w-full max-w-sm bg-white rounded-2xl shadow-xl border border-stone-100 overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-stone-100">
+        <h3 class="text-sm font-semibold text-stone-800">Notifications</h3>
         <button
           @click="close"
-          class="text-gray-400 hover:text-gray-600"
+          class="text-stone-400 hover:text-stone-600"
           aria-label="Close"
         >
           <X :size="18" />
@@ -18,15 +18,15 @@
       </div>
 
       <div class="max-h-[70vh] overflow-y-auto">
-        <div v-if="items.length === 0" class="px-4 py-8 text-center text-sm text-gray-500">
+        <div v-if="items.length === 0" class="px-4 py-8 text-center text-sm text-stone-500">
           No new notifications.
         </div>
 
-        <div v-else class="divide-y divide-gray-50">
+        <div v-else class="divide-y divide-stone-100">
           <button
             v-for="item in items"
             :key="item.id"
-            class="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
+            class="w-full text-left px-4 py-3 hover:bg-stone-50 transition-colors"
             @click="handleClick(item)"
           >
             <div class="flex items-start gap-3">
@@ -37,22 +37,22 @@
                 <component :is="item.type === 'water' ? Droplets : MessageSquare" :size="15" />
               </div>
               <div class="min-w-0 flex-1">
-                <p class="text-sm text-gray-800">
+                <p class="text-sm text-stone-800">
                   <span class="font-medium">{{ item.actorName }}</span>
                   {{ item.type === 'water' ? 'watered your garden today.' : 'commented on ' + item.eventTitle + ':' }}
                 </p>
-                <p v-if="item.body" class="text-xs text-gray-500 mt-0.5 truncate">{{ item.body }}</p>
-                <p class="text-[10px] text-gray-400 mt-1">{{ fmtTime(item.created_at) }}</p>
+                <p v-if="item.body" class="text-xs text-stone-500 mt-0.5 truncate">{{ item.body }}</p>
+                <p class="text-[10px] text-stone-400 mt-1">{{ fmtTime(item.created_at) }}</p>
               </div>
             </div>
           </button>
         </div>
       </div>
 
-      <div v-if="items.length > 0" class="px-4 py-2.5 border-t border-gray-100 bg-gray-50">
+      <div v-if="items.length > 0" class="px-4 py-2.5 border-t border-stone-100 bg-stone-50">
         <button
           @click="markAllRead"
-          class="text-xs font-medium text-gray-600 hover:text-gray-900"
+          class="text-xs font-medium text-stone-600 hover:text-stone-900"
         >
           Mark all read
         </button>

@@ -1,17 +1,17 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-8 max-w-md mx-auto mt-4">
+  <div class="gp-card p-6 sm:p-8 max-w-md mx-auto mt-4">
     <SproutIcon class="w-9 h-9 mb-3" />
-    <h2 class="font-display text-2xl font-bold text-gray-900">Open your garden gate</h2>
-    <p class="text-sm text-gray-500 mt-1 mb-6 leading-relaxed">
+    <h2 class="font-display text-2xl font-bold text-stone-900">Open your garden gate</h2>
+    <p class="text-sm text-stone-500 mt-1 mb-6 leading-relaxed">
       Choose a username so friends can find you. Until you do, you stay completely private —
       no one can see you or your garden.
     </p>
 
     <form @submit.prevent="submit" class="space-y-3">
       <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Username</label>
-        <div class="flex items-center rounded-lg border border-gray-300 focus-within:ring-2 focus-within:ring-green-500 focus-within:border-transparent overflow-hidden">
-          <span class="pl-3 text-gray-400 text-sm">@</span>
+        <label class="block text-xs font-medium text-stone-600 mb-1">Username</label>
+        <div class="flex items-center rounded-lg border border-stone-300 focus-within:ring-2 focus-within:ring-garden-500/30 focus-within:border-transparent overflow-hidden">
+          <span class="pl-3 text-stone-400 text-sm">@</span>
           <input
             v-model="username"
             type="text"
@@ -23,19 +23,19 @@
             @input="onInput"
           />
         </div>
-        <p class="text-[11px] text-gray-400 mt-1">3–20 characters · lowercase letters, numbers, underscores.</p>
+        <p class="text-[11px] text-stone-400 mt-1">3–20 characters · lowercase letters, numbers, underscores.</p>
       </div>
 
       <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">
-          Display name <span class="text-gray-300 font-normal">(optional)</span>
+        <label class="block text-xs font-medium text-stone-600 mb-1">
+          Display name <span class="text-stone-300 font-normal">(optional)</span>
         </label>
         <input
           v-model="displayName"
           type="text"
           placeholder="Pax"
           maxlength="40"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          class="gp-input"
         />
       </div>
 
@@ -44,7 +44,7 @@
       <button
         type="submit"
         :disabled="submitting || !valid"
-        class="w-full py-2 px-4 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+        class="gp-btn-primary w-full py-2 px-4 text-sm"
       >
         {{ submitting ? 'Planting…' : 'Join the garden' }}
       </button>

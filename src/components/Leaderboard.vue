@@ -1,25 +1,25 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
-    <h4 class="font-display text-xs font-semibold text-gray-800 mb-3">Top Languages</h4>
-    <div v-if="rankings.length === 0" class="text-xs text-gray-400 text-center py-4">
-      <Sprout :size="24" class="mx-auto mb-2 text-gray-300" />
+  <div class="rounded-2xl border border-line bg-stone-50/70 p-4">
+    <h4 class="font-display text-xs font-semibold text-stone-700 uppercase tracking-wider mb-3">Top Languages</h4>
+    <div v-if="rankings.length === 0" class="text-xs text-stone-400 text-center py-4">
+      <Sprout :size="24" class="mx-auto mb-2 text-stone-300" />
       <p>No data yet</p>
     </div>
     <div v-for="(item, i) in rankings" :key="item.id"
-      class="flex items-center gap-2 py-2 border-b border-gray-100 last:border-0"
+      class="flex items-center gap-2 py-2 border-b border-stone-200/60 last:border-0"
     >
-      <span class="text-xs font-medium text-gray-400 w-5 text-right flex-shrink-0">
+      <span class="font-display text-xs font-semibold text-stone-400 w-5 text-right flex-shrink-0 tabular-nums">
         {{ i + 1 }}
       </span>
-      <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: item.color }"></span>
-      <span class="text-xs font-medium text-gray-700 truncate flex-1 min-w-0">{{ item.name }}</span>
+      <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2 ring-white" :style="{ backgroundColor: item.color }"></span>
+      <span class="text-xs font-medium text-stone-700 truncate flex-1 min-w-0">{{ item.name }}</span>
       <span v-if="item.streak > 0"
-        class="text-xs font-medium text-orange-500 flex-shrink-0"
+        class="text-xs font-semibold text-orange-500 flex-shrink-0 tabular-nums"
         :title="item.streak + ' day streak'"
       >
         {{ item.streak }}d
       </span>
-      <span class="text-xs font-semibold text-gray-600 w-10 text-right flex-shrink-0">{{ item.hours }}h</span>
+      <span class="text-xs font-semibold text-stone-600 w-10 text-right flex-shrink-0 tabular-nums">{{ item.hours }}h</span>
     </div>
   </div>
 </template>

@@ -1,41 +1,42 @@
 <template>
   <div>
     <div class="flex flex-wrap items-center gap-2">
-      <span class="text-sm font-medium text-gray-600 mr-2 inline-flex items-center gap-1.5">
+      <span class="text-sm font-medium text-stone-500 mr-1 inline-flex items-center gap-1.5">
         <Filter :size="14" />
-        Filter:
+        Filter
       </span>
-      
+
       <button
         @click="selectLanguage(null)"
-        class="px-3 py-1.5 rounded-full text-sm font-medium transition-all"
-        :class="!selectedLanguage ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-        :style="!selectedLanguage ? { backgroundColor: '#374151' } : {}"
+        class="px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-200"
+        :class="!selectedLanguage ? 'text-white shadow-pill' : 'bg-white border border-line text-stone-600 hover:border-stone-300 hover:text-stone-800'"
+        :style="!selectedLanguage ? { backgroundColor: '#3f3f46' } : {}"
       >
         All Languages
       </button>
-      
+
       <button
         v-for="lang in languages"
         :key="lang.id"
         @click="selectLanguage(lang.id)"
-        class="px-3 py-1.5 rounded-full text-sm font-medium transition-all"
-        :class="selectedLanguage === lang.id ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-200"
+        :class="selectedLanguage === lang.id ? 'text-white shadow-pill' : 'bg-white border border-line text-stone-600 hover:border-stone-300 hover:text-stone-800'"
         :style="selectedLanguage === lang.id ? { backgroundColor: lang.color } : {}"
       >
+        <span v-if="selectedLanguage !== lang.id" class="w-2 h-2 rounded-full" :style="{ backgroundColor: lang.color }"></span>
         {{ lang.name }}
       </button>
     </div>
-    
-    <div v-if="selectedLanguage && selectedLanguageObj" class="mt-3 flex flex-wrap items-center gap-2">
-      <span class="text-sm font-medium text-gray-600 mr-2">Types:</span>
-      
+
+    <div v-if="selectedLanguage && selectedLanguageObj" class="mt-3 flex flex-wrap items-center gap-2 animate-fade-up">
+      <span class="text-sm font-medium text-stone-500 mr-1">Types</span>
+
       <button
         v-for="type in selectedLanguageObj.types"
         :key="type"
         @click="toggleType(type)"
-        class="px-3 py-1.5 rounded-full text-sm font-medium transition-all capitalize"
-        :class="selectedTypes.includes(type) ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        class="px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-200 capitalize"
+        :class="selectedTypes.includes(type) ? 'text-white shadow-pill' : 'bg-white border border-line text-stone-600 hover:border-stone-300 hover:text-stone-800'"
         :style="selectedTypes.includes(type) ? { backgroundColor: selectedLanguageObj.color } : {}"
       >
         {{ type }}

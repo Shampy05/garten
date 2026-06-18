@@ -1,18 +1,18 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6">
-    <h3 class="font-display text-lg font-semibold text-gray-800 mb-4">Activity Breakdown</h3>
-    <div v-if="rows.length === 0" class="text-sm text-gray-400 italic flex items-center gap-2">
-      <Sprout :size="18" class="text-gray-300 flex-shrink-0" />
+  <div class="gp-card gp-pad gp-card-hover">
+    <h3 class="gp-title text-lg mb-4">Activity Breakdown</h3>
+    <div v-if="rows.length === 0" class="text-sm text-stone-400 italic flex items-center gap-2">
+      <Sprout :size="18" class="text-stone-300 flex-shrink-0" />
       No sessions logged yet.
     </div>
     <div v-else class="space-y-4">
       <div v-for="row in rows" :key="row.id" class="space-y-1.5">
         <div class="flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: row.color }"></span>
-          <span class="text-sm font-medium text-gray-700">{{ row.name }}</span>
-          <span class="text-xs text-gray-400 ml-auto">{{ row.totalFormatted }}</span>
+          <span class="text-sm font-medium text-stone-700">{{ row.name }}</span>
+          <span class="text-xs text-stone-400 ml-auto tabular-nums">{{ row.totalFormatted }}</span>
         </div>
-        <div class="flex gap-0.5 h-5 rounded-full overflow-hidden bg-gray-100">
+        <div class="flex gap-0.5 h-5 rounded-full overflow-hidden bg-stone-100 ring-1 ring-inset ring-black/5">
           <div
             v-for="seg in row.segments"
             :key="seg.type"
@@ -27,8 +27,8 @@
         <div class="flex flex-wrap gap-x-3 gap-y-0.5">
           <span v-for="seg in row.segments" :key="seg.type" class="flex items-center gap-1">
             <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: row.color, opacity: seg.opacity }"></span>
-            <span class="text-[10px] text-gray-500 capitalize">{{ seg.type }}</span>
-            <span class="text-[10px] text-gray-400">{{ seg.initial }} {{ seg.hoursFormatted }}</span>
+            <span class="text-[10px] text-stone-500 capitalize">{{ seg.type }}</span>
+            <span class="text-[10px] text-stone-400">{{ seg.initial }} {{ seg.hoursFormatted }}</span>
           </span>
         </div>
       </div>
