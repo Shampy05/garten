@@ -1,17 +1,12 @@
 <template>
-  <div class="relative overflow-hidden rounded-2xl border border-garden-100 bg-gradient-to-br from-garden-50/70 via-amber-50/30 to-white p-3 sm:p-4 mb-3 transition-shadow hover:shadow-card">
-    <!-- a quiet sheaf motif in the corner -->
-    <Wheat :size="76" class="pointer-events-none absolute -right-3 -bottom-4 text-garden-600/5 rotate-12" />
-    <div class="relative flex items-start gap-3">
-      <div class="w-8 h-8 rounded-full bg-garden-100 text-garden-700 flex items-center justify-center flex-shrink-0 ring-2 ring-white">
-        <Wheat :size="16" />
+  <div class="rounded-xl border border-garden-100 bg-garden-50/40 p-3 mb-2">
+    <div class="flex items-start gap-3">
+      <div class="w-7 h-7 rounded-full bg-garden-100 text-garden-700 flex items-center justify-center flex-shrink-0">
+        <Wheat :size="14" />
       </div>
       <div class="min-w-0 flex-1">
         <div class="flex items-center justify-between gap-2">
-          <p class="text-sm font-semibold text-stone-800 flex items-center gap-2">
-            Weekly harvest
-            <span class="text-[10px] font-medium text-garden-700 bg-garden-50 ring-1 ring-garden-100 px-1.5 py-0.5 rounded-full">harvest</span>
-          </p>
+          <p class="text-sm font-semibold text-stone-800">Weekly harvest</p>
           <span class="text-xs text-stone-400 flex-shrink-0">{{ relDay(item.occurred_on) }}</span>
         </div>
         <p class="text-sm text-stone-600 mt-1">

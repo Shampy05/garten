@@ -1,36 +1,67 @@
 <template>
   <div ref="root" class="relative flex flex-wrap items-center gap-1.5" :class="{ 'mt-2': !compact }">
-    <!-- Reactions that already have at least one vote -->
-    <button
-      v-for="kind in activeKinds"
-      :key="kind.kind"
-      @click.stop="emit('toggle', kind.kind)"
-      class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border transition-all"
-      :class="hasReacted(kind.kind)
-        ? 'bg-garden-50 border-garden-200 text-garden-700'
-        : 'bg-white border-line text-stone-500 hover:border-garden-200 hover:text-garden-600'
-      "
-      :title="kind.label"
-    >
-      <component :is="kind.icon" :size="compact ? 12 : 14" stroke-width="2" />
-      <span>{{ countFor(kind.kind) }}</span>
-    </button>
+    <!-- Compact (feed): collapse all reactions into a single summary chip so the
+         feed stays calm; tapping it opens the same palette to add/change. -->
+    <template v-if="compact">
+      <button
+        v-if="totalReactions > 0"
+        @click.stop="open = !open"
+        class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border transition-all"
+        :class="myReactionCount > 0
+          ? 'bg-garden-50 border-garden-200 text-garden-700'
+          : 'bg-white border-line text-stone-500 hover:border-garden-200 hover:text-garden-600'
+        "
+        :title="reactionSummary"
+      >
+        <component :is="topKind.icon" :size="12" stroke-width="2" />
+        <span class="tabular-nums">{{ totalReactions }}</span>
+      </button>
+      <button
+        v-else
+        @click.stop="open = !open"
+        class="inline-flex items-center justify-center w-6 h-6 rounded-full border transition-all"
+        :class="open
+          ? 'bg-garden-50 border-garden-200 text-garden-700'
+          : 'bg-white border-line text-stone-400 hover:border-garden-200 hover:text-garden-600'
+        "
+        title="Add a reaction"
+      >
+        <SmilePlus :size="13" stroke-width="2" />
+      </button>
+    </template>
 
-    <!-- Single 'react' affordance — opens a labelled palette -->
-    <button
-      @click.stop="open = !open"
-      class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border transition-all"
-      :class="open
-        ? 'bg-garden-50 border-garden-200 text-garden-700'
-        : 'bg-white border-line text-stone-400 hover:border-garden-200 hover:text-garden-600'
-      "
-      :title="'Add a reaction'"
-    >
-      <SmilePlus :size="compact ? 13 : 15" stroke-width="2" />
-      <span v-if="!compact && activeKinds.length === 0">React</span>
-    </button>
+    <!-- Full (detail): each reacted kind shown as its own pill. -->
+    <template v-else>
+      <button
+        v-for="kind in activeKinds"
+        :key="kind.kind"
+        @click.stop="emit('toggle', kind.kind)"
+        class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border transition-all"
+        :class="hasReacted(kind.kind)
+          ? 'bg-garden-50 border-garden-200 text-garden-700'
+          : 'bg-white border-line text-stone-500 hover:border-garden-200 hover:text-garden-600'
+        "
+        :title="kind.label"
+      >
+        <component :is="kind.icon" :size="14" stroke-width="2" />
+        <span>{{ countFor(kind.kind) }}</span>
+      </button>
 
-    <!-- Reaction palette -->
+      <button
+        @click.stop="open = !open"
+        class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border transition-all"
+        :class="open
+          ? 'bg-garden-50 border-garden-200 text-garden-700'
+          : 'bg-white border-line text-stone-400 hover:border-garden-200 hover:text-garden-600'
+        "
+        title="Add a reaction"
+      >
+        <SmilePlus :size="15" stroke-width="2" />
+        <span v-if="activeKinds.length === 0">React</span>
+      </button>
+    </template>
+
+    <!-- Reaction palette (shared by both modes) -->
     <Transition
       enter-active-class="transition duration-150 ease-out"
       enter-from-class="opacity-0 translate-y-1 scale-95"
@@ -106,6 +137,27 @@ const list = computed(() => reactionsByEvent.value[props.eventId] || [])
 const activeKinds = computed(() =>
   REACTION_KINDS.filter((k) => countFor(k.kind) > 0)
 )
+
+const totalReactions = computed(() => list.value.length)
+const myReactionCount = computed(() =>
+  list.value.filter((r) => r.reactor_id === social.profile?.value?.id).length
+)
+
+// The most-given reaction, used as the face of the compact summary chip.
+const topKind = computed(() => {
+  let best = null
+  let bestN = 0
+  for (const k of REACTION_KINDS) {
+    const n = countFor(k.kind)
+    if (n > bestN) { bestN = n; best = k }
+  }
+  return best || REACTION_KINDS[0]
+})
+
+const reactionSummary = computed(() => {
+  const parts = activeKinds.value.map((k) => `${countFor(k.kind)} ${k.label.toLowerCase()}`)
+  return parts.join(' · ')
+})
 
 function countFor(kind) {
   return list.value.filter((r) => r.kind === kind).length

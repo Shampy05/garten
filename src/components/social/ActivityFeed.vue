@@ -6,7 +6,6 @@
 
     <WatersReceivedBanner />
     <TogetherThisWeek />
-    <WhosTendingToday />
 
     <div v-if="feed.length === 0" class="text-center py-8 text-stone-400">
       <Sprout :size="28" class="mx-auto mb-2 text-stone-300" />
@@ -36,7 +35,7 @@
       </div>
 
       <div
-        v-for="item in nonSummaryItems"
+        v-for="item in visibleNonSummary"
         :key="item.id"
         class="group flex items-start gap-3 rounded-xl px-2 py-2.5 -mx-2 hover:bg-stone-50/80 transition-colors cursor-pointer"
         @click="openDetail(item)"
@@ -107,6 +106,14 @@
           </div>
         </div>
       </div>
+
+      <button
+        v-if="hiddenFeedCount > 0"
+        @click="feedLimit += 8"
+        class="w-full mt-1 py-2 text-sm font-medium text-stone-500 hover:text-garden-600 transition-colors"
+      >
+        Show {{ hiddenFeedCount }} more
+      </button>
     </div>
   </div>
 
@@ -127,7 +134,6 @@ import { Sprout, MessageCircle, Trash2 } from 'lucide-vue-next'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import WatersReceivedBanner from './WatersReceivedBanner.vue'
 import TogetherThisWeek from './TogetherThisWeek.vue'
-import WhosTendingToday from './WhosTendingToday.vue'
 import HarvestCard from './HarvestCard.vue'
 import ReactionBar from './ReactionBar.vue'
 import WaterButton from './WaterButton.vue'
@@ -139,6 +145,11 @@ const removeTarget = ref(null)
 
 const summaryItems = computed(() => feed.value.filter((i) => i.kind === 'summary'))
 const nonSummaryItems = computed(() => feed.value.filter((i) => i.kind !== 'summary'))
+
+// Keep the feed short by default — a long scroll is the main source of noise.
+const feedLimit = ref(6)
+const visibleNonSummary = computed(() => nonSummaryItems.value.slice(0, feedLimit.value))
+const hiddenFeedCount = computed(() => Math.max(0, nonSummaryItems.value.length - feedLimit.value))
 
 function openDetail(item) {
   social.openEventDetail(item)

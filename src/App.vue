@@ -290,7 +290,7 @@
           <div
             v-for="entry in recentEntries"
             :key="entry.id"
-            class="group p-3 rounded-xl bg-stone-50/70 border border-transparent hover:border-line hover:bg-white hover:shadow-pill transition-all duration-200"
+            class="group p-3 rounded-xl bg-stone-50/70 hover:bg-stone-100/70 transition-colors"
           >
             <div class="flex items-center gap-2">
               <div class="w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-white shadow-sm"

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="rows.length > 0" class="gp-card gp-pad gp-card-hover">
+  <div v-if="rows.length > 0" class="gp-card gp-pad">
     <div class="flex items-baseline justify-between mb-5">
       <div class="flex items-center gap-1.5">
         <h3 class="gp-title text-lg">Fluency Horizon</h3>
