@@ -94,9 +94,19 @@ The following UX research informed the current design. Apply these when making f
 
 7. **Progressive disclosure**: The LogForm shows only the CTA at rest. Expanding reveals steps one at a time. The leaderboard shows summary rankings; detailed daily patterns require one more click (language filter in the heatmap).
 
-## Authentication
+## Garden Circle (social)
 
-Email/password auth via Supabase. On sign-up, users pick languages from a curated autocomplete list before entering the app. On sign-in, they go straight to the app. RLS policies scope all data to the authenticated user.
+The Friends tab is an opt-in social layer for users who create a `profiles` row. It is owned by `useSocial.js` and rendered by `src/components/social/SocialView.vue`.
+
+Social tables (all scoped to self + accepted friends via RLS or SECURITY DEFINER functions):
+- `profiles`, `friendships` — handle and friend relationships.
+- `circle_commitments` — weekly public language commitment per user.
+- `focus_sessions` — timed focus sessions with real-time presence; completed sessions auto-log an `entries` row.
+- `activity_events` — celebration feed only (`milestone`, `bloom`, `commitment_progress`, `circle_report`). Per-session and summary dispatches were removed.
+- `event_reactions`, `event_comments`, `waters` — reactions, notes, and daily "water" taps attached to celebration events.
+- `nudges` — `cheer` / `nudge` sent against a commitment; shown in the notifications bell.
+
+UI sections on the Friends page (top to bottom): profile header, requests inbox, focus sessions, circle leaderboard, weekly commitments, celebration feed, friends list, friend search. The page uses no emojis in data displays and keeps each section in its own card.
 
 ## Activity Types
 

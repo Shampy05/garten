@@ -282,7 +282,7 @@
       </div>
       </template>
 
-      <SocialView v-else />
+      <SocialView v-else :languages="data.languages" />
     </div>
 
     <!-- Language Manager Modal -->

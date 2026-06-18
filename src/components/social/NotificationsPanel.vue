@@ -32,14 +32,14 @@
             <div class="flex items-start gap-3">
               <div
                 class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                :class="item.type === 'water' ? 'bg-sky-100 text-sky-600' : 'bg-amber-100 text-amber-600'"
+                :class="iconClasses(item.type)"
               >
-                <component :is="item.type === 'water' ? Droplets : MessageSquare" :size="15" />
+                <component :is="iconFor(item.type)" :size="15" />
               </div>
               <div class="min-w-0 flex-1">
                 <p class="text-sm text-stone-800">
                   <span class="font-medium">{{ item.actorName }}</span>
-                  {{ item.type === 'water' ? 'watered your garden today.' : 'commented on ' + item.eventTitle + ':' }}
+                  {{ messageFor(item) }}
                 </p>
                 <p v-if="item.body" class="text-xs text-stone-500 mt-0.5 truncate">{{ item.body }}</p>
                 <p class="text-[10px] text-stone-400 mt-1">{{ fmtTime(item.created_at) }}</p>
@@ -63,7 +63,7 @@
 
 <script setup>
 import { computed, inject } from 'vue'
-import { X, Droplets, MessageSquare } from 'lucide-vue-next'
+import { X, Droplets, MessageSquare, ThumbsUp, Bell } from 'lucide-vue-next'
 
 const props = defineProps({
   modelValue: { type: Boolean, required: true }
@@ -74,17 +74,41 @@ const social = inject('social')
 const {
   watersReceived,
   recentCommentsOnMine,
+  nudgesReceived,
   feed,
   openEventDetail,
   markNotificationsRead
 } = social
 
+function iconClasses(type) {
+  if (type === 'water') return 'bg-sky-100 text-sky-600'
+  if (type === 'comment') return 'bg-amber-100 text-amber-600'
+  if (type === 'cheer') return 'bg-garden-100 text-garden-600'
+  return 'bg-stone-100 text-stone-600'
+}
+
+function iconFor(type) {
+  if (type === 'water') return Droplets
+  if (type === 'comment') return MessageSquare
+  if (type === 'cheer') return ThumbsUp
+  return Bell
+}
+
+function messageFor(item) {
+  if (item.type === 'water') return 'watered your garden today.'
+  if (item.type === 'comment') return 'commented on ' + item.eventTitle + ':'
+  if (item.type === 'cheer') return 'cheered your commitment.'
+  if (item.type === 'nudge') return 'nudged your commitment.'
+  return 'sent you a notification.'
+}
+
 function eventTitle(eventId) {
   const event = feed.value.find((e) => e.id === eventId)
   if (!event) return 'your dispatch'
-  if (event.kind === 'summary') return 'your weekly harvest'
+  if (event.kind === 'circle_report') return 'your weekly report'
   if (event.kind === 'milestone') return `your ${event.language_name || ''} milestone`
-  return event.language_name ? `your ${event.language_name} session` : 'your session'
+  if (event.kind === 'commitment_progress') return `your ${event.language_name || ''} commitment`
+  return event.language_name ? `your ${event.language_name} bloom` : 'your bloom'
 }
 
 const items = computed(() => {
@@ -106,7 +130,18 @@ const items = computed(() => {
     created_at: c.created_at,
     eventId: c.event_id
   }))
-  return [...waters, ...comments].sort(
+  const nudges = (nudgesReceived.value || []).map((n) => ({
+    id: 'nudge-' + n.id,
+    type: n.kind,
+    actorName: n.senderName,
+    eventTitle: '',
+    body: n.commitment
+      ? `${n.kind === 'cheer' ? 'Cheered' : 'Nudged'} your ${n.commitment.language_name} commitment`
+      : '',
+    created_at: n.created_at,
+    eventId: null
+  }))
+  return [...waters, ...comments, ...nudges].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
 })
