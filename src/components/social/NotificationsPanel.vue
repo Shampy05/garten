@@ -63,7 +63,7 @@
 
 <script setup>
 import { computed, inject } from 'vue'
-import { X, Droplets, MessageSquare, ThumbsUp, Bell } from 'lucide-vue-next'
+import { X, Droplets, MessageSquare, Sun, Bell } from 'lucide-vue-next'
 
 const props = defineProps({
   modelValue: { type: Boolean, required: true }
@@ -90,7 +90,7 @@ function iconClasses(type) {
 function iconFor(type) {
   if (type === 'water') return Droplets
   if (type === 'comment') return MessageSquare
-  if (type === 'cheer') return ThumbsUp
+  if (type === 'cheer') return Sun
   return Bell
 }
 

@@ -63,6 +63,10 @@ module.exports = {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
         },
+        breathe: {
+          '0%, 100%': { opacity: '0.55', transform: 'scale(1)' },
+          '50%': { opacity: '1', transform: 'scale(1.12)' },
+        },
       },
       animation: {
         'fade-up': 'fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both',
@@ -70,6 +74,7 @@ module.exports = {
         sprout: 'sprout 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both',
         sway: 'sway 3.5s ease-in-out infinite',
         shimmer: 'shimmer 1.8s linear infinite',
+        breathe: 'breathe 2.4s ease-in-out infinite',
       },
     },
   },

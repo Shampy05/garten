@@ -121,7 +121,9 @@ Social tables (all scoped to self + accepted friends via RLS or SECURITY DEFINER
 - `event_reactions`, `event_comments`, `waters` — reactions, notes, and daily "water" taps attached to celebration events.
 - `nudges` — `cheer` / `nudge` sent against a commitment; shown in the notifications bell.
 
-UI sections on the Friends page (top to bottom): profile header, requests inbox, focus sessions, circle leaderboard, weekly commitments, celebration feed, friends list, friend search. The page uses no emojis in data displays and keeps each section in its own card.
+UI layout on the Friends page (top to bottom): a **circle-pulse hero** (identity + a live status line: "N gardeners focusing now" with a breathing dot, plus "Xh tended together this week" from `circleWeekMinutes`, a week snapshot of the leaderboard total), requests inbox, focus sessions, then a **segmented tabbed panel** (Leaderboard / Commitments / Celebrations) so the data-heavy sections share one card instead of stacking — mirrors the analytics tabs in App.vue (`activeTab` in SocialView). When the user has **no friends yet**, the tabs are replaced by a single "Plant your circle" invite card (embedded `FriendSearch`) rather than a row of empty boxes. Below: friends list and friend search.
+
+Live/whimsy details, kept in the design-system register (no emojis in data displays): `focusingNow` (distinct, non-expired active sessions) drives the hero dot, the focus-sessions presence line, a breathing ring on your active timer, and a breathing live-dot on friends' session avatars (`animate-breathe` token). The leaderboard uses the forest-green `garden` ramp for rank badges (no amber/orange medals); your own row carries a subtle ring. CommitmentCard speaks garden (Not planted yet / Sprouting / Growing / In bloom, with a bloom flourish at 100% and a sunshine Cheer button); `CommitmentsPanel` shows "N of M in bloom this week" social proof. The reaction palette offers water / sun / bloom / leaf / **bee**.
 
 ## Activity Types
 

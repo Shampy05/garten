@@ -90,18 +90,18 @@ const visibleRows = computed(() => {
   return [...top, me]
 })
 
+// Garden palette, not medal colors: deepest green leads, lighter tints follow,
+// and you always carry a subtle ring so you can spot yourself in the row.
 function rowClasses(row) {
-  if (row.rank === 1) return 'bg-amber-50/60 border-amber-100'
-  if (row.rank === 2) return 'bg-stone-50 border-stone-100'
-  if (row.rank === 3) return 'bg-orange-50/40 border-orange-100/60'
-  if (row.isSelf) return 'bg-garden-50/30 border-garden-100/60'
+  if (row.isSelf) return 'bg-garden-50/50 border-garden-200 ring-1 ring-garden-100'
+  if (row.rank === 1) return 'bg-garden-50/60 border-garden-100'
   return 'bg-white border-stone-100 hover:border-stone-200'
 }
 
 function rankClasses(rank) {
-  if (rank === 1) return 'bg-amber-100 text-amber-700'
-  if (rank === 2) return 'bg-stone-200 text-stone-700'
-  if (rank === 3) return 'bg-orange-100 text-orange-700'
+  if (rank === 1) return 'bg-garden-600 text-white shadow-sm'
+  if (rank === 2) return 'bg-garden-100 text-garden-700'
+  if (rank === 3) return 'bg-garden-50 text-garden-600'
   return 'bg-stone-100 text-stone-500'
 }
 

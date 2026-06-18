@@ -35,6 +35,7 @@ export function useSocial() {
   const focusSessions = ref([])
   const leaderboard = ref([])
   const leaderboardWindow = ref('week')
+  const circleWeekMinutes = ref(0)
 
   let feedChannel = null
   let reactionsChannel = null
@@ -381,6 +382,11 @@ export function useSocial() {
       rank: index + 1,
       isSelf: row.user_id === userId.value
     }))
+    // Snapshot the whole-circle weekly total for the hero pulse, so it stays
+    // stable even when the user toggles the leaderboard to month / all-time.
+    if (window === 'week') {
+      circleWeekMinutes.value = leaderboard.value.reduce((s, r) => s + (Number(r.minutes) || 0), 0)
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1026,6 +1032,7 @@ export function useSocial() {
     focusSessions.value = []
     leaderboard.value = []
     leaderboardWindow.value = 'week'
+    circleWeekMinutes.value = 0
     reactionsByEvent.value = {}
     commentsByEvent.value = {}
     selectedEvent.value = null
@@ -1038,6 +1045,26 @@ export function useSocial() {
   const hasActiveFocusSession = computed(() =>
     activeFocusSessions.value.some((s) => s.user_id === userId.value)
   )
+
+  // Who's focusing right now (distinct gardeners, expired rows excluded), used
+  // by the circle-pulse header so presence reads at a glance.
+  const focusingNow = computed(() => {
+    const now = Date.now()
+    const seen = new Map()
+    for (const s of focusSessions.value) {
+      if (s.status !== 'active') continue
+      if (new Date(s.ends_at).getTime() <= now) continue
+      if (!seen.has(s.user_id)) {
+        seen.set(s.user_id, {
+          userId: s.user_id,
+          name: s.isSelf ? 'You' : s.ownerName,
+          isSelf: s.isSelf,
+          color: s.language_color
+        })
+      }
+    }
+    return Array.from(seen.values())
+  })
 
   return {
     profile,
@@ -1056,8 +1083,10 @@ export function useSocial() {
     focusSessions,
     activeFocusSessions,
     hasActiveFocusSession,
+    focusingNow,
     leaderboard,
     leaderboardWindow,
+    circleWeekMinutes,
     nudgesReceived,
     recentCommentsOnMine,
     notificationCount,
