@@ -65,7 +65,7 @@
                  glance who's all-in on one language vs spread across many. -->
             <div
               v-if="langs(row).length > 0"
-              class="mt-1.5 flex h-1.5 rounded-full overflow-hidden bg-stone-100"
+              class="mt-1.5 flex gap-px h-1.5 rounded-full overflow-hidden bg-stone-100"
             >
               <div
                 v-for="l in langs(row)"
@@ -84,13 +84,13 @@
             v-if="hasDetail(row)"
             :size="15"
             class="flex-shrink-0 text-stone-300 transition-transform duration-200"
-            :class="{ 'rotate-180': expanded === row.user_id }"
+            :class="{ 'rotate-180': expanded[row.user_id] }"
           />
         </button>
 
         <!-- Expanded texture: what they're actually growing. -->
         <div
-          v-if="expanded === row.user_id && hasDetail(row)"
+          v-if="expanded[row.user_id] && hasDetail(row)"
           class="px-3 pb-3 -mt-0.5 space-y-2.5 animate-fade-up"
         >
           <div class="flex flex-wrap gap-x-3 gap-y-1">
@@ -108,7 +108,7 @@
             <template v-for="(a, i) in acts(row)" :key="a.type">
               <span>
                 <span class="text-stone-600 font-medium capitalize">{{ a.type }}</span>
-                <span class="tabular-nums"> {{ fmtHours(a.minutes) }}</span>
+                <span class="tabular-nums ml-1">{{ fmtHours(a.minutes) }}</span>
               </span>
               <span v-if="i < acts(row).length - 1" class="text-stone-300">·</span>
             </template>
@@ -133,17 +133,19 @@ const windows = [
   { key: 'all_time', label: 'All time' }
 ]
 
-const expanded = ref(null)
+// Per-row open state (keyed by user_id) so expanding one gardener never
+// collapses another — you can compare several side by side.
+const expanded = ref({})
 
 function setWindow(w) {
   if (window.value === w) return
-  expanded.value = null
+  expanded.value = {}
   social.loadLeaderboard(w)
 }
 
 function toggle(row) {
   if (!hasDetail(row)) return
-  expanded.value = expanded.value === row.user_id ? null : row.user_id
+  expanded.value[row.user_id] = !expanded.value[row.user_id]
 }
 
 const visibleRows = computed(() => {
