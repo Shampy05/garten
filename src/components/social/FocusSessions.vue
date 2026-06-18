@@ -127,8 +127,13 @@ const myActiveSession = computed(() =>
   focusSessions.value.find((s) => s.isSelf && s.status === 'active')
 )
 
+// Hide friends' expired sessions live — expiry only auto-completes the caller's
+// own rows server-side, so a finished friend session would otherwise linger as
+// "active" until they reopen the app. The ticking `now` keeps this reactive.
 const friendActiveSessions = computed(() =>
-  focusSessions.value.filter((s) => !s.isSelf && s.status === 'active')
+  focusSessions.value.filter(
+    (s) => !s.isSelf && s.status === 'active' && new Date(s.ends_at).getTime() > now.value
+  )
 )
 
 const remainingMs = computed(() => {

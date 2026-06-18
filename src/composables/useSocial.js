@@ -434,6 +434,18 @@ export function useSocial() {
 
   async function ensureCircleReport() {
     if (!profile.value) return
+    // Only generate once per week. Regenerating on every load reshuffled the
+    // feed (fresh id each time) and burned writes, so skip if one already exists.
+    const weekStart = weekStartFor()
+    const { data, error } = await supabase
+      .from('activity_events')
+      .select('id')
+      .eq('actor_id', userId.value)
+      .eq('kind', 'circle_report')
+      .gte('occurred_on', weekStart)
+      .limit(1)
+    if (error) return
+    if (data && data.length > 0) return
     await supabase.rpc('generate_circle_report')
     await loadFeed()
   }
