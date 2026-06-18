@@ -86,6 +86,7 @@
 
     <StartFocusSessionModal
       :visible="showStart"
+      :languages="languages"
       @close="showStart = false"
       @start="onStart"
     />
@@ -96,6 +97,10 @@
 import { ref, computed, inject, onMounted, onUnmounted } from 'vue'
 import { Zap, Timer } from 'lucide-vue-next'
 import StartFocusSessionModal from './StartFocusSessionModal.vue'
+
+defineProps({
+  languages: { type: Array, default: () => [] }
+})
 
 const social = inject('social')
 const { focusSessions, hasActiveFocusSession } = social

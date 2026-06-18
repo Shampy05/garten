@@ -80,7 +80,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { X } from 'lucide-vue-next'
 import { ACTIVITY_TYPES } from '../../lib/types.js'
 
@@ -96,6 +96,15 @@ const duration = ref(25)
 const activityType = ref('vocabulary')
 const durations = [15, 25, 45, 60]
 const activityTypes = ACTIVITY_TYPES
+
+// Languages can finish loading after this modal mounts (or be passed in late),
+// so default the selection whenever the modal opens and nothing is chosen yet.
+watch(
+  () => props.visible,
+  (open) => {
+    if (open && !selectedLang.value) selectedLang.value = props.languages[0] || null
+  }
+)
 
 function start() {
   if (!selectedLang.value) return
