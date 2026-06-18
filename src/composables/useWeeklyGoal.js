@@ -40,6 +40,8 @@ export function useWeeklyGoal(entries, languages, weeklyGoal, saveGoal) {
       .map(([langId, mins]) => {
         const lang = languages.value.find(l => l.id === langId)
         return {
+          name: lang ? lang.name : 'Other',
+          minutes: mins,
           color: lang ? lang.color : '#16a34a',
           percent: (mins / total) * filledPct
         }

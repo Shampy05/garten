@@ -1,7 +1,18 @@
 <template>
   <div v-if="rows.length > 0" class="gp-card gp-pad gp-card-hover">
     <div class="flex items-baseline justify-between mb-5">
-      <h3 class="gp-title text-lg">Fluency Horizon</h3>
+      <div class="flex items-center gap-1.5">
+        <h3 class="gp-title text-lg">Fluency Horizon</h3>
+        <button
+          @click="showInfo = !showInfo"
+          class="transition-colors"
+          :class="showInfo ? 'text-garden-600' : 'text-stone-300 hover:text-garden-600'"
+          title="How these targets are estimated"
+          aria-label="How these targets are estimated"
+        >
+          <Info :size="14" />
+        </button>
+      </div>
       <button
         @click="$emit('manage')"
         class="text-xs text-stone-400 hover:text-garden-600 transition-colors"
@@ -79,7 +90,7 @@
       {{ showAll ? 'Hide untouched languages' : `Show ${dormantRows.length} more not yet started` }}
     </button>
 
-    <p class="text-[10px] text-stone-300 mt-4 leading-relaxed">
+    <p v-if="showInfo" class="text-[11px] text-stone-400 mt-4 leading-relaxed animate-fade-up">
       Targets estimate the hours to professional working proficiency (~CEFR B2/C1),
       based on FSI language-difficulty research<template v-if="nativeLanguage">, adjusted
       for how close {{ nativeLanguage }} is to each language</template>. Ticks mark the A2, B1
@@ -92,6 +103,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { Info } from 'lucide-vue-next'
 import { localDateStr, daysBetween } from '../lib/date.js'
 import {
   targetHours,
@@ -116,6 +128,7 @@ const MIN_PACE_HOURS_PER_WEEK = 0.5
 const MAX_FORECAST_MONTHS = 120 // 10 years
 
 const showAll = ref(false)
+const showInfo = ref(false)
 
 const CEFR_TICKS = LEVELS.filter((l) => ['a2', 'b1', 'b2'].includes(l.key))
 

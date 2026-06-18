@@ -48,7 +48,7 @@
         </p>
         <div class="grid grid-cols-2 gap-0.5">
           <button
-            v-for="kind in REACTION_KINDS"
+            v-for="kind in PALETTE_KINDS"
             :key="kind.kind"
             @click.stop="emit('toggle', kind.kind)"
             class="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors"
@@ -81,6 +81,7 @@ const emit = defineEmits(['toggle'])
 const social = inject('social')
 const { reactionsByEvent } = social
 
+// Every kind we know how to render (keeps historical reactions displayable)…
 const REACTION_KINDS = [
   { kind: 'water', label: 'Water', icon: Droplets },
   { kind: 'sun', label: 'Sunshine', icon: Sun },
@@ -90,6 +91,11 @@ const REACTION_KINDS = [
   { kind: 'bee', label: 'Busy bee', icon: Bug },
   { kind: 'rainbow', label: 'Rainbow', icon: Rainbow }
 ]
+
+// …but the picker offers a tight, unambiguous set. Fewer, clearer choices beat
+// a sticker drawer (Hick's law) and these four read instantly.
+const OFFERED = ['water', 'sun', 'bloom', 'leaf']
+const PALETTE_KINDS = REACTION_KINDS.filter((k) => OFFERED.includes(k.kind))
 
 const open = ref(false)
 const root = ref(null)
