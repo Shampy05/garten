@@ -1,37 +1,43 @@
 <template>
-  <div class="gp-card gp-pad gp-card-hover">
-    <h3 class="gp-title text-lg mb-4">Activity Breakdown</h3>
+  <div class="gp-card gp-pad">
+    <div class="flex items-baseline justify-between mb-4">
+      <h3 class="gp-title text-lg">Activity Breakdown</h3>
+      <span v-if="rows.length > 0" class="text-xs text-stone-400 tabular-nums">{{ grandTotalFormatted }} total</span>
+    </div>
     <div v-if="rows.length === 0" class="text-sm text-stone-400 italic flex items-center gap-2">
       <Sprout :size="18" class="text-stone-300 flex-shrink-0" />
       No sessions logged yet.
     </div>
-    <div v-else class="space-y-4">
-      <div v-for="row in rows" :key="row.id" class="space-y-1.5">
+    <div v-else class="space-y-3.5">
+      <div v-for="row in visibleRows" :key="row.id" class="space-y-1.5">
         <div class="flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: row.color }"></span>
           <span class="text-sm font-medium text-stone-700">{{ row.name }}</span>
-          <span class="text-xs text-stone-400 ml-auto tabular-nums">{{ row.totalFormatted }}</span>
+          <span class="ml-auto text-xs tabular-nums">
+            <span class="font-semibold text-stone-600">{{ row.totalFormatted }}</span>
+            <span class="text-stone-400"> · {{ row.pct }}%</span>
+          </span>
         </div>
-        <div class="flex gap-0.5 h-5 rounded-full overflow-hidden bg-stone-100 ring-1 ring-inset ring-black/5">
+        <div class="flex gap-0.5 h-2.5 rounded-full overflow-hidden bg-stone-100 ring-1 ring-inset ring-black/5">
           <div
             v-for="seg in row.segments"
             :key="seg.type"
-            class="relative group flex items-center justify-center overflow-hidden first:rounded-l-full last:rounded-r-full"
+            class="first:rounded-l-full last:rounded-r-full"
             :style="{ width: seg.percent + '%', backgroundColor: row.color, opacity: seg.opacity }"
-          >
-            <span v-if="seg.percent > 6" class="text-[9px] font-bold text-white/90 select-none leading-none">
-              {{ seg.initial }}
-            </span>
-          </div>
+            :title="`${seg.type}: ${seg.hoursFormatted}`"
+          ></div>
         </div>
-        <div class="flex flex-wrap gap-x-3 gap-y-0.5">
-          <span v-for="seg in row.segments" :key="seg.type" class="flex items-center gap-1">
-            <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: row.color, opacity: seg.opacity }"></span>
-            <span class="text-[10px] text-stone-500 capitalize">{{ seg.type }}</span>
-            <span class="text-[10px] text-stone-400">{{ seg.initial }} {{ seg.hoursFormatted }}</span>
+        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px]">
+          <span v-for="seg in row.topSegments" :key="seg.type" class="inline-flex items-center gap-1">
+            <span class="capitalize text-stone-500">{{ seg.type }}</span>
+            <span class="text-stone-400 tabular-nums">{{ seg.hoursFormatted }}</span>
           </span>
+          <span v-if="row.extraTypes > 0" class="text-stone-400">+{{ row.extraTypes }} more</span>
         </div>
       </div>
+      <p v-if="hiddenCount > 0" class="text-xs text-stone-400 pt-0.5">
+        +{{ hiddenCount }} more {{ hiddenCount === 1 ? 'language' : 'languages' }}
+      </p>
     </div>
   </div>
 </template>
@@ -41,6 +47,9 @@ import { computed } from 'vue'
 import { Sprout } from 'lucide-vue-next'
 import { useLanguageLookup } from '../composables/useLanguageLookup.js'
 
+const MAX_ROWS = 5
+const MAX_LEGEND_TYPES = 3
+
 const props = defineProps({
   entries: { type: Array, required: true },
   languages: { type: Array, required: true }
@@ -48,16 +57,8 @@ const props = defineProps({
 
 const { nameFor, colorFor } = useLanguageLookup(() => props.languages)
 
-const TYPE_INITIALS = {
-  reading: 'R',
-  grammar: 'G',
-  vocabulary: 'V',
-  listening: 'L',
-  speaking: 'S',
-  writing: 'W',
-  pronunciation: 'P'
-}
-
+// Stepped opacity so each activity type within a language reads as a distinct
+// band of the same hue.
 const TYPE_OPACITIES = {
   0: 1,
   1: 0.75,
@@ -85,16 +86,16 @@ const rows = computed(() => {
     byLang[e.languageId][e.type] += e.hours * 60 + e.minutes
   }
 
+  const grand = Object.values(byLang)
+    .reduce((s, types) => s + Object.values(types).reduce((a, v) => a + v, 0), 0)
+
   return Object.entries(byLang)
     .map(([langId, types]) => {
-      const langName = nameFor(langId)
-      const langColor = colorFor(langId)
       const totalMinutes = Object.values(types).reduce((s, v) => s + v, 0)
       const segments = Object.entries(types)
         .sort((a, b) => b[1] - a[1])
         .map(([type, mins], i) => ({
           type,
-          initial: TYPE_INITIALS[type] || type[0].toUpperCase(),
           minutes: mins,
           hoursFormatted: formatMinutes(mins),
           percent: (mins / totalMinutes) * 100,
@@ -103,13 +104,23 @@ const rows = computed(() => {
 
       return {
         id: langId,
-        name: langName,
-        color: langColor,
+        name: nameFor(langId),
+        color: colorFor(langId),
         totalMinutes,
         totalFormatted: formatMinutes(totalMinutes),
-        segments
+        pct: grand > 0 ? Math.round((totalMinutes / grand) * 100) : 0,
+        segments,
+        topSegments: segments.slice(0, MAX_LEGEND_TYPES),
+        extraTypes: Math.max(0, segments.length - MAX_LEGEND_TYPES)
       }
     })
     .sort((a, b) => b.totalMinutes - a.totalMinutes)
 })
+
+const grandTotalFormatted = computed(() =>
+  formatMinutes(rows.value.reduce((s, r) => s + r.totalMinutes, 0))
+)
+
+const visibleRows = computed(() => rows.value.slice(0, MAX_ROWS))
+const hiddenCount = computed(() => Math.max(0, rows.value.length - MAX_ROWS))
 </script>

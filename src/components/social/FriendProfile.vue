@@ -155,7 +155,7 @@ const friendshipLevel = computed(() => {
   const n = bloomsTogether.value.length
   if (n >= 10) return { label: 'In full bloom', color: 'text-pink-600' }
   if (n >= 5) return { label: 'Budding', color: 'text-amber-600' }
-  if (n >= 2) return { label: 'Sprouting', color: 'text-green-600' }
+  if (n >= 2) return { label: 'Sprouting', color: 'text-garden-600' }
   return { label: 'Seedling', color: 'text-stone-500' }
 })
 

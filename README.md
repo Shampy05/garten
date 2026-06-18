@@ -4,8 +4,8 @@ A personal language learning tracker inspired by GitHub contribution heatmaps. T
 
 ## Features
 
-- **Visual Heatmap**: Month, quarter, and year views with mosaic tiles — each cell shows a pixel-art grid of colored squares representing languages studied that day
-- **Multi-Language Mosaic**: In combined view, cells display a 5×5 (month), 3×3 (quarter), or 2×2 (year) grid of colored squares, distributed proportionally by language
+- **Visual Heatmap**: Month, quarter, and year views — a day studied in a single language is one clean solid block, while a day that mixes languages fans out into a pixel-art mosaic, so a tiled cell signals a varied day at a glance
+- **Multi-Language Mosaic**: When a day spans two or more languages, the cell displays a 5×5 (month), 3×3 (quarter), or 2×2 (year) grid of colored squares, distributed proportionally by language
 - **Intensity Cells**: When filtered to a single language, cells use 8 intensity levels from light to full color
 - **Streak Glow**: Cells in a 3+ day streak get a subtle gold ring and glow
 - **Language Activity Leaderboard**: Clean ranked sidebar with plain numbers, color-coded languages, current streak, and hours logged

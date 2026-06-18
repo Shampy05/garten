@@ -1,5 +1,5 @@
 <template>
-  <div class="gp-card gp-pad gp-card-hover">
+  <div class="gp-card gp-pad">
     <h3 class="gp-title text-lg mb-4">Insights</h3>
     <div v-if="periodEntries.length === 0" class="text-sm text-stone-400 italic flex items-center gap-2">
       <Sprout :size="18" class="text-stone-300 flex-shrink-0" />

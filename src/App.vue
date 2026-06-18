@@ -66,34 +66,62 @@
               <p class="text-sm sm:text-base text-stone-500">Where your language learning grows.</p>
             </div>
           </div>
-          <div class="flex items-center gap-2">
+          <!-- Account menu: identity + the chrome that used to crowd the header -->
+          <div class="relative flex-shrink-0" ref="userMenuRef">
             <button
-              @click="signOut"
-              class="text-xs text-stone-400 hover:text-stone-600 transition-colors"
-              title="Sign Out"
+              @click="userMenuOpen = !userMenuOpen"
+              class="relative flex items-center gap-1.5 rounded-full pl-1 pr-2 py-1 bg-white border border-line hover:border-stone-300 hover:shadow-pill transition-all"
+              :title="userEmail"
+              aria-label="Account menu"
             >
-              Sign out
-            </button>
-            <button
-              @click="showNotificationsPanel = true; social.markNotificationsRead()"
-              class="gp-icon-btn relative w-10 h-10 flex-shrink-0"
-              title="Notifications"
-            >
-              <Mail :size="20" />
+              <span class="w-8 h-8 rounded-full bg-gradient-to-b from-garden-500 to-garden-600 text-white font-display font-bold text-sm flex items-center justify-center">
+                {{ userInitial }}
+              </span>
+              <ChevronDown :size="14" class="text-stone-400 transition-transform" :class="{ 'rotate-180': userMenuOpen }" />
               <span
                 v-if="social.hasNotifications.value"
-                class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-medium border-2 border-white"
-              >
-                {{ social.notificationCount.value > 9 ? '9+' : social.notificationCount.value }}
-              </span>
+                class="absolute top-0 left-0 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white"
+              ></span>
             </button>
-            <button
-              @click="showLangManager = !showLangManager"
-              class="gp-icon-btn w-10 h-10 flex-shrink-0"
-              title="Manage Languages"
+
+            <Transition
+              enter-active-class="transition duration-150 ease-out"
+              enter-from-class="opacity-0 -translate-y-1 scale-95"
+              enter-to-class="opacity-100 translate-y-0 scale-100"
+              leave-active-class="transition duration-100 ease-in"
+              leave-from-class="opacity-100 scale-100"
+              leave-to-class="opacity-0 scale-95"
             >
-              <Settings :size="20" />
-            </button>
+              <div
+                v-if="userMenuOpen"
+                class="absolute right-0 mt-2 w-56 gp-card shadow-card p-1.5 z-40 origin-top-right"
+              >
+                <div class="px-2.5 py-1.5">
+                  <div class="text-[10px] uppercase tracking-wider text-stone-400">Signed in as</div>
+                  <div class="text-sm font-medium text-stone-700 truncate">{{ userEmail }}</div>
+                </div>
+                <div class="h-px bg-line my-1"></div>
+                <button @click="openNotifications" class="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-sm text-stone-700 hover:bg-stone-50 transition-colors">
+                  <Mail :size="16" class="text-stone-400" />
+                  Notifications
+                  <span
+                    v-if="social.notificationCount.value > 0"
+                    class="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-medium"
+                  >
+                    {{ social.notificationCount.value > 9 ? '9+' : social.notificationCount.value }}
+                  </span>
+                </button>
+                <button @click="openLangManager" class="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-sm text-stone-700 hover:bg-stone-50 transition-colors">
+                  <Settings :size="16" class="text-stone-400" />
+                  Manage languages
+                </button>
+                <div class="h-px bg-line my-1"></div>
+                <button @click="signOutFromMenu" class="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-sm text-stone-500 hover:bg-stone-50 hover:text-stone-700 transition-colors">
+                  <LogOut :size="16" class="text-stone-400" />
+                  Sign out
+                </button>
+              </div>
+            </Transition>
           </div>
         </div>
 
@@ -126,7 +154,16 @@
             <div v-for="(seg, i) in goalSegments" :key="i"
               class="h-2.5 transition-all duration-700 ease-out first:rounded-l-full last:rounded-r-full"
               :style="{ width: seg.percent + '%', backgroundColor: seg.color }"
+              :title="`${seg.name} · ${(seg.minutes / 60).toFixed(1)}h`"
+              :aria-label="`${seg.name}: ${(seg.minutes / 60).toFixed(1)} hours`"
             ></div>
+          </div>
+          <!-- text legend so the split isn't conveyed by colour alone -->
+          <div v-if="goalSegments.length > 1" class="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+            <span v-for="(seg, i) in goalSegments" :key="i" class="inline-flex items-center gap-1 text-[10px] text-stone-500">
+              <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: seg.color }"></span>
+              {{ seg.name }}
+            </span>
           </div>
           <div v-if="goalProgress >= 100" class="flex items-center gap-1 text-xs text-garden-600 mt-1.5 font-semibold animate-fade-up">
             <Sprout :size="13" /> Goal reached — lovely work!
@@ -210,27 +247,41 @@
         </div>
       </div>
 
-      <!-- Analytics grid -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <InsightCard
-          :entries="filteredEntries"
-          :languages="data.languages"
-          :view-mode="viewMode"
-          :view-date="viewDate"
-        />
-        <ActivityBreakdown
-          :entries="filteredEntries"
-          :languages="data.languages"
-        />
+      <!-- Analytics — tabbed so the page stays calm instead of a long stack -->
+      <div class="mb-6">
+        <div class="inline-flex items-center gap-1 p-1 rounded-xl bg-stone-100/80 border border-line mb-4">
+          <button
+            v-for="t in analyticsTabs"
+            :key="t.key"
+            @click="analyticsTab = t.key"
+            class="px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all"
+            :class="analyticsTab === t.key ? 'bg-white text-garden-700 shadow-pill' : 'text-stone-500 hover:text-stone-700'"
+          >
+            {{ t.label }}
+          </button>
+        </div>
+        <div :key="analyticsTab" class="animate-fade-up">
+          <InsightCard
+            v-if="analyticsTab === 'insights'"
+            :entries="filteredEntries"
+            :languages="data.languages"
+            :view-mode="viewMode"
+            :view-date="viewDate"
+          />
+          <ActivityBreakdown
+            v-else-if="analyticsTab === 'activity'"
+            :entries="filteredEntries"
+            :languages="data.languages"
+          />
+          <FluencyHorizon
+            v-else
+            :entries="data.entries"
+            :languages="data.languages"
+            :native-language="nativeLanguage"
+            @manage="showLangManager = true"
+          />
+        </div>
       </div>
-
-      <!-- Fluency Horizon -->
-      <FluencyHorizon
-        :entries="data.entries"
-        :languages="data.languages"
-        :native-language="nativeLanguage"
-        @manage="showLangManager = true"
-      />
 
       <!-- Recent Sessions -->
       <div class="gp-card gp-pad mt-6 animate-fade-up">
@@ -239,7 +290,7 @@
           <div
             v-for="entry in recentEntries"
             :key="entry.id"
-            class="group p-3 rounded-xl bg-stone-50/70 border border-transparent hover:border-line hover:bg-white hover:shadow-pill transition-all duration-200"
+            class="group p-3 rounded-xl bg-stone-50/70 hover:bg-stone-100/70 transition-colors"
           >
             <div class="flex items-center gap-2">
               <div class="w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-white shadow-sm"
@@ -327,8 +378,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, provide } from 'vue'
-import { Settings, Pencil, Trash2, Sprout, Users, Mail, Flame } from 'lucide-vue-next'
+import { ref, computed, watch, provide, onMounted, onBeforeUnmount } from 'vue'
+import { Settings, Pencil, Trash2, Sprout, Users, Mail, Flame, ChevronDown, LogOut } from 'lucide-vue-next'
 import { useAuth } from './composables/useAuth.js'
 import { useStorage } from './composables/useStorage.js'
 import { useLanguageLookup } from './composables/useLanguageLookup.js'
@@ -363,6 +414,42 @@ const SOCIAL_MODE_KEY = 'garten:socialMode'
 const socialMode = ref(localStorage.getItem(SOCIAL_MODE_KEY) === 'true')
 watch(socialMode, (val) => localStorage.setItem(SOCIAL_MODE_KEY, String(val)))
 const showNotificationsPanel = ref(false)
+
+// Account menu — consolidates identity, notifications, language management and
+// sign-out so the header carries motivation + action, not a button cluster.
+const userMenuOpen = ref(false)
+const userMenuRef = ref(null)
+const userEmail = computed(() => user.value?.email || '')
+const userInitial = computed(() => (user.value?.email?.[0] || 's').toUpperCase())
+
+function openNotifications() {
+  userMenuOpen.value = false
+  showNotificationsPanel.value = true
+  social.markNotificationsRead()
+}
+function openLangManager() {
+  userMenuOpen.value = false
+  showLangManager.value = true
+}
+function signOutFromMenu() {
+  userMenuOpen.value = false
+  signOut()
+}
+function onUserMenuDocClick(e) {
+  if (userMenuOpen.value && userMenuRef.value && !userMenuRef.value.contains(e.target)) {
+    userMenuOpen.value = false
+  }
+}
+onMounted(() => document.addEventListener('click', onUserMenuDocClick))
+onBeforeUnmount(() => document.removeEventListener('click', onUserMenuDocClick))
+
+// Analytics tabs keep Insights / Activity / Horizon to one panel at a time.
+const analyticsTab = ref('insights')
+const analyticsTabs = [
+  { key: 'insights', label: 'Insights' },
+  { key: 'activity', label: 'Activity' },
+  { key: 'horizon', label: 'Horizon' },
+]
 
 function openNotificationEvent(event) {
   showNotificationsPanel.value = false
