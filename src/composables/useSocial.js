@@ -346,7 +346,7 @@ export function useSocial() {
     focusSessions.value = focusSessions.value.map((s) =>
       s.id === sessionId ? { ...s, status: 'completed' } : s
     )
-    toast.success('Focus session logged.')
+    toast.success('Focus session tended — logged to your garden.')
   }
 
   async function expireFocusSessions() {
@@ -425,7 +425,7 @@ export function useSocial() {
       toast.error(`Could not send ${kind}.`)
       return
     }
-    toast.success(kind === 'cheer' ? 'Cheer sent!' : 'Nudge sent.')
+    toast.success(kind === 'cheer' ? 'Cheer sent — sunshine on its way.' : 'Nudge sent.')
   }
 
   // ---------------------------------------------------------------------------

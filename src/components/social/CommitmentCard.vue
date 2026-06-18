@@ -37,7 +37,10 @@
 
     <div class="mb-3">
       <div class="flex items-center justify-between text-xs mb-1.5">
-        <span class="font-medium" :class="statusColor">{{ statusLabel }}</span>
+        <span class="font-medium inline-flex items-center gap-1" :class="statusColor">
+          <Flower2 v-if="percent >= 100" :size="13" class="text-garden-500 animate-grow-in" />
+          {{ statusLabel }}
+        </span>
         <span class="text-stone-500 tabular-nums">
           {{ fmtHours(commitment.logged_minutes) }} / {{ fmtHours(commitment.target_minutes) }}
         </span>
@@ -55,7 +58,7 @@
         @click="cheer"
         class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-garden-700 bg-garden-50 hover:bg-garden-100 transition-colors"
       >
-        <ThumbsUp :size="13" /> Cheer
+        <Sun :size="13" /> Cheer
       </button>
       <button
         @click="nudge"
@@ -69,7 +72,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { X, Pencil, ThumbsUp, Bell } from 'lucide-vue-next'
+import { X, Pencil, Sun, Bell, Flower2 } from 'lucide-vue-next'
 
 const props = defineProps({
   commitment: { type: Object, required: true }
@@ -82,11 +85,13 @@ const percent = computed(() => {
   return Math.round((props.commitment.logged_minutes / t) * 100)
 })
 
+// Garden vocabulary keeps the whole circle in one voice (tended, blooming,
+// cross-pollinated) instead of flat progress-tracker language.
 const statusLabel = computed(() => {
-  if (percent.value >= 100) return 'Goal reached'
-  if (percent.value >= 50) return 'On track'
-  if (percent.value > 0) return 'Getting started'
-  return 'Not started'
+  if (percent.value >= 100) return 'In bloom'
+  if (percent.value >= 50) return 'Growing'
+  if (percent.value > 0) return 'Sprouting'
+  return 'Not planted yet'
 })
 
 const statusColor = computed(() => {

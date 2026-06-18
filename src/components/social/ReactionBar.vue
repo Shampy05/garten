@@ -124,8 +124,9 @@ const REACTION_KINDS = [
 ]
 
 // …but the picker offers a tight, unambiguous set. Fewer, clearer choices beat
-// a sticker drawer (Hick's law) and these four read instantly.
-const OFFERED = ['water', 'sun', 'bloom', 'leaf']
+// a sticker drawer (Hick's law). The busy bee earns its place — it's the
+// playful, much-loved way to say "you've been hard at it".
+const OFFERED = ['water', 'sun', 'bloom', 'leaf', 'bee']
 const PALETTE_KINDS = REACTION_KINDS.filter((k) => OFFERED.includes(k.kind))
 
 const open = ref(false)
