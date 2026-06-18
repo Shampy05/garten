@@ -48,7 +48,7 @@
             @click="day.inRange && toggleTooltip(day, $event)"
           >
             <div v-if="day.inRange" class="absolute inset-0 pointer-events-none">
-              <div v-if="useMosaic && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-5 grid-rows-5 gap-[1.5px] p-[2px]">
+              <div v-if="showMosaic(day)" class="absolute inset-0 grid grid-cols-5 grid-rows-5 gap-[1.5px] p-[2px]">
                 <div v-for="(color, si) in getMosaicGrid(day)" :key="si"
                   class="rounded-[1.5px]"
                   :class="color ? '' : 'invisible'"
@@ -98,7 +98,7 @@
                   @click="day.inRange && toggleTooltip(day, $event)"
                 >
                   <div v-if="day.inRange" class="absolute inset-0 pointer-events-none">
-                    <div v-if="useMosaic && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-px p-px">
+                    <div v-if="showMosaic(day)" class="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-px p-px">
                       <div v-for="(color, si) in getMosaicGrid(day, 3)" :key="si"
                         class="rounded-[0.5px]"
                         :class="color ? '' : 'invisible'"
@@ -147,7 +147,7 @@
                 @mouseleave="hoverHide()"
                 @click="day.inRange && toggleTooltip(day, $event)"
               >
-                <div v-if="day.inRange && useMosaic && day.totalMinutes > 0" class="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px p-px">
+                <div v-if="day.inRange && showMosaic(day)" class="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px p-px">
                   <div v-for="(color, si) in getMosaicGrid(day, 2)" :key="si"
                     class="rounded-[0.5px]"
                     :class="color ? '' : 'invisible'"
@@ -327,6 +327,14 @@ const getLanguageActivities = (day) => {
   return groups
 }
 
+// Distinct languages studied on a given day.
+const dayLanguageCount = (day) => Object.keys(getLanguageActivities(day)).length
+
+// The mosaic only earns its grid when a day actually mixes languages. A
+// single-language day is rendered as one clean solid block instead — so a
+// tiled cell becomes a meaningful signal of a varied day.
+const showMosaic = (day) => useMosaic.value && day.totalMinutes > 0 && dayLanguageCount(day) > 1
+
 const dayBgColor = (day) => {
   if (day.totalMinutes === 0) return '#f3f4f6'
   if (!useMosaic.value) {
@@ -335,6 +343,10 @@ const dayBgColor = (day) => {
       : activeLanguages.value[0]
     return getColorAtIntensity(lang?.color || '#16a34a', day.totalMinutes)
   }
+  // Mosaic mode: solid block for a single-language day, grey backdrop for the
+  // multi-language mosaic to sit on.
+  const ids = Object.keys(getLanguageActivities(day))
+  if (ids.length === 1) return getColorAtIntensity(colorFor(ids[0]), day.totalMinutes)
   return '#f3f4f6'
 }
 
