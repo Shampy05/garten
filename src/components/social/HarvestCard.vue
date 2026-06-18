@@ -1,28 +1,33 @@
 <template>
-  <div class="bg-amber-50/70 rounded-xl border border-amber-100 p-3 sm:p-4 mb-3">
-    <div class="flex items-start gap-3">
-      <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center flex-shrink-0">
+  <div class="relative overflow-hidden rounded-2xl border border-garden-100 bg-gradient-to-br from-garden-50/70 via-amber-50/30 to-white p-3 sm:p-4 mb-3 transition-shadow hover:shadow-card">
+    <!-- a quiet sheaf motif in the corner -->
+    <Wheat :size="76" class="pointer-events-none absolute -right-3 -bottom-4 text-garden-600/5 rotate-12" />
+    <div class="relative flex items-start gap-3">
+      <div class="w-8 h-8 rounded-full bg-garden-100 text-garden-700 flex items-center justify-center flex-shrink-0 ring-2 ring-white">
         <Wheat :size="16" />
       </div>
       <div class="min-w-0 flex-1">
         <div class="flex items-center justify-between gap-2">
-          <p class="text-sm font-medium text-stone-800">Weekly harvest</p>
-          <span class="text-xs text-stone-400">{{ relDay(item.occurred_on) }}</span>
+          <p class="text-sm font-semibold text-stone-800 flex items-center gap-2">
+            Weekly harvest
+            <span class="text-[10px] font-medium text-garden-700 bg-garden-50 ring-1 ring-garden-100 px-1.5 py-0.5 rounded-full">harvest</span>
+          </p>
+          <span class="text-xs text-stone-400 flex-shrink-0">{{ relDay(item.occurred_on) }}</span>
         </div>
-        <p class="text-sm text-stone-600 mt-0.5">
+        <p class="text-sm text-stone-600 mt-1">
           <span class="font-medium">{{ item.isSelf ? 'You' : item.actorName }}</span>
           spent
-          <span class="font-medium text-stone-800">{{ fmtDuration(item.minutes) }}</span>
+          <span class="font-semibold text-stone-800 tabular-nums">{{ fmtDuration(item.minutes) }}</span>
           <template v-if="sessionCount > 0">
             across
-            <span class="font-medium text-stone-800">{{ sessionCount }}</span>
+            <span class="font-semibold text-stone-800 tabular-nums">{{ sessionCount }}</span>
             {{ sessionCount === 1 ? 'session' : 'sessions' }}
           </template>
-          <span v-if="topLanguage">— most tended: {{ topLanguage.name }}</span>
+          <span v-if="topLanguage">— most tended: <span class="font-medium text-stone-700">{{ topLanguage.name }}</span></span>
         </p>
 
         <div v-if="languages.length > 0" class="mt-2.5">
-          <div class="flex h-3 rounded-full overflow-hidden">
+          <div class="flex h-3 rounded-full overflow-hidden ring-1 ring-inset ring-black/5">
             <div
               v-for="lang in languages"
               :key="lang.name"

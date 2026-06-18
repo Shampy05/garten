@@ -12,23 +12,20 @@
           <span class="text-sm font-medium text-stone-700">{{ row.name }}</span>
           <span class="text-xs text-stone-400 ml-auto tabular-nums">{{ row.totalFormatted }}</span>
         </div>
-        <div class="flex gap-0.5 h-5 rounded-full overflow-hidden bg-stone-100 ring-1 ring-inset ring-black/5">
+        <div class="flex gap-0.5 h-2.5 rounded-full overflow-hidden bg-stone-100 ring-1 ring-inset ring-black/5">
           <div
             v-for="seg in row.segments"
             :key="seg.type"
-            class="relative group flex items-center justify-center overflow-hidden first:rounded-l-full last:rounded-r-full"
+            class="first:rounded-l-full last:rounded-r-full"
             :style="{ width: seg.percent + '%', backgroundColor: row.color, opacity: seg.opacity }"
-          >
-            <span v-if="seg.percent > 6" class="text-[9px] font-bold text-white/90 select-none leading-none">
-              {{ seg.initial }}
-            </span>
-          </div>
+            :title="`${seg.type}: ${seg.hoursFormatted}`"
+          ></div>
         </div>
-        <div class="flex flex-wrap gap-x-3 gap-y-0.5">
-          <span v-for="seg in row.segments" :key="seg.type" class="flex items-center gap-1">
-            <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: row.color, opacity: seg.opacity }"></span>
-            <span class="text-[10px] text-stone-500 capitalize">{{ seg.type }}</span>
-            <span class="text-[10px] text-stone-400">{{ seg.initial }} {{ seg.hoursFormatted }}</span>
+        <div class="flex flex-wrap gap-x-3 gap-y-1 pt-0.5">
+          <span v-for="seg in row.segments" :key="seg.type" class="inline-flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-sm flex-shrink-0" :style="{ backgroundColor: row.color, opacity: seg.opacity }"></span>
+            <span class="text-[11px] text-stone-600 capitalize">{{ seg.type }}</span>
+            <span class="text-[11px] text-stone-400 tabular-nums">{{ seg.hoursFormatted }}</span>
           </span>
         </div>
       </div>

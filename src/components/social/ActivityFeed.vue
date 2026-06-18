@@ -14,7 +14,7 @@
       <p class="text-xs mt-1">When you or a friend logs a session, it lands here.</p>
     </div>
 
-    <div v-else>
+    <div v-else class="mt-1">
       <div
         v-for="item in summaryItems"
         :key="item.id"
@@ -38,11 +38,11 @@
       <div
         v-for="item in nonSummaryItems"
         :key="item.id"
-        class="group flex items-start gap-3 py-3 border-b border-stone-100 last:border-0 cursor-pointer"
+        class="group flex items-start gap-3 rounded-xl px-2 py-2.5 -mx-2 hover:bg-stone-50/80 transition-colors cursor-pointer"
         @click="openDetail(item)"
       >
         <div
-          class="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-sm flex-shrink-0 mt-0.5"
+          class="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-sm flex-shrink-0 mt-0.5 ring-2 ring-white shadow-sm"
           :class="item.isSelf ? 'bg-stone-100 text-stone-500' : 'bg-garden-50 text-garden-700'"
         >
           {{ item.actorName[0].toUpperCase() }}
