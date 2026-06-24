@@ -24,6 +24,7 @@ A personal language learning tracker inspired by GitHub contribution heatmaps. T
 - **Native-Language-Aware Targets**: Set your first language and the Fluency Horizon discounts targets by language-family proximity (e.g. a Spanish speaker reaches Portuguese far faster). Only ever lowers a target where your L1 gives a head start, never raises it; English speakers and unmodelled pairs are unchanged
 - **Stretch & Maintenance Horizon**: Reaching professional proficiency isn't a dead end — the bar extends to a mastery (~C2) target with a "Proficient" badge, then settles into a "maintaining" state once mastery is reached
 - **Data Export**: Download all sessions as CSV (flat spreadsheet table) or a JSON snapshot (denormalized with language names + a summary header and full backup of languages/goal) from the gear menu — fully client-side, for backups, analysis, or feeding to an LLM
+- **Reading Library**: A dedicated tab to find books in your target language (Google Books, with a keyless Open Library fallback), save them to a reading list, and track each one's status (want to read / reading / read), difficulty, notes, and dates — plus a per-language reading summary. Strict language filtering returns only books in the chosen language
 - **Persistent Storage**: Supabase (PostgreSQL) backend — data persists across devices
 - **Email/Password Auth**: Per-user data via Supabase RLS. Language picker on first sign-up
 
@@ -43,6 +44,8 @@ npm run build      # Production build to dist/
 ```
 
 Enable email/password auth in the Supabase dashboard (Authentication → Providers → Email). RLS policies scope all data to the authenticated user.
+
+Copy `.env.example` to `.env` and fill in `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`. The Reading Library's book search also reads an optional `VITE_GOOGLE_BOOKS_KEY` — it works keyless at low volume (and falls back to Open Library when Google is rate-limited), but a key raises the daily quota. Apply the SQL in `supabase/migrations/` to your project (e.g. `supabase db push`) so the `books`/`reading_records` tables exist.
 
 ## Deployment
 
@@ -81,6 +84,10 @@ Languages:
 User settings:
 - `weekly_goal_hours` (nullable numeric)
 - `native_language` (nullable text) — user's L1; feeds the Fluency Horizon's proximity-based target adjustment (NULL = English baseline)
+
+Reading Library (two tables joined 1:1, separate from the study tracker):
+- `books` — saved external-book metadata: `external_id` (unique per user), `title`, `author`, `cover_url`, `description`, `language_code` (ISO 639-1)
+- `reading_records` — per-book reading data: `status` (want_to_read / reading / read), `rating` (0–5 in 0.5 steps, optional), `difficulty` (beginner / intermediate / advanced), `notes`, `target_language`, `saved_at` / `started_at` / `finished_at`. PK `(user_id, book_id)`, FK → `books` (cascade) so a record can't outlive its book
 
 ## Performance
 

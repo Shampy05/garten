@@ -26,9 +26,13 @@ All data operations go through the `useStorage` composable which maps between JS
 - `entries`: Array of { id, date, languageId, type, hours, minutes, notes } — `languageId` maps to `language_id` in DB
 - `user_settings`: { user_id, weekly_goal_hours, native_language } — per-user weekly study goal and L1. `native_language` (nullable text) feeds the Fluency Horizon's proximity-based target adjustment; NULL = English baseline.
 
+The Reading Library (Library tab) persists through its own `useBooks` composable, not `useStorage` — two per-user tables joined 1:1 in memory under each book's `.record`:
+- `books`: { id, externalId, title, author, coverUrl, description, languageCode } — saved external-book metadata; `external_id` is unique per user (re-saving updates, never duplicates).
+- `reading_records`: { book_id, target_language, status, rating, difficulty, notes, saved_at, started_at, finished_at } — the user's reading data, PK `(user_id, book_id)`, FK → `books`. See the Reading Library section.
+
 ## Data Caching
 
-Supabase reads are cached in localStorage with a 30-second TTL (`src/lib/cache.js`). On page load, cached data is served instantly and no API call is made. Every mutation (add/delete/update entry or language) writes the new in-memory state back to the cache with a fresh timestamp, so reloads after an edit keep hitting the cache instead of the network. This minimizes Supabase reads on the free tier. Settings (`weekly_goal_hours`, `native_language`) are not cached and are always read from Supabase.
+Supabase reads are cached in localStorage with a 30-second TTL (`src/lib/cache.js`). On page load, cached data is served instantly and no API call is made. Every mutation (add/delete/update entry or language) writes the new in-memory state back to the cache with a fresh timestamp, so reloads after an edit keep hitting the cache instead of the network. This minimizes Supabase reads on the free tier. Settings (`weekly_goal_hours`, `native_language`) are not cached and are always read from Supabase. The Reading Library reuses the same cache module under a separate `books_<uid>` key (→ `garten_data_books_<uid>`) so it never clobbers the main `garten_data_<uid>` entry.
 
 Entries older than 2 years are not fetched — the heatmap only displays data within that window.
 
@@ -137,6 +141,34 @@ Live/whimsy details, kept in the design-system register (no emojis in data displ
 - **Coming up (anticipation)** — a calm strip atop the feed showing the most imminent crossings (max 2, ranked by urgency): a nearing streak milestone (`upcomingMilestones`, computed from entries in App.vue from `STREAK_MILESTONES` [7,14,30,50,100,200,365], surfaced only when ≤7 days out, threaded App.vue → SocialView → CelebrationFeed) and self-commitments close to completion (from `commitments` in the composable). A milestone you can see approaching motivates before it lands.
 - **Reactions land back** — on your *own* celebrations, a garden-green line names who reacted ("Maria & Sam celebrated this"), resolved from `reactionsByEvent` + the `friends` list. The witnessing is the reward, not the stat.
 - **Freshness decay** — celebrations within 7 days (by `occurred_on`) read bright; older ones fade under a quiet "Earlier" divider (`firstStaleId` / `isStale`), so the feed never becomes an undifferentiated wall.
+
+## Reading Library
+
+The Library tab is the third top-level view (alongside My Garden and Friends) for finding books in a target language via an external API and tracking reading them. It is **self-contained** — reading is tracked by status/difficulty/notes/dates, not study minutes, so finishing a book does NOT create a Garten `entries` session. Owned by `useBooks.js` + `useBookSearch.js` and rendered by `src/components/library/LibraryView.vue`.
+
+**Top-level navigation** (`App.vue`): the former `socialMode` boolean became a `navView` string (`'garden' | 'library' | 'friends'`), persisted under `garten:viewMode` (migrates the old `garten:socialMode` boolean on first load). It is named `navView` specifically to avoid colliding with `useTimeframe`'s heatmap `viewMode`. The header segmented control now has three buttons (Sprout / BookOpen / Users).
+
+**Two tables** (migrations `20260624000000_reading_library.sql` and, for existing deployments, `20260624232905_add_book_rating.sql`), per-user with the same RLS shape as the rest of the app (`for all to authenticated using (auth.uid() = user_id)`):
+- `books` — externally-sourced metadata snapshot of each saved book: PK `(user_id, id)`, plus `external_id`, `title`, `author`, `cover_url`, `description`, `language_code`. `UNIQUE (user_id, external_id)` enforces the no-duplicate-on-resave rule. `language_code` is constrained by a CHECK to the curated ISO 639-1 set — **keep that list in sync with `src/lib/bookLanguages.js`** (mirrors how `chk_entry_type` pairs with `types.js`).
+- `reading_records` — the user's reading data, strictly 1:1 with a book: PK `(user_id, book_id)` (which alone enforces "one book → one reading record"), FK `(user_id, book_id) → books` `on delete cascade` (a reading record can't exist without a book; removing a book removes its record). `status` CHECK in `want_to_read | reading | read`; `rating` (nullable) CHECK in 0–5 with 0.5 steps; `difficulty` (nullable) CHECK in `beginner | intermediate | advanced`; plus `target_language` (ISO 639-1), `notes`, `saved_at`/`started_at`/`finished_at`.
+
+**Data flow** (`useBooks.js`) mirrors `useStorage.js`: per-user reads scoped by `user_id`, optimistic in-memory updates, `toast.error` on failure. It joins `books` + `reading_records` in memory into one `savedBooks` array where the reading fields live under each book's `.record`. Cache namespace gotcha: `cache.js` keys everything as `garten_data_<x>`, and `useStorage` owns `garten_data_<uid>`, so `useBooks` passes `books_<uid>` to land on `garten_data_books_<uid>` and avoid clobbering it. `saveBook` dedups like `addLanguage` — if the `externalId` is already saved it reuses the stable `id` so the `reading_records` PK updates rather than inserting a duplicate.
+
+**Search — Google Books with Open Library fallback** (`src/lib/bookSearch.js` orchestrator):
+- `searchGoogleBooks` (`googleBooks.js`) is primary — richest inline metadata, returns ISO 639-1 codes directly. Uses optional `VITE_GOOGLE_BOOKS_KEY` (keyless works but is heavily rate-limited → HTTP 429).
+- On **any** Google request error the orchestrator falls back to `searchOpenLibrary` (`openLibrary.js`), which is keyless/quota-free but speaks ISO 639-2/B 3-letter codes — `openLibrary.js` maps 639-1 ↔ 639-2 in both directions (including the 639-2/T variants OL emits, e.g. `deu`→`de`). A successful-but-empty Google response does NOT fall back.
+- `searchBooks` returns `{ books, source }`; `BookSearch.vue` shows a quiet "showing results from Open Library" note when `source === 'openlibrary'`.
+- **FR3 strict language filter**: `langRestrict` (Google) and `language=` (OL) are biased, not strict, so `filterByLanguage` drops any result whose language ≠ the selected code client-side (a French search returns English editions otherwise — confirmed live).
+- `useBookSearch.js` holds debounced (350 ms), request-token-guarded search state (so a slow earlier search can't overwrite a newer one).
+
+**Components** (`src/components/library/`, all in the Garden Journal design system — `gp-*` classes, Teleport modals, `ConfirmDialog`, `useToast`, no emojis in data displays):
+- `LibraryView` — root; owns the composables and the Find books / My library sub-toggle, plus the Save/Edit/Remove modal state.
+- `BookSearch` + `BookResultCard` — language `<select>` scoped to the user's tracked Garten languages (defaults to one via `codeForName`) + title/author box + results grid. Save is disabled with an "Unsupported language" note when a result's language is outside the curated set (OL "All languages" can return those; the DB CHECK would reject them).
+- `SaveBookModal` / `EditBookModal` — status + rating (`StarRating`, 0.5-step 5 stars) + difficulty pills, notes, started/finished dates.
+- `SavedBooksList` + `SavedBookCard` — FR9 language + status chip filters; edit/remove controls; rating displayed as read-only stars.
+- `ReadingSummary` — FR12 per-language status counts (`summaryByLanguage` in `src/lib/readingStats.js`), one thin read/reading/want bar per language.
+
+**Reference data**: `src/lib/bookLanguages.js` is the single source of truth for the curated ISO 639-1 reading languages (`BOOK_LANGUAGES`, `nameForCode`, `codeForName`, `isValidCode`, `CODE_SET`) — the existing `languages.js` is names-only. The migration's `language_code` / `target_language` CHECK lists must stay in sync with it.
 
 ## Activity Types
 

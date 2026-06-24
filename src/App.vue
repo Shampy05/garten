@@ -32,27 +32,34 @@
       </div>
     </div>
     <div v-else class="max-w-6xl mx-auto px-4 py-8">
-      <!-- Mode toggle: My Garden / Friends -->
+      <!-- Mode toggle: My Garden / Library / Friends -->
       <div class="flex justify-center mb-6 animate-fade-up">
         <div class="inline-flex items-center gap-1 p-1 rounded-full bg-white/80 backdrop-blur border border-line shadow-pill">
           <button
-            @click="socialMode = false"
+            @click="navView = 'garden'"
             class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200"
-            :class="!socialMode ? 'bg-gradient-to-b from-garden-500 to-garden-600 text-white shadow-[0_6px_14px_-8px_rgba(32,96,53,0.8)]' : 'text-stone-500 hover:text-stone-700'"
+            :class="navView === 'garden' ? 'bg-gradient-to-b from-garden-500 to-garden-600 text-white shadow-[0_6px_14px_-8px_rgba(32,96,53,0.8)]' : 'text-stone-500 hover:text-stone-700'"
           >
             <Sprout :size="15" /> My Garden
           </button>
           <button
-            @click="socialMode = true"
+            @click="navView = 'library'"
             class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200"
-            :class="socialMode ? 'bg-gradient-to-b from-garden-500 to-garden-600 text-white shadow-[0_6px_14px_-8px_rgba(32,96,53,0.8)]' : 'text-stone-500 hover:text-stone-700'"
+            :class="navView === 'library' ? 'bg-gradient-to-b from-garden-500 to-garden-600 text-white shadow-[0_6px_14px_-8px_rgba(32,96,53,0.8)]' : 'text-stone-500 hover:text-stone-700'"
+          >
+            <BookOpen :size="15" /> Library
+          </button>
+          <button
+            @click="navView = 'friends'"
+            class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200"
+            :class="navView === 'friends' ? 'bg-gradient-to-b from-garden-500 to-garden-600 text-white shadow-[0_6px_14px_-8px_rgba(32,96,53,0.8)]' : 'text-stone-500 hover:text-stone-700'"
           >
             <Users :size="15" /> Friends
           </button>
         </div>
       </div>
 
-      <template v-if="!socialMode">
+      <template v-if="navView === 'garden'">
       <!-- Garden Status Card -->
       <div class="gp-card gp-pad mb-6 relative overflow-hidden animate-grow-in">
         <!-- soft botanical wash along the top edge -->
@@ -345,6 +352,8 @@
       </div>
       </template>
 
+      <LibraryView v-else-if="navView === 'library'" :languages="data.languages" />
+
       <SocialView v-else :languages="data.languages" :upcoming-milestones="upcomingMilestones" />
     </div>
 
@@ -391,7 +400,7 @@
 
 <script setup>
 import { ref, computed, watch, provide, onMounted, onBeforeUnmount } from 'vue'
-import { Settings, Pencil, Trash2, Sprout, Users, Mail, Flame, ChevronDown, LogOut } from 'lucide-vue-next'
+import { Settings, Pencil, Trash2, Sprout, Users, Mail, Flame, ChevronDown, LogOut, BookOpen } from 'lucide-vue-next'
 import { useAuth } from './composables/useAuth.js'
 import { useStorage } from './composables/useStorage.js'
 import { useLanguageLookup } from './composables/useLanguageLookup.js'
@@ -414,6 +423,7 @@ import SproutIcon from './components/SproutIcon.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import Toast from './components/Toast.vue'
 import SocialView from './components/social/SocialView.vue'
+import LibraryView from './components/library/LibraryView.vue'
 import NotificationsPanel from './components/social/NotificationsPanel.vue'
 import { useSocial } from './composables/useSocial.js'
 
@@ -422,9 +432,16 @@ provide('auth', { signIn, signUp, resetPassword })
 
 const social = useSocial()
 provide('social', social)
-const SOCIAL_MODE_KEY = 'garten:socialMode'
-const socialMode = ref(localStorage.getItem(SOCIAL_MODE_KEY) === 'true')
-watch(socialMode, (val) => localStorage.setItem(SOCIAL_MODE_KEY, String(val)))
+// Top-level view: 'garden' | 'library' | 'friends'. Persisted; migrates the
+// previous boolean 'garten:socialMode' key on first load so existing users who
+// were on the Friends tab stay there. (Named navView to avoid colliding with
+// useTimeframe's heatmap `viewMode`.)
+const NAV_VIEW_KEY = 'garten:viewMode'
+const navView = ref(
+  localStorage.getItem(NAV_VIEW_KEY) ||
+  (localStorage.getItem('garten:socialMode') === 'true' ? 'friends' : 'garden')
+)
+watch(navView, (val) => localStorage.setItem(NAV_VIEW_KEY, val))
 const showNotificationsPanel = ref(false)
 
 // Account menu — consolidates identity, notifications, language management and
@@ -465,7 +482,7 @@ const analyticsTabs = [
 
 function openNotificationEvent(event) {
   showNotificationsPanel.value = false
-  socialMode.value = true
+  navView.value = 'friends'
   social.openEventDetail(event)
 }
 
