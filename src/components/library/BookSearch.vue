@@ -4,9 +4,9 @@
       <div class="flex flex-col sm:flex-row gap-3">
         <div class="sm:w-44 flex-shrink-0">
           <label class="block text-xs font-medium text-stone-500 mb-1">Language</label>
-          <select :value="languageCode || ''" @change="onLanguageChange" class="gp-input">
+          <select :value="selectedLanguageId" @change="onLanguageChange" class="gp-input">
             <option value="">All languages</option>
-            <option v-for="lang in languageOptions" :key="lang.code" :value="lang.code">{{ lang.name }}</option>
+            <option v-for="lang in languageOptions" :key="lang.id" :value="lang.id">{{ lang.name }}</option>
           </select>
         </div>
         <div class="flex-1">
@@ -24,8 +24,11 @@
           </div>
         </div>
       </div>
-      <p v-if="languageCode" class="text-xs text-stone-400 mt-2">
-        Showing only books in {{ nameForCode(languageCode) }}.
+      <p v-if="selectedLanguageName && languageCode" class="text-xs text-stone-400 mt-2">
+        Showing only books in {{ selectedLanguageName }}.
+      </p>
+      <p v-else-if="selectedLanguageName" class="text-xs text-stone-400 mt-2">
+        Searching all languages — {{ selectedLanguageName }} doesn't map to a supported book-search code.
       </p>
     </div>
 
@@ -60,7 +63,7 @@
     <!-- Empty after a search -->
     <div v-else-if="hasSearched" class="text-center py-10 text-stone-400">
       <BookOpen class="w-10 h-10 mx-auto mb-3 opacity-50" />
-      <p class="text-sm">No books found{{ languageCode ? ` in ${nameForCode(languageCode)}` : '' }}. Try another title or language.</p>
+      <p class="text-sm">No books found{{ selectedLanguageName ? ` in ${selectedLanguageName}` : '' }}. Try another title or language.</p>
     </div>
 
     <!-- Initial prompt -->
@@ -72,18 +75,17 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Search, BookOpen, Info } from 'lucide-vue-next'
 import { useBookSearch } from '../../composables/useBookSearch.js'
-import { BOOK_LANGUAGES, nameForCode, codeForName } from '../../lib/bookLanguages.js'
+import { codeForName } from '../../lib/bookLanguages.js'
 import BookResultCard from './BookResultCard.vue'
 
 const props = defineProps({
   savedIds: { type: Array, default: () => [] },
   defaultLanguageCode: { type: String, default: null },
-  // The user's tracked Garten languages. The dropdown only shows languages the
-  // user has already added to their garden (with an "All languages" fallback
-  // when they have none in the curated reading set yet).
+  // The user's tracked Garten languages — the dropdown lists all of them by
+  // name. The ISO-639-1 code is used for the book search only when available.
   languages: { type: Array, default: () => [] },
 })
 
@@ -91,29 +93,45 @@ defineEmits(['save'])
 
 const { query, languageCode, results, source, loading, error, hasSearched, search, searchNow, setLanguage, cleanup } = useBookSearch()
 
-const languageOptions = computed(() => {
-  const codes = new Set((props.languages || [])
-    .map((l) => codeForName(l.name))
-    .filter(Boolean))
-  const filtered = BOOK_LANGUAGES.filter((l) => codes.has(l.code))
-  return filtered.length ? filtered : BOOK_LANGUAGES
-})
+const selectedLanguageId = ref('')
+
+const languageOptions = computed(() =>
+  (props.languages || []).map((l) => ({
+    id: l.id,
+    name: l.name,
+    code: codeForName(l.name) || null,
+  }))
+)
+
+const selectedLanguage = computed(() =>
+  languageOptions.value.find((l) => l.id === selectedLanguageId.value)
+)
+
+const selectedLanguageName = computed(() => selectedLanguage.value?.name)
 
 onMounted(() => {
-  if (props.defaultLanguageCode) setLanguage(props.defaultLanguageCode)
+  if (props.defaultLanguageCode) {
+    const match = languageOptions.value.find((l) => l.code === props.defaultLanguageCode)
+    if (match) selectLanguage(match.id)
+  }
 })
 
 onBeforeUnmount(cleanup)
 
-// If the currently selected language is removed from the user's garden,
-// reset the filter so the dropdown never shows a stale selection.
+// If the selected language is removed from the user's garden, reset the filter.
 watch(languageOptions, (opts) => {
-  if (languageCode.value && !opts.find((o) => o.code === languageCode.value)) {
-    setLanguage(null)
+  if (selectedLanguageId.value && !opts.find((l) => l.id === selectedLanguageId.value)) {
+    selectLanguage('')
   }
 })
 
+function selectLanguage(id) {
+  selectedLanguageId.value = id || ''
+  const lang = languageOptions.value.find((l) => l.id === id)
+  setLanguage(lang?.code || null)
+}
+
 function onLanguageChange(e) {
-  setLanguage(e.target.value || null)
+  selectLanguage(e.target.value)
 }
 </script>
