@@ -56,7 +56,13 @@
       </div>
       <div v-else class="space-y-5">
         <ReadingSummary :saved-books="savedBooks" />
-        <SavedBooksList :saved-books="savedBooks" @edit="openEditModal" @remove="confirmRemove" />
+        <SavedBooksList
+      :saved-books="savedBooks"
+      :language-colors="languageColorMap"
+      @edit="openEditModal"
+      @remove="confirmRemove"
+      @log="openLogModal"
+    />
       </div>
     </div>
 
@@ -72,6 +78,14 @@
       :visible="showEditModal"
       @save="handleEdit"
       @close="showEditModal = false"
+    />
+
+    <LogPagesModal
+      :book="logTarget"
+      :visible="showLogModal"
+      :language-color="logTargetLanguageColor"
+      @close="showLogModal = false"
+      @logged="handleLogged"
     />
 
     <ConfirmDialog
@@ -90,12 +104,14 @@
 import { ref, computed } from 'vue'
 import { Library, Search, BookMarked, BookOpen } from 'lucide-vue-next'
 import { useBooks } from '../../composables/useBooks.js'
-import { codeForName } from '../../lib/bookLanguages.js'
+import { useStorage } from '../../composables/useStorage.js'
+import { codeForName, nameForCode } from '../../lib/bookLanguages.js'
 import BookSearch from './BookSearch.vue'
 import SavedBooksList from './SavedBooksList.vue'
 import ReadingSummary from './ReadingSummary.vue'
 import SaveBookModal from './SaveBookModal.vue'
 import EditBookModal from './EditBookModal.vue'
+import LogPagesModal from './LogPagesModal.vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
 
 const props = defineProps({
@@ -105,8 +121,17 @@ const props = defineProps({
 })
 
 const { savedBooks, loaded, loadError, saveBook, updateRecord, removeBook, retryLoad } = useBooks()
+const { addEntry, data: storageData } = useStorage()
 
 const subTab = ref('search')
+
+const languageColorMap = computed(() => {
+  const map = {}
+  for (const lang of props.languages) {
+    map[codeForName(lang.name)] = lang.color
+  }
+  return map
+})
 
 const savedIds = computed(() => savedBooks.value.map((b) => b.externalId))
 
@@ -140,6 +165,32 @@ function openEditModal(book) {
 async function handleEdit({ bookId, updates }) {
   await updateRecord(bookId, updates)
   showEditModal.value = false
+}
+
+// Log progress flow
+const logTarget = ref(null)
+const showLogModal = ref(false)
+const logTargetLanguageColor = computed(() => {
+  if (!logTarget.value?.languageCode) return null
+  return languageColorMap.value[logTarget.value.languageCode]
+})
+function openLogModal(book) {
+  logTarget.value = book
+  showLogModal.value = true
+}
+async function handleLogged({ book, minutes, logSession }) {
+  showLogModal.value = false
+  if (!logSession || !minutes || minutes <= 0) return
+  const lang = storageData.value.languages.find((l) => codeForName(l.name) === book.languageCode)
+  if (!lang) return
+  await addEntry({
+    date: new Date().toISOString().slice(0, 10),
+    languageId: lang.id,
+    type: 'reading',
+    hours: 0,
+    minutes: Math.round(minutes),
+    notes: `Reading: ${book.title}`,
+  })
 }
 
 // Remove flow (FR11)

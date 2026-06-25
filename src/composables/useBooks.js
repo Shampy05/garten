@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase.js'
 import { getCached, setCache } from '../lib/cache.js'
 import { useToast } from './useToast.js'
 import { useAuth } from './useAuth.js'
+import { nameForCode } from '../lib/bookLanguages.js'
 
 // Saved books + their 1:1 reading records. Mirrors useStorage.js: per-user
 // Supabase reads scoped by user_id, a 30s localStorage cache, optimistic
@@ -38,6 +39,8 @@ function recordToSnake(record) {
     saved_at: record.savedAt ?? null,
     started_at: record.startedAt ?? null,
     finished_at: record.finishedAt ?? null,
+    current_page: record.currentPage ?? null,
+    total_pages: record.totalPages ?? null,
   }
 }
 
@@ -63,6 +66,8 @@ function joinToCamel(bookRow, recordRow) {
           savedAt: recordRow.saved_at ?? null,
           startedAt: recordRow.started_at ?? null,
           finishedAt: recordRow.finished_at ?? null,
+          currentPage: recordRow.current_page ?? null,
+          totalPages: recordRow.total_pages ?? null,
         }
       : null,
   }
@@ -155,6 +160,8 @@ export function useBooks() {
       savedAt: existing?.record?.savedAt ?? new Date().toISOString().slice(0, 10),
       startedAt: record.startedAt ?? existing?.record?.startedAt ?? null,
       finishedAt: record.finishedAt ?? existing?.record?.finishedAt ?? null,
+      currentPage: record.currentPage ?? existing?.record?.currentPage ?? null,
+      totalPages: record.totalPages ?? existing?.record?.totalPages ?? volume.pageCount ?? null,
     }
 
     const { error: bookErr } = await supabase.from('books').upsert({
@@ -228,6 +235,136 @@ export function useBooks() {
     if (userId.value) loadBooks()
   }
 
+  // ---------------------------------------------------------------------------
+  // Reading progress
+  // ---------------------------------------------------------------------------
+
+  const loadProgress = async (bookId) => {
+    if (!userId.value) return []
+    const { data, error } = await supabase
+      .from('reading_progress')
+      .select('*')
+      .eq('user_id', userId.value)
+      .eq('book_id', bookId)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+    if (error) {
+      toast.error('Failed to load reading history.')
+      return []
+    }
+    return (data || []).map((r) => ({
+      id: r.id,
+      bookId: r.book_id,
+      date: r.date,
+      pagesRead: r.pages_read,
+      fromPage: r.from_page,
+      toPage: r.to_page,
+      minutes: r.minutes,
+      notes: r.notes,
+      createdAt: r.created_at,
+    }))
+  }
+
+  const logProgress = async (bookId, { pagesRead, fromPage, toPage, minutes, notes, languageColor }) => {
+    if (!userId.value) return { error: 'Not signed in' }
+
+    const book = savedBooks.value.find((b) => b.id === bookId)
+    if (!book) return { error: 'Book not found' }
+
+    const totalPages = book.record?.totalPages
+    if (!totalPages || totalPages <= 0) {
+      return { error: 'Set a total page count before logging progress.' }
+    }
+
+    const oldPage = book.record?.currentPage ?? 0
+    const newPage = Math.min(totalPages, oldPage + Math.max(1, Math.round(Number(pagesRead) || 0)))
+    const actualPagesRead = newPage - oldPage
+    if (actualPagesRead <= 0) {
+      return { error: 'You are already at or past the last page.' }
+    }
+
+    const today = new Date().toISOString().slice(0, 10)
+    const { error: progressErr } = await supabase.from('reading_progress').insert({
+      user_id: userId.value,
+      book_id: bookId,
+      date: today,
+      pages_read: actualPagesRead,
+      from_page: fromPage ?? null,
+      to_page: toPage ?? null,
+      minutes: minutes ? Math.max(0, Math.round(Number(minutes))) : null,
+      notes: notes?.trim() || null,
+    })
+    if (progressErr) {
+      toast.error('Failed to log pages. Please try again.')
+      return { error: progressErr.message }
+    }
+
+    const isFinished = newPage >= totalPages
+    const recordUpdates = {
+      currentPage: newPage,
+      status: isFinished ? 'read' : book.record?.status === 'want_to_read' ? 'reading' : book.record?.status,
+      startedAt: book.record?.startedAt || (isFinished || newPage > 0 ? today : null),
+      finishedAt: isFinished ? (book.record?.finishedAt || today) : book.record?.finishedAt,
+    }
+
+    const { error: recErr } = await supabase
+      .from('reading_records')
+      .update({
+        ...recordToSnake({ ...book.record, ...recordUpdates }),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('book_id', bookId)
+      .eq('user_id', userId.value)
+    if (recErr) {
+      toast.error('Failed to update book progress.')
+      return { error: recErr.message }
+    }
+
+    try {
+      await supabase.rpc('check_reading_milestone', {
+        p_user_id: userId.value,
+        p_book_id: bookId,
+        p_old_page: oldPage,
+        p_new_page: newPage,
+        p_total_pages: totalPages,
+        p_book_title: book.title,
+        p_language_name: book.record?.targetLanguage ? nameForCode(book.record.targetLanguage) : book.title,
+        p_language_color: languageColor || null,
+      })
+    } catch (e) {
+      // Milestone celebrations are best-effort; don't block the log flow.
+    }
+
+    const mergedRecord = { ...book.record, ...recordUpdates }
+    savedBooks.value = savedBooks.value.map((b) =>
+      b.id === bookId ? { ...b, record: mergedRecord } : b
+    )
+    persist()
+    toast.success(`${actualPagesRead} page${actualPagesRead === 1 ? '' : 's'} logged.`)
+    return { book: { ...book, record: mergedRecord }, pagesRead: actualPagesRead }
+  }
+
+  const updateTotalPages = async (bookId, totalPages) => {
+    if (!userId.value) return
+    const current = savedBooks.value.find((b) => b.id === bookId)
+    if (!current) return
+
+    const value = totalPages ? Math.max(1, Math.round(Number(totalPages))) : null
+    const { error } = await supabase
+      .from('reading_records')
+      .update({ total_pages: value, updated_at: new Date().toISOString() })
+      .eq('book_id', bookId)
+      .eq('user_id', userId.value)
+    if (error) {
+      toast.error('Failed to update page count.')
+      return
+    }
+    savedBooks.value = savedBooks.value.map((b) =>
+      b.id === bookId ? { ...b, record: { ...b.record, totalPages: value } } : b
+    )
+    persist()
+  }
+
   return {
     savedBooks,
     loaded,
@@ -237,5 +374,8 @@ export function useBooks() {
     updateRecord,
     removeBook,
     retryLoad,
+    loadProgress,
+    logProgress,
+    updateTotalPages,
   }
 }

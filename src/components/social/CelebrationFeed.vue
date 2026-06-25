@@ -60,11 +60,12 @@
           >
             <div
               class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-              :class="item.kind === 'new_language'
+              :class="item.kind === 'new_language' || item.kind === 'reading_milestone'
                 ? 'bg-garden-50 text-garden-600'
                 : item.isSelf ? 'bg-stone-100 text-stone-500' : 'bg-garden-50 text-garden-700'"
             >
               <Sprout v-if="item.kind === 'new_language'" :size="16" />
+              <BookOpen v-else-if="item.kind === 'reading_milestone'" :size="16" />
               <span v-else class="font-display font-bold text-sm">{{ item.actorName[0].toUpperCase() }}</span>
             </div>
             <div class="min-w-0 flex-1">
@@ -85,6 +86,12 @@
                     <span class="w-2 h-2 rounded-full inline-block" :style="{ backgroundColor: item.language_color || '#9ca3af' }"></span>
                     <span class="font-medium">{{ item.language_name || 'a language' }}</span>
                   </span>
+                </template>
+
+                <template v-else-if="item.kind === 'reading_milestone'">
+                  reached the <span class="font-medium text-garden-600">{{ item.details?.milestone }}%</span> mark of
+                  <span class="font-medium">{{ item.details?.book_title || 'a book' }}</span>
+                  <span class="text-stone-400">· page {{ item.details?.pages_read }} of {{ item.details?.total_pages }}</span>
                 </template>
 
                 <template v-else-if="item.kind === 'bloom'">
@@ -167,7 +174,7 @@
 
 <script setup>
 import { computed, inject, ref } from 'vue'
-import { Sprout, MessageCircle, Trash2, Flower2 } from 'lucide-vue-next'
+import { Sprout, MessageCircle, Trash2, Flower2, BookOpen } from 'lucide-vue-next'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import CircleReport from './CircleReport.vue'
 import ReactionBar from './ReactionBar.vue'

@@ -20,6 +20,7 @@ describe('normalizeVolume', () => {
       coverUrl: 'https://books.google.com/cover.jpg',
       description: 'A pilot stranded in the desert.',
       languageCode: 'fr',
+      pageCount: null,
     })
   })
 
@@ -37,6 +38,7 @@ describe('normalizeVolume', () => {
       coverUrl: null,
       description: null,
       languageCode: 'es',
+      pageCount: null,
     })
   })
 

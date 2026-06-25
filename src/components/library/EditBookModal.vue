@@ -61,6 +61,18 @@
           </div>
         </div>
 
+        <!-- Progress -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-stone-600 mb-1.5">Current page</label>
+            <input v-model.number="form.currentPage" type="number" min="0" :max="form.totalPages" class="gp-input tabular-nums" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-stone-600 mb-1.5">Total pages</label>
+            <input v-model.number="form.totalPages" type="number" min="1" class="gp-input tabular-nums" />
+          </div>
+        </div>
+
         <!-- Dates -->
         <div class="grid grid-cols-2 gap-4">
           <div>
@@ -115,6 +127,8 @@ const form = ref({
   notes: '',
   startedAt: '',
   finishedAt: '',
+  currentPage: 0,
+  totalPages: null,
 })
 
 watch(
@@ -129,6 +143,8 @@ watch(
         notes: r.notes || '',
         startedAt: r.startedAt || '',
         finishedAt: r.finishedAt || '',
+        currentPage: r.currentPage ?? 0,
+        totalPages: r.totalPages || null,
       }
     }
   }
@@ -145,6 +161,8 @@ function save() {
       notes: form.value.notes.trim() || null,
       startedAt: form.value.startedAt || null,
       finishedAt: form.value.finishedAt || null,
+      currentPage: form.value.currentPage ?? null,
+      totalPages: form.value.totalPages || null,
     },
   })
 }

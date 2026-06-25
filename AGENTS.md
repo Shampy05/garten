@@ -28,7 +28,7 @@ All data operations go through the `useStorage` composable which maps between JS
 
 The Reading Library (Library tab) persists through its own `useBooks` composable, not `useStorage` — two per-user tables joined 1:1 in memory under each book's `.record`:
 - `books`: { id, externalId, title, author, coverUrl, description, languageCode } — saved external-book metadata; `external_id` is unique per user (re-saving updates, never duplicates).
-- `reading_records`: { book_id, target_language, status, rating, difficulty, notes, saved_at, started_at, finished_at } — the user's reading data, PK `(user_id, book_id)`, FK → `books`. See the Reading Library section.
+- `reading_records`: { book_id, target_language, status, rating, difficulty, notes, saved_at, started_at, finished_at, current_page, total_pages } — the user's reading data, PK `(user_id, book_id)`, FK → `books`. See the Reading Library section.
 
 ## Data Caching
 
@@ -121,7 +121,7 @@ Social tables (all scoped to self + accepted friends via RLS or SECURITY DEFINER
 - `profiles`, `friendships` — handle and friend relationships.
 - `circle_commitments` — weekly public language commitment per user.
 - `focus_sessions` — timed focus sessions with real-time presence; completed sessions auto-log an `entries` row.
-- `activity_events` — celebration feed only (`milestone`, `bloom`, `commitment_progress`, `circle_report`, `new_language`). Per-session and summary dispatches were removed. `new_language` (migration `20260620000000`) fires the first time a gardener ever logs a session in a language ("planted a new language"), deduped to once per (gardener, language) via a partial unique index — a rare, meaningful crossing rather than per-session noise.
+- `activity_events` — celebration feed only (`milestone`, `bloom`, `commitment_progress`, `circle_report`, `new_language`, `reading_milestone`). Per-session and summary dispatches were removed. `new_language` (migration `20260620000000`) fires the first time a gardener ever logs a session in a language ("planted a new language"), deduped to once per (gardener, language) via a partial unique index — a rare, meaningful crossing rather than per-session noise. `reading_milestone` (migration `20260625000000`) fires when a reader crosses 25/50/75/100% of a book.
 - `event_reactions`, `event_comments`, `waters` — reactions, notes, and daily "water" taps attached to celebration events.
 - `nudges` — `cheer` / `nudge` (against a commitment) or `invite` (against a `focus_session_id`); shown in the notifications bell.
 
@@ -148,9 +148,10 @@ The Library tab is the third top-level view (alongside My Garden and Friends) fo
 
 **Top-level navigation** (`App.vue`): the former `socialMode` boolean became a `navView` string (`'garden' | 'library' | 'friends'`), persisted under `garten:viewMode` (migrates the old `garten:socialMode` boolean on first load). It is named `navView` specifically to avoid colliding with `useTimeframe`'s heatmap `viewMode`. The header segmented control now has three buttons (Sprout / BookOpen / Users).
 
-**Two tables** (migrations `20260624000000_reading_library.sql` and, for existing deployments, `20260624232905_add_book_rating.sql`), per-user with the same RLS shape as the rest of the app (`for all to authenticated using (auth.uid() = user_id)`):
+**Tables** (migrations `20260624000000_reading_library.sql`, `20260624232905_add_book_rating.sql`, and `20260625000000_reading_progress.sql`), per-user with the same RLS shape as the rest of the app (`for all to authenticated using (auth.uid() = user_id)`):
 - `books` — externally-sourced metadata snapshot of each saved book: PK `(user_id, id)`, plus `external_id`, `title`, `author`, `cover_url`, `description`, `language_code`. `UNIQUE (user_id, external_id)` enforces the no-duplicate-on-resave rule. `language_code` is constrained by a CHECK to the curated ISO 639-1 set — **keep that list in sync with `src/lib/bookLanguages.js`** (mirrors how `chk_entry_type` pairs with `types.js`).
-- `reading_records` — the user's reading data, strictly 1:1 with a book: PK `(user_id, book_id)` (which alone enforces "one book → one reading record"), FK `(user_id, book_id) → books` `on delete cascade` (a reading record can't exist without a book; removing a book removes its record). `status` CHECK in `want_to_read | reading | read`; `rating` (nullable) CHECK in 0–5 with 0.5 steps; `difficulty` (nullable) CHECK in `beginner | intermediate | advanced`; plus `target_language` (ISO 639-1), `notes`, `saved_at`/`started_at`/`finished_at`.
+- `reading_records` — the user's reading data, strictly 1:1 with a book: PK `(user_id, book_id)` (which alone enforces "one book → one reading record"), FK `(user_id, book_id) → books` `on delete cascade` (a reading record can't exist without a book; removing a book removes its record). `status` CHECK in `want_to_read | reading | read`; `rating` (nullable) CHECK in 0–5 with 0.5 steps; `difficulty` (nullable) CHECK in `beginner | intermediate | advanced`; plus `target_language` (ISO 639-1), `notes`, `saved_at`/`started_at`/`finished_at`, `current_page`, `total_pages`.
+- `reading_progress` — per-user history of page-logging sessions: PK `(user_id, id)`, FK `(user_id, book_id) → books` on delete cascade, `date`, `pages_read`, optional `from_page`/`to_page`, optional `minutes`, optional `notes`.
 
 **Data flow** (`useBooks.js`) mirrors `useStorage.js`: per-user reads scoped by `user_id`, optimistic in-memory updates, `toast.error` on failure. It joins `books` + `reading_records` in memory into one `savedBooks` array where the reading fields live under each book's `.record`. Cache namespace gotcha: `cache.js` keys everything as `garten_data_<x>`, and `useStorage` owns `garten_data_<uid>`, so `useBooks` passes `books_<uid>` to land on `garten_data_books_<uid>` and avoid clobbering it. `saveBook` dedups like `addLanguage` — if the `externalId` is already saved it reuses the stable `id` so the `reading_records` PK updates rather than inserting a duplicate.
 
@@ -163,11 +164,14 @@ The Library tab is the third top-level view (alongside My Garden and Friends) fo
 - `useBookSearch.js` holds debounced (350 ms), request-token-guarded search state (so a slow earlier search can't overwrite a newer one).
 
 **Components** (`src/components/library/`, all in the Garden Journal design system — `gp-*` classes, Teleport modals, `ConfirmDialog`, `useToast`, no emojis in data displays):
-- `LibraryView` — root; owns the composables and the Find books / My library sub-toggle, plus the Save/Edit/Remove modal state.
+- `LibraryView` — root; owns the composables and the Find books / My library sub-toggle, plus the Save/Edit/Remove/Log-pages modal state.
 - `BookSearch` + `BookResultCard` — language `<select>` scoped to the user's tracked Garten languages (defaults to one via `codeForName`) + title/author box + results grid. Save is disabled with an "Unsupported language" note when a result's language is outside the curated set (OL "All languages" can return those; the DB CHECK would reject them).
-- `SaveBookModal` / `EditBookModal` — status + rating (`StarRating`, 0.5-step 5 stars) + difficulty pills, notes, started/finished dates.
-- `SavedBooksList` + `SavedBookCard` — FR9 language + status chip filters; edit/remove controls; rating displayed as read-only stars.
+- `SaveBookModal` / `EditBookModal` — status + rating (`StarRating`, 0.5-step 5 stars) + difficulty pills, notes, started/finished dates, total pages (page count is auto-detected from Google/Open Library metadata when available).
+- `SavedBooksList` + `SavedBookCard` — FR9 language + status chip filters; edit/remove controls; rating displayed as read-only stars; animated `ProgressRing`; one-tap "Log pages" CTA for reading books.
+- `LogPagesModal` + `ProgressRing` — premium page-logging flow: quick-add chips, from/to page range, optional minutes, optional notes, pace + finish prediction, and an optional "log as reading session" toggle that writes a Garten `entries` row.
 - `ReadingSummary` — FR12 per-language status counts (`summaryByLanguage` in `src/lib/readingStats.js`), one thin read/reading/want bar per language.
+
+**Page tracking flow**: `useBooks.logProgress(bookId, { pagesRead, fromPage, toPage, minutes, notes, languageColor })` inserts a `reading_progress` row, updates `reading_records.current_page`, auto-advances `status` from `want_to_read` → `reading` and to `read` when the last page is reached, and calls the SECURITY DEFINER RPC `check_reading_milestone(...)` so 25/50/75/100% book milestones appear as `reading_milestone` celebrations in the Garden Circle feed. `src/lib/readingProgress.js` holds the pure analytics (weighted pace, streak, predicted finish).
 
 **Reference data**: `src/lib/bookLanguages.js` is the single source of truth for the curated ISO 639-1 reading languages (`BOOK_LANGUAGES`, `nameForCode`, `codeForName`, `isValidCode`, `CODE_SET`) — the existing `languages.js` is names-only. The migration's `language_code` / `target_language` CHECK lists must stay in sync with it.
 

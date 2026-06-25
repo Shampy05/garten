@@ -28,6 +28,7 @@ export function normalizeVolume(v) {
     coverUrl: httpsify(info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail ?? null),
     description: info.description ?? null,
     languageCode: info.language ?? null,
+    pageCount: info.pageCount ?? null,
   }
 }
 
@@ -59,7 +60,7 @@ function buildUrl({ query, languageCode }) {
     printType: 'books',
     // Drop incomplete records that have no usable metadata. industryIdentifiers
     // is requested so hasIsbn() can filter out scanned/public-domain documents.
-    fields: 'items(id,volumeInfo(title,authors,description,language,industryIdentifiers,imageLinks/thumbnail,imageLinks/smallThumbnail))',
+    fields: 'items(id,volumeInfo(title,authors,description,language,pageCount,industryIdentifiers,imageLinks/thumbnail,imageLinks/smallThumbnail))',
   })
   if (languageCode) params.set('langRestrict', languageCode)
   if (API_KEY) params.set('key', API_KEY)

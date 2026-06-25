@@ -64,11 +64,20 @@
         </div>
 
         <!-- Start date -->
-        <div>
-          <label class="block text-xs font-semibold text-stone-600 mb-1.5">Started</label>
-          <input v-model="startedAt" type="date" class="gp-input" />
-          <p class="text-[11px] text-stone-400 mt-1.5">Defaults to today. Change it if you began reading earlier.</p>
-        </div>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-semibold text-stone-600 mb-1.5">Total pages</label>
+        <input v-model.number="totalPages" type="number" min="1" placeholder="e.g. 320" class="gp-input tabular-nums" />
+        <p v-if="book?.pageCount && !totalPages" class="text-[11px] text-stone-400 mt-1.5">
+          Detected {{ book.pageCount }} pages — fill in to enable progress tracking.
+        </p>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-stone-600 mb-1.5">Started</label>
+        <input v-model="startedAt" type="date" class="gp-input" />
+      </div>
+    </div>
+    <p class="text-[11px] text-stone-400 -mt-3">Defaults to today. Change it if you began reading earlier.</p>
 
         <!-- Notes -->
         <div>
@@ -114,6 +123,7 @@ const rating = ref(null)
 const difficulty = ref(null)
 const notes = ref('')
 const startedAt = ref(todayStr())
+const totalPages = ref(null)
 
 watch(
   () => props.visible,
@@ -124,6 +134,7 @@ watch(
       difficulty.value = null
       notes.value = ''
       startedAt.value = todayStr()
+      totalPages.value = props.book?.pageCount || null
     }
   }
 )
@@ -143,6 +154,8 @@ function save() {
       difficulty: difficulty.value,
       notes: notes.value.trim() || null,
       startedAt: startedAt.value || null,
+      totalPages: totalPages.value || null,
+      currentPage: 0,
     },
   })
 }

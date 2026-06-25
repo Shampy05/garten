@@ -65,6 +65,7 @@ export function normalizeDoc(doc, requestedCode = null) {
     coverUrl: coverUrl(doc?.cover_i),
     description: firstSentence(doc?.first_sentence),
     languageCode: languageCode ?? null,
+    pageCount: doc?.number_of_pages_median ?? doc?.number_of_pages ?? null,
   }
 }
 
@@ -72,7 +73,7 @@ function buildUrl({ query, languageCode }) {
   const params = new URLSearchParams({
     q: query,
     limit: '20',
-    fields: 'key,title,author_name,cover_i,first_sentence,language,isbn',
+    fields: 'key,title,author_name,cover_i,first_sentence,language,isbn,number_of_pages_median',
   })
   const ol = languageCode ? ISO1_TO_OL[languageCode] : null
   if (ol) params.set('language', ol)

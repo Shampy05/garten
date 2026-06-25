@@ -51,8 +51,10 @@
         v-for="book in filtered"
         :key="book.id"
         :book="book"
+        :language-color="languageColors[book.languageCode]"
         @edit="$emit('edit', $event)"
         @remove="$emit('remove', $event)"
+        @log="$emit('log', $event)"
       />
     </div>
 
@@ -78,9 +80,10 @@ import SavedBookCard from './SavedBookCard.vue'
 
 const props = defineProps({
   savedBooks: { type: Array, default: () => [] },
+  languageColors: { type: Object, default: () => ({}) },
 })
 
-defineEmits(['edit', 'remove'])
+defineEmits(['edit', 'remove', 'log'])
 
 const languageFilter = ref(null)
 const statusFilter = ref(null)

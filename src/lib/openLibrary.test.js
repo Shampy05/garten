@@ -18,6 +18,7 @@ describe('normalizeDoc', () => {
       coverUrl: 'https://covers.openlibrary.org/b/id/12345-M.jpg',
       description: 'Once when I was six years old…',
       languageCode: 'fr',
+      pageCount: null,
     })
   })
 
