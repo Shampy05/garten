@@ -87,12 +87,12 @@
 
       <!-- Established circle: one tabbed panel instead of a stack of full cards -->
       <div v-else>
-        <div class="inline-flex items-center gap-1 p-1 rounded-xl bg-stone-100/80 border border-line mb-4">
+        <div class="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-stone-100/80 border border-line mb-4">
           <button
             v-for="t in tabs"
             :key="t.key"
             @click="activeTab = t.key"
-            class="px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all"
+            class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap"
             :class="activeTab === t.key ? 'bg-white text-garden-700 shadow-pill' : 'text-stone-500 hover:text-stone-700'"
           >
             {{ t.label }}

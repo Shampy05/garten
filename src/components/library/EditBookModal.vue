@@ -73,15 +73,34 @@
           </div>
         </div>
 
-        <!-- Dates -->
+        <!-- Dates: started is editable; finished is derived from status -->
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-semibold text-stone-600 mb-1.5">Started</label>
-            <input v-model="form.startedAt" type="date" class="gp-input" />
+            <input v-model="form.startedAt" type="date" class="gp-input w-full" />
           </div>
-          <div>
-            <label class="block text-xs font-semibold text-stone-600 mb-1.5">Finished</label>
-            <input v-model="form.finishedAt" type="date" class="gp-input" />
+          <div class="flex flex-col justify-end">
+            <button
+              v-if="form.status === 'reading'"
+              type="button"
+              @click="finishNow"
+              class="w-full py-2 px-3 rounded-lg text-sm font-medium text-garden-700 bg-garden-50 border border-garden-200 hover:bg-garden-100 hover:border-garden-300 transition-colors active:scale-95"
+            >
+              Mark as read
+            </button>
+            <div
+              v-else-if="form.status === 'read'"
+              class="w-full py-2 px-3 rounded-lg text-sm font-medium text-garden-700 bg-garden-100 border border-garden-200 flex items-center justify-center gap-1.5"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-garden-500"></span>
+              Finished
+            </div>
+            <div
+              v-else
+              class="w-full py-2 px-3 rounded-lg text-sm text-stone-400 bg-stone-50 border border-line flex items-center justify-center"
+            >
+              Not started
+            </div>
           </div>
         </div>
 
@@ -153,9 +172,22 @@ watch(
 watch(
   () => form.value.status,
   (s) => {
-    if (s !== 'read') form.value.rating = null
+    if (s !== 'read') {
+      form.value.rating = null
+      form.value.finishedAt = ''
+      return
+    }
+    const today = new Date().toISOString().slice(0, 10)
+    if (!form.value.finishedAt) form.value.finishedAt = today
+    if (form.value.totalPages && (form.value.currentPage || 0) < form.value.totalPages) {
+      form.value.currentPage = form.value.totalPages
+    }
   }
 )
+
+function finishNow() {
+  form.value.status = 'read'
+}
 
 function save() {
   if (!form.value.status) return
