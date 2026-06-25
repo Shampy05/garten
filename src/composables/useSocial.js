@@ -45,6 +45,8 @@ export function useSocial() {
   const buddyPacts = ref([])
   const pendingBuddyPacts = ref([])
   const outgoingBuddyPacts = ref([])
+  // Books friends are reading (returned by circle_books RPC).
+  const friendBooks = ref([])
 
   let feedChannel = null
   let reactionsChannel = null
@@ -285,6 +287,27 @@ export function useSocial() {
     buddyPacts.value = rows.filter((p) => p.status === 'accepted')
     pendingBuddyPacts.value = rows.filter((p) => p.status === 'pending' && p.proposer_id !== me)
     outgoingBuddyPacts.value = rows.filter((p) => p.status === 'pending' && p.proposer_id === me)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Friends' books
+  // ---------------------------------------------------------------------------
+
+  async function loadFriendBooks() {
+    if (!profile.value) return
+    const { data, error } = await supabase.rpc('circle_books')
+    if (error) {
+      friendBooks.value = []
+      return
+    }
+    friendBooks.value = (data || []).map((b) => ({
+      ...b,
+      progressPct: b.total_pages
+        ? Math.min(100, Math.round(((b.current_page || 0) / b.total_pages) * 100))
+        : 0,
+      pagesLeft: Math.max(0, (b.total_pages || 0) - (b.current_page || 0)),
+      friendName: b.display_name || b.username || 'A gardener'
+    }))
   }
 
   async function proposeBuddyPact(friendId, language, targetMinutes) {
@@ -1073,7 +1096,8 @@ export function useSocial() {
         loadLeaderboard(),
         loadNudgesReceived(),
         loadCommitmentStreaks(),
-        loadBuddyPacts()
+        loadBuddyPacts(),
+        loadFriendBooks()
       ])
       await Promise.all([loadFeedReactions(), ensureCircleReport(), expireFocusSessions()])
       subscribeFeed()
@@ -1115,7 +1139,8 @@ export function useSocial() {
       loadLeaderboard(),
       loadNudgesReceived(),
       loadCommitmentStreaks(),
-      loadBuddyPacts()
+      loadBuddyPacts(),
+      loadFriendBooks()
     ])
     loadFeedReactions()
     ensureCircleReport()
@@ -1289,6 +1314,7 @@ export function useSocial() {
     buddyPacts,
     pendingBuddyPacts,
     outgoingBuddyPacts,
+    friendBooks,
     nudgesReceived,
     recentCommentsOnMine,
     notificationCount,
@@ -1329,6 +1355,7 @@ export function useSocial() {
     acceptBuddyPact,
     declineBuddyPact,
     endBuddyPact,
+    loadFriendBooks,
     loadFocusSessions,
     startFocusSession,
     joinFocusSession,

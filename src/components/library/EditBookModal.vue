@@ -36,8 +36,8 @@
           </div>
         </div>
 
-        <!-- Rating -->
-        <div>
+        <!-- Rating: only meaningful once the book is finished -->
+        <div v-if="form.status === 'read'">
           <label class="block text-xs font-semibold text-stone-600 mb-2">
             Rating <span class="text-stone-400 font-normal">(optional)</span>
           </label>
@@ -147,6 +147,13 @@ watch(
         totalPages: r.totalPages || null,
       }
     }
+  }
+)
+
+watch(
+  () => form.value.status,
+  (s) => {
+    if (s !== 'read') form.value.rating = null
   }
 )
 

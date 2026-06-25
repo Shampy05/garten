@@ -102,6 +102,12 @@
         <div :key="activeTab" class="animate-fade-up">
           <CircleLeaderboard v-if="activeTab === 'leaderboard'" />
 
+          <CircleBooks
+            v-else-if="activeTab === 'books'"
+            :friend-books="friendBooks"
+            :friends="friends"
+          />
+
           <div v-else-if="activeTab === 'commitments'" class="space-y-6">
             <GrowBuddiesPanel
               @propose="showBuddyModal = true"
@@ -167,6 +173,7 @@ import CelebrationFeed from './CelebrationFeed.vue'
 import BuddyInbox from './BuddyInbox.vue'
 import GrowBuddiesPanel from './GrowBuddiesPanel.vue'
 import ProposeBuddyModal from './ProposeBuddyModal.vue'
+import CircleBooks from './CircleBooks.vue'
 
 const props = defineProps({
   languages: { type: Array, default: () => [] },
@@ -174,7 +181,7 @@ const props = defineProps({
 })
 
 const social = inject('social')
-const { profile, profileLoaded, selectedEvent, commitments, friends, focusingNow, circleWeekMinutes } = social
+const { profile, profileLoaded, selectedEvent, commitments, friends, focusingNow, circleWeekMinutes, friendBooks } = social
 
 const showCommitmentModal = ref(false)
 const editingCommitment = ref(null)
@@ -185,6 +192,7 @@ const availableLanguages = computed(() => props.languages)
 const activeTab = ref('leaderboard')
 const tabs = [
   { key: 'leaderboard', label: 'Leaderboard' },
+  { key: 'books', label: 'Books' },
   { key: 'commitments', label: 'Commitments' },
   { key: 'celebrations', label: 'Celebrations' }
 ]

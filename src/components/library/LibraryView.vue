@@ -135,13 +135,7 @@ const languageColorMap = computed(() => {
 
 const savedIds = computed(() => savedBooks.value.map((b) => b.externalId))
 
-const defaultLanguageCode = computed(() => {
-  for (const lang of props.languages) {
-    const code = codeForName(lang.name)
-    if (code) return code
-  }
-  return null
-})
+const defaultLanguageCode = computed(() => null)
 
 // Save flow
 const saveTarget = ref(null)
@@ -168,18 +162,22 @@ async function handleEdit({ bookId, updates }) {
 }
 
 // Log progress flow
-const logTarget = ref(null)
+const logTargetId = ref(null)
 const showLogModal = ref(false)
+const logTarget = computed(() =>
+  savedBooks.value.find((b) => b.id === logTargetId.value) || null
+)
 const logTargetLanguageColor = computed(() => {
   if (!logTarget.value?.languageCode) return null
   return languageColorMap.value[logTarget.value.languageCode]
 })
 function openLogModal(book) {
-  logTarget.value = book
+  logTargetId.value = book.id
   showLogModal.value = true
 }
 async function handleLogged({ book, minutes, logSession }) {
   showLogModal.value = false
+  logTargetId.value = null
   if (!logSession || !minutes || minutes <= 0) return
   const lang = storageData.value.languages.find((l) => codeForName(l.name) === book.languageCode)
   if (!lang) return

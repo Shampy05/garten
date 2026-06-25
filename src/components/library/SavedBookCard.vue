@@ -81,13 +81,29 @@
           :end-color="languageColor ? darken(languageColor) : '#15803d'"
           :show-pages="false"
         />
-        <button
-          v-if="canLog"
-          @click="$emit('log', book)"
-          class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-garden-700 bg-garden-50 border border-garden-200 hover:bg-garden-100 hover:border-garden-300 transition-colors active:scale-95"
-        >
-          <BookPlus :size="12" /> Log pages
-        </button>
+        <div class="flex items-center gap-1.5 flex-shrink-0">
+          <button
+            v-if="canLog"
+            @click="$emit('log', book)"
+            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-garden-700 bg-garden-50 border border-garden-200 hover:bg-garden-100 hover:border-garden-300 transition-colors active:scale-95"
+          >
+            <BookPlus :size="12" /> Log
+          </button>
+          <button
+            @click="$emit('edit', book)"
+            class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-stone-500 bg-white border border-line hover:border-garden-400 hover:text-garden-700 hover:shadow-pill transition-all active:scale-95"
+            title="Edit book"
+          >
+            <Pencil :size="14" />
+          </button>
+          <button
+            @click="$emit('remove', book)"
+            class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-colors"
+            title="Remove book"
+          >
+            <Trash2 :size="15" />
+          </button>
+        </div>
       </div>
 
       <div v-if="book.record?.rating != null" class="mt-2">

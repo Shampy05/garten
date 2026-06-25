@@ -36,8 +36,8 @@
           </div>
         </div>
 
-        <!-- Rating -->
-        <div>
+        <!-- Rating: only meaningful once the book is finished -->
+        <div v-if="status === 'read'">
           <label class="block text-xs font-semibold text-stone-600 mb-2">
             Rating <span class="text-stone-400 font-normal">(optional)</span>
           </label>
@@ -138,6 +138,10 @@ watch(
     }
   }
 )
+
+watch(status, (s) => {
+  if (s !== 'read') rating.value = null
+})
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
