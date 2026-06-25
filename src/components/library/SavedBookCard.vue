@@ -35,7 +35,7 @@
             <button
               v-if="canLog"
               @click="$emit('log', book)"
-              class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-white bg-gradient-to-b from-garden-500 to-garden-600 shadow-pill hover:shadow-card-hover transition-all active:scale-95"
+              class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-garden-700 bg-garden-50 border border-garden-200 hover:bg-garden-100 hover:border-garden-300 transition-colors active:scale-95"
               title="Log pages"
             >
               <BookPlus :size="12" /> Log
@@ -84,7 +84,7 @@
         <button
           v-if="canLog"
           @click="$emit('log', book)"
-          class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-gradient-to-b from-garden-500 to-garden-600 shadow-pill hover:shadow-card-hover transition-all active:scale-95"
+          class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-garden-700 bg-garden-50 border border-garden-200 hover:bg-garden-100 hover:border-garden-300 transition-colors active:scale-95"
         >
           <BookPlus :size="12" /> Log pages
         </button>
