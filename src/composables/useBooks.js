@@ -5,13 +5,23 @@ import { useToast } from './useToast.js'
 import { useAuth } from './useAuth.js'
 import { nameForCode } from '../lib/bookLanguages.js'
 
-// Saved books + their 1:1 reading records. Mirrors useStorage.js: per-user
-// Supabase reads scoped by user_id, a 30s localStorage cache, optimistic
-// in-memory updates, and toast on failure.
+// Saved books + their 1:1 reading records. Shared module-level state so every
+// consumer of useBooks() reads the same source of truth. This matters because
+// both LibraryView and LogPagesModal call useBooks(); without shared state, a
+// page log would update one instance's in-memory list while the displayed cards
+// read a stale instance.
+//
+// The pattern mirrors useAuth(): per-user Supabase reads scoped by user_id,
+// a 30s localStorage cache, optimistic in-memory updates, and toast on failure.
 //
 // Cache namespace: cache.js keys everything as `garten_data_<x>`. useStorage
 // owns `garten_data_<uid>`, so this composable passes `books_<uid>` to land on
 // a separate `garten_data_books_<uid>` entry and avoid clobbering it.
+
+const savedBooks = ref([])
+const loaded = ref(false)
+const loadError = ref(false)
+let initialized = false
 
 function cacheKey(userId) {
   return `books_${userId}`
@@ -74,9 +84,6 @@ function joinToCamel(bookRow, recordRow) {
 }
 
 export function useBooks() {
-  const savedBooks = ref([])
-  const loaded = ref(false)
-  const loadError = ref(false)
   const { userId } = useAuth()
   const toast = useToast()
 
@@ -117,18 +124,21 @@ export function useBooks() {
     }
   }
 
-  watch(
-    userId,
-    (id) => {
-      if (id) {
-        loadBooks()
-      } else {
-        savedBooks.value = []
-        loaded.value = false
-      }
-    },
-    { immediate: true }
-  )
+  if (!initialized) {
+    initialized = true
+    watch(
+      userId,
+      (id) => {
+        if (id) {
+          loadBooks()
+        } else {
+          savedBooks.value = []
+          loaded.value = false
+        }
+      },
+      { immediate: true }
+    )
+  }
 
   const findByExternalId = (externalId) =>
     savedBooks.value.find((b) => b.externalId === externalId)
