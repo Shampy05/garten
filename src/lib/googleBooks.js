@@ -39,13 +39,27 @@ export function filterByLanguage(books, languageCode) {
   return books.filter((b) => b.languageCode === languageCode)
 }
 
+// A real published book carries an ISBN-10 or ISBN-13. Google's results are
+// padded with scanned periodicals and public-domain documents (old Reichstag
+// reports, encyclopedias, journals) whose only identifier is Google's internal
+// "OTHER" id — these are the obscure, often mojibake-laden entries. Requiring an
+// ISBN keeps clean, cataloged editions and drops the scans. Operates on the raw
+// Google volume (before normalisation) since identifiers aren't part of the
+// stored shape.
+export function hasIsbn(volume) {
+  const ids = volume?.volumeInfo?.industryIdentifiers
+  if (!Array.isArray(ids)) return false
+  return ids.some((i) => i?.type === 'ISBN_13' || i?.type === 'ISBN_10')
+}
+
 function buildUrl({ query, languageCode }) {
   const params = new URLSearchParams({
     q: query,
     maxResults: '20',
     printType: 'books',
-    // Drop incomplete records that have no usable metadata.
-    fields: 'items(id,volumeInfo(title,authors,description,language,imageLinks/thumbnail,imageLinks/smallThumbnail))',
+    // Drop incomplete records that have no usable metadata. industryIdentifiers
+    // is requested so hasIsbn() can filter out scanned/public-domain documents.
+    fields: 'items(id,volumeInfo(title,authors,description,language,industryIdentifiers,imageLinks/thumbnail,imageLinks/smallThumbnail))',
   })
   if (languageCode) params.set('langRestrict', languageCode)
   if (API_KEY) params.set('key', API_KEY)
@@ -66,6 +80,8 @@ export async function searchGoogleBooks({ query, languageCode = null } = {}) {
   }
   const data = await res.json()
   const items = Array.isArray(data.items) ? data.items : []
-  const normalized = items.map(normalizeVolume).filter((b) => b.externalId)
+  // ISBN gate first (raw volumes carry the identifiers), then normalise + the
+  // strict language filter.
+  const normalized = items.filter(hasIsbn).map(normalizeVolume).filter((b) => b.externalId)
   return filterByLanguage(normalized, languageCode)
 }
