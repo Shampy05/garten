@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeDoc } from './openLibrary.js'
+import { normalizeDoc, hasIsbn } from './openLibrary.js'
 
 describe('normalizeDoc', () => {
   it('maps a doc and adopts the requested language code', () => {
@@ -44,5 +44,19 @@ describe('normalizeDoc', () => {
       description: null,
       languageCode: 'es',
     })
+  })
+})
+
+describe('hasIsbn (quality gate)', () => {
+  it('keeps a doc with at least one ISBN', () => {
+    expect(hasIsbn({ key: '/works/x', isbn: ['9783518467282'] })).toBe(true)
+  })
+
+  it('drops a doc with no isbn array (scanned/public-domain)', () => {
+    expect(hasIsbn({ key: '/works/y', title: 'Reichstag report' })).toBe(false)
+  })
+
+  it('drops a doc with an empty isbn array', () => {
+    expect(hasIsbn({ key: '/works/z', isbn: [] })).toBe(false)
   })
 })

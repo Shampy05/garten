@@ -1,8 +1,9 @@
 <template>
   <Teleport to="body">
-    <div v-if="visible" class="fixed inset-0 z-50 flex items-start justify-center pt-12 sm:pt-24 px-4">
-      <div class="absolute inset-0 bg-stone-900/25 backdrop-blur-sm animate-fade-up" @click="$emit('close')"></div>
-      <div class="relative gp-card shadow-hero w-full max-w-md z-10 p-5 sm:p-6 space-y-5 animate-grow-in">
+    <div v-if="visible" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="fixed inset-0 bg-stone-900/25 backdrop-blur-sm animate-fade-up" @click="$emit('close')"></div>
+      <div class="relative min-h-full flex items-start sm:items-center justify-center p-4 sm:py-12" @click.self="$emit('close')">
+      <div class="relative gp-card shadow-hero w-full max-w-md p-5 sm:p-6 space-y-5 animate-grow-in">
         <!-- Book header -->
         <div class="flex items-start gap-4 pb-4 border-b border-line">
           <div class="w-14 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-stone-100 border border-line flex items-center justify-center">
@@ -88,6 +89,7 @@
             Save to library
           </button>
         </div>
+      </div>
       </div>
     </div>
   </Teleport>

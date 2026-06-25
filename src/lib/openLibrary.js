@@ -30,6 +30,13 @@ function coverUrl(coverId) {
   return coverId ? `https://covers.openlibrary.org/b/id/${coverId}-M.jpg` : null
 }
 
+// Mirror googleBooks' ISBN gate: keep only works that have at least one ISBN, so
+// scanned periodicals and public-domain documents (which carry no ISBN) are
+// dropped and the fallback returns the same clean, cataloged editions.
+export function hasIsbn(doc) {
+  return Array.isArray(doc?.isbn) && doc.isbn.length > 0
+}
+
 function firstSentence(value) {
   if (Array.isArray(value)) return value[0] ?? null
   if (typeof value === 'string') return value
@@ -65,7 +72,7 @@ function buildUrl({ query, languageCode }) {
   const params = new URLSearchParams({
     q: query,
     limit: '20',
-    fields: 'key,title,author_name,cover_i,first_sentence,language',
+    fields: 'key,title,author_name,cover_i,first_sentence,language,isbn',
   })
   const ol = languageCode ? ISO1_TO_OL[languageCode] : null
   if (ol) params.set('language', ol)
@@ -82,6 +89,7 @@ export async function searchOpenLibrary({ query, languageCode = null } = {}) {
   }
   const data = await res.json()
   const docs = Array.isArray(data.docs) ? data.docs : []
-  const normalized = docs.map((d) => normalizeDoc(d, languageCode)).filter((b) => b.externalId)
+  // ISBN gate (mirrors googleBooks) → normalise → strict language filter.
+  const normalized = docs.filter(hasIsbn).map((d) => normalizeDoc(d, languageCode)).filter((b) => b.externalId)
   return filterByLanguage(normalized, languageCode)
 }

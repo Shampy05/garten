@@ -34,24 +34,24 @@
     <div v-else class="max-w-6xl mx-auto px-4 py-8">
       <!-- Mode toggle: My Garden / Library / Friends -->
       <div class="flex justify-center mb-6 animate-fade-up">
-        <div class="inline-flex items-center gap-1 p-1 rounded-full bg-white/80 backdrop-blur border border-line shadow-pill">
+        <div class="inline-flex w-full sm:w-auto items-center gap-1 p-1 rounded-full bg-white/80 backdrop-blur border border-line shadow-pill">
           <button
             @click="navView = 'garden'"
-            class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200"
+            class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200"
             :class="navView === 'garden' ? 'bg-gradient-to-b from-garden-500 to-garden-600 text-white shadow-[0_6px_14px_-8px_rgba(32,96,53,0.8)]' : 'text-stone-500 hover:text-stone-700'"
           >
             <Sprout :size="15" /> My Garden
           </button>
           <button
             @click="navView = 'library'"
-            class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200"
+            class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200"
             :class="navView === 'library' ? 'bg-gradient-to-b from-garden-500 to-garden-600 text-white shadow-[0_6px_14px_-8px_rgba(32,96,53,0.8)]' : 'text-stone-500 hover:text-stone-700'"
           >
             <BookOpen :size="15" /> Library
           </button>
           <button
             @click="navView = 'friends'"
-            class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200"
+            class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200"
             :class="navView === 'friends' ? 'bg-gradient-to-b from-garden-500 to-garden-600 text-white shadow-[0_6px_14px_-8px_rgba(32,96,53,0.8)]' : 'text-stone-500 hover:text-stone-700'"
           >
             <Users :size="15" /> Friends

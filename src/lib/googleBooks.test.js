@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeVolume, filterByLanguage } from './googleBooks.js'
+import { normalizeVolume, filterByLanguage, hasIsbn } from './googleBooks.js'
 
 describe('normalizeVolume', () => {
   it('maps a complete volume payload', () => {
@@ -64,5 +64,26 @@ describe('filterByLanguage (FR3 strict filter)', () => {
 
   it('returns everything when no language is selected', () => {
     expect(filterByLanguage(books, null)).toHaveLength(3)
+  })
+})
+
+describe('hasIsbn (quality gate)', () => {
+  it('keeps a volume with an ISBN_13', () => {
+    const v = { id: 'a', volumeInfo: { industryIdentifiers: [{ type: 'ISBN_13', identifier: '9783446249578' }] } }
+    expect(hasIsbn(v)).toBe(true)
+  })
+
+  it('keeps a volume with an ISBN_10', () => {
+    const v = { id: 'b', volumeInfo: { industryIdentifiers: [{ type: 'ISBN_10', identifier: '3446249575' }] } }
+    expect(hasIsbn(v)).toBe(true)
+  })
+
+  it('drops a scanned document whose only id is OTHER', () => {
+    const v = { id: 'c', volumeInfo: { industryIdentifiers: [{ type: 'OTHER', identifier: 'BSB:BSB1234' }] } }
+    expect(hasIsbn(v)).toBe(false)
+  })
+
+  it('drops a volume with no identifiers at all', () => {
+    expect(hasIsbn({ id: 'd', volumeInfo: { title: 'Bare' } })).toBe(false)
   })
 })
