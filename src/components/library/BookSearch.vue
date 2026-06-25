@@ -14,13 +14,23 @@
           <div class="relative">
             <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
             <input
+              ref="searchInput"
               v-model="query"
               type="text"
               placeholder="e.g. Le Petit Prince"
-              class="gp-input pl-9"
+              class="gp-input pl-9 pr-9"
               @input="search"
               @keydown.enter="searchNow"
             />
+            <button
+              v-if="query"
+              type="button"
+              @click="clearSearch"
+              class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors"
+              aria-label="Clear search"
+            >
+              <X :size="15" />
+            </button>
           </div>
         </div>
       </div>
@@ -49,7 +59,7 @@
       <p v-if="source === 'openlibrary'" class="text-xs text-stone-400 mb-3 inline-flex items-center gap-1">
         <Info :size="12" /> Google Books is busy — showing results from Open Library.
       </p>
-      <div class="grid sm:grid-cols-2 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <BookResultCard
           v-for="book in results"
           :key="book.externalId"
@@ -76,7 +86,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { Search, BookOpen, Info } from 'lucide-vue-next'
+import { Search, BookOpen, Info, X } from 'lucide-vue-next'
 import { useBookSearch } from '../../composables/useBookSearch.js'
 import { codeForName } from '../../lib/bookLanguages.js'
 import BookResultCard from './BookResultCard.vue'
@@ -94,6 +104,13 @@ defineEmits(['save'])
 const { query, languageCode, results, source, loading, error, hasSearched, search, searchNow, setLanguage, cleanup } = useBookSearch()
 
 const selectedLanguageId = ref('')
+const searchInput = ref(null)
+
+function clearSearch() {
+  query.value = ''
+  searchNow()
+  searchInput.value?.focus()
+}
 
 const languageOptions = computed(() =>
   (props.languages || []).map((l) => ({

@@ -46,7 +46,7 @@
     </div>
 
     <!-- Grid -->
-    <div v-if="filtered.length" class="grid sm:grid-cols-2 gap-3">
+    <div v-if="filtered.length" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <SavedBookCard
         v-for="book in filtered"
         :key="book.id"
