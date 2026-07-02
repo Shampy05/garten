@@ -6,7 +6,7 @@
         @click="step = 1"
         class="gp-btn-primary w-full px-8 py-3.5 group"
       >
-        <span class="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-6">🌱</span>
+        <Sprout :size="16" class="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-6" />
         <span>Log a session</span>
       </button>
     </div>
@@ -117,7 +117,7 @@
 
       <!-- Step 4: Confirm -->
       <div v-if="step === 4" class="animate-fadeIn">
-        <p class="text-sm text-stone-500 mb-4">Review and plant your seed!</p>
+        <p class="text-sm text-stone-500 mb-4">Review your session.</p>
         <div class="bg-stone-50 rounded-xl p-4 space-y-3 border border-line">
           <div class="flex items-center justify-between">
             <span class="text-sm text-stone-500">Language</span>
@@ -156,7 +156,7 @@
           <button @click="submitEntry"
             class="gp-btn-primary flex-1 py-3 group"
           >
-            <span class="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-6">🌱</span>
+            <Sprout :size="16" class="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-6" />
             <span>Plant seed</span>
           </button>
         </div>
@@ -167,6 +167,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { Sprout } from 'lucide-vue-next'
 import { useLanguageLookup } from '../composables/useLanguageLookup.js'
 
 const props = defineProps({

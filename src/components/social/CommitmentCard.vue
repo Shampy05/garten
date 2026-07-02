@@ -9,18 +9,9 @@
           <span class="text-white text-xs font-bold">{{ commitment.ownerName[0].toUpperCase() }}</span>
         </div>
         <div class="min-w-0">
-          <div class="flex items-center gap-1.5">
-            <span class="text-sm font-medium text-stone-700 truncate">
-              {{ commitment.ownerName }}
-            </span>
-            <span
-              v-if="streakWeeks > 0"
-              class="inline-flex items-center gap-0.5 text-xs font-medium text-amber-600 flex-shrink-0"
-              :title="`${streakWeeks}-week commitment streak`"
-            >
-              <Flame :size="12" /> {{ streakWeeks }}w
-            </span>
-          </div>
+          <span class="text-sm font-medium text-stone-700 truncate block">
+            {{ commitment.ownerName }}
+          </span>
           <div class="text-xs text-stone-500">
             {{ commitment.language_name }} · {{ fmtHours(commitment.target_minutes) }} this week
           </div>
@@ -44,7 +35,7 @@
       </div>
     </div>
 
-    <div class="mb-3">
+    <div>
       <div class="flex items-center justify-between text-xs mb-1.5">
         <Flower2 v-if="percent >= 100" :size="13" class="text-garden-500 animate-grow-in" />
         <span v-else></span>
@@ -59,36 +50,18 @@
         ></div>
       </div>
     </div>
-
-    <div v-if="!commitment.isSelf" class="flex items-center gap-2">
-      <button
-        @click="cheer"
-        class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-garden-700 bg-garden-50 hover:bg-garden-100 transition-colors"
-      >
-        <Sun :size="13" /> Cheer
-      </button>
-      <button
-        @click="nudge"
-        class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-stone-600 bg-stone-50 hover:bg-stone-100 transition-colors"
-      >
-        <Bell :size="13" /> Nudge
-      </button>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, inject } from 'vue'
-import { X, Pencil, Sun, Bell, Flower2, Flame } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { X, Pencil, Flower2 } from 'lucide-vue-next'
 
 const props = defineProps({
   commitment: { type: Object, required: true }
 })
 
-const emit = defineEmits(['edit', 'delete', 'cheer', 'nudge'])
-
-const social = inject('social')
-const streakWeeks = computed(() => social.commitmentStreaks.value[props.commitment.user_id] || 0)
+defineEmits(['edit', 'delete'])
 
 const percent = computed(() => {
   const t = props.commitment.target_minutes || 1
@@ -108,13 +81,5 @@ function fmtHours(mins) {
   if (h && r) return `${h}h ${r}m`
   if (h) return `${h}h`
   return `${r}m`
-}
-
-function cheer() {
-  emit('cheer', props.commitment)
-}
-
-function nudge() {
-  emit('nudge', props.commitment)
 }
 </script>

@@ -19,43 +19,20 @@ export function useSocial() {
   const incomingRequests = ref([])
   const outgoingRequests = ref([])
   const feed = ref([])
-  const waters = ref([])
-  const watersReceived = ref([])
-  const recentCommentsOnMine = ref([])
-  const nudgesReceived = ref([])
-  const notificationsLastReadAt = ref(
-    Number(localStorage.getItem('garten:notificationsLastReadAt')) || 0
-  )
   const reactionsByEvent = ref({})
-  const commentsByEvent = ref({})
-  const selectedEvent = ref(null)
 
   // Garden Circle state
   const commitments = ref([])
-  const focusSessions = ref([])
   const leaderboard = ref([])
   const leaderboardWindow = ref('week')
   // Per-gardener language + activity texture for the leaderboard, keyed by
   // user_id, for the active leaderboard window. { languages[], activities[], total }.
   const circleBreakdown = ref({})
   const circleWeekMinutes = ref(0)
-  // Map of user_id -> consecutive met-commitment weeks, for self + friends.
-  const commitmentStreaks = ref({})
-  // Grow buddies: shared-language pacts with a combined weekly goal.
-  const buddyPacts = ref([])
-  const pendingBuddyPacts = ref([])
-  const outgoingBuddyPacts = ref([])
-  // Books friends are reading (returned by circle_books RPC).
-  const friendBooks = ref([])
 
   let feedChannel = null
   let reactionsChannel = null
-  let commentsChannel = null
-  let watersChannel = null
   let commitmentsChannel = null
-  let focusSessionsChannel = null
-  let nudgesChannel = null
-  let buddyPactsChannel = null
 
   const hasProfile = computed(() => !!profile.value)
 
@@ -137,7 +114,7 @@ export function useSocial() {
         'actor:profiles!activity_events_actor_id_fkey(username, display_name), ' +
         'co_actor:profiles!activity_events_co_actor_id_fkey(username, display_name)'
       )
-      .in('kind', ['milestone', 'bloom', 'commitment_progress', 'circle_report', 'new_language'])
+      .in('kind', ['milestone', 'bloom', 'commitment_progress', 'new_language'])
       .order('created_at', { ascending: false })
       .limit(50)
     if (error) return
@@ -161,26 +138,6 @@ export function useSocial() {
       next[r.event_id].push(r)
     }
     reactionsByEvent.value = next
-  }
-
-  async function loadComments(eventId) {
-    if (!eventId) return
-    const { data, error } = await supabase
-      .from('event_comments')
-      .select(
-        'id, event_id, author_id, body, created_at, ' +
-        'author:profiles!event_comments_author_id_fkey(username, display_name)'
-      )
-      .eq('event_id', eventId)
-      .order('created_at', { ascending: true })
-    if (error) {
-      commentsByEvent.value[eventId] = []
-      return
-    }
-    commentsByEvent.value[eventId] = (data || []).map((c) => ({
-      ...c,
-      authorName: c.author?.display_name || c.author?.username || 'A gardener'
-    }))
   }
 
   // ---------------------------------------------------------------------------
@@ -238,18 +195,6 @@ export function useSocial() {
     return { data }
   }
 
-  async function loadCommitmentStreaks() {
-    if (!profile.value) return
-    const { data, error } = await supabase.rpc('circle_commitment_streaks')
-    if (error) {
-      commitmentStreaks.value = {}
-      return
-    }
-    const next = {}
-    for (const row of data || []) next[row.user_id] = row.weeks
-    commitmentStreaks.value = next
-  }
-
   async function deleteCommitment(id) {
     if (!profile.value) return
     const { error } = await supabase
@@ -262,259 +207,6 @@ export function useSocial() {
       return
     }
     commitments.value = commitments.value.filter((c) => c.id !== id)
-  }
-
-  // ---------------------------------------------------------------------------
-  // Grow buddies
-  // ---------------------------------------------------------------------------
-
-  // Compare uuids as strings to derive the canonical (user_a < user_b) pair.
-  function canonicalPair(a, b) {
-    return a < b ? { user_a: a, user_b: b } : { user_a: b, user_b: a }
-  }
-
-  async function loadBuddyPacts() {
-    if (!profile.value) return
-    const { data, error } = await supabase.rpc('buddy_pacts_with_progress')
-    if (error) {
-      buddyPacts.value = []
-      pendingBuddyPacts.value = []
-      outgoingBuddyPacts.value = []
-      return
-    }
-    const me = userId.value
-    const rows = (data || []).map((p) => ({ ...p, isSelf: false }))
-    buddyPacts.value = rows.filter((p) => p.status === 'accepted')
-    pendingBuddyPacts.value = rows.filter((p) => p.status === 'pending' && p.proposer_id !== me)
-    outgoingBuddyPacts.value = rows.filter((p) => p.status === 'pending' && p.proposer_id === me)
-  }
-
-  // ---------------------------------------------------------------------------
-  // Friends' books
-  // ---------------------------------------------------------------------------
-
-  async function loadFriendBooks() {
-    if (!profile.value) return
-    const { data, error } = await supabase.rpc('circle_books')
-    if (error) {
-      friendBooks.value = []
-      return
-    }
-    friendBooks.value = (data || []).map((b) => ({
-      ...b,
-      progressPct: b.total_pages
-        ? Math.min(100, Math.round(((b.current_page || 0) / b.total_pages) * 100))
-        : 0,
-      pagesLeft: Math.max(0, (b.total_pages || 0) - (b.current_page || 0)),
-      friendName: b.display_name || b.username || 'A gardener'
-    }))
-  }
-
-  async function proposeBuddyPact(friendId, language, targetMinutes) {
-    if (!profile.value) return { error: 'No profile' }
-    const { user_a, user_b } = canonicalPair(userId.value, friendId)
-    const { error } = await supabase.from('buddy_pacts').insert({
-      proposer_id: userId.value,
-      user_a,
-      user_b,
-      language_name: language.name,
-      language_color: language.color,
-      target_minutes: Math.max(1, Math.round(Number(targetMinutes) || 0))
-    })
-    if (error) {
-      if (error.code === '23505') {
-        toast.error('You already have a pact for that language together.')
-      } else {
-        toast.error('Could not send the invite.')
-      }
-      return { error }
-    }
-    toast.success('Invite sent — grow together.')
-    await loadBuddyPacts()
-    return {}
-  }
-
-  async function acceptBuddyPact(id) {
-    if (!profile.value) return
-    const { error } = await supabase
-      .from('buddy_pacts')
-      .update({ status: 'accepted', updated_at: new Date().toISOString() })
-      .eq('id', id)
-    if (error) {
-      toast.error('Could not accept the pact.')
-      return
-    }
-    toast.success('Growing together now.')
-    await loadBuddyPacts()
-  }
-
-  async function declineBuddyPact(id) {
-    if (!profile.value) return
-    const { error } = await supabase.from('buddy_pacts').delete().eq('id', id)
-    if (error) {
-      toast.error('Could not decline the pact.')
-      return
-    }
-    await loadBuddyPacts()
-  }
-
-  // Ending an accepted pact keeps the row (status = 'ended') so its history and
-  // the unique slot stay coherent; cancelling a pending one just removes it.
-  async function endBuddyPact(id) {
-    if (!profile.value) return
-    const { error } = await supabase
-      .from('buddy_pacts')
-      .update({ status: 'ended', updated_at: new Date().toISOString() })
-      .eq('id', id)
-    if (error) {
-      toast.error('Could not end the pact.')
-      return
-    }
-    buddyPacts.value = buddyPacts.value.filter((p) => p.id !== id)
-    await loadBuddyPacts()
-  }
-
-  // ---------------------------------------------------------------------------
-  // Focus sessions
-  // ---------------------------------------------------------------------------
-
-  async function loadFocusSessions() {
-    if (!profile.value) return
-    // Fetch the most recent sessions and filter client-side. Focus sessions are
-    // low-volume, so this keeps the query simple and avoids Supabase OR quirks.
-    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-    const { data, error } = await supabase
-      .from('focus_sessions')
-      .select(
-        'id, user_id, language_id, language_name, language_color, activity_type, duration_minutes, started_at, ends_at, status, parent_session_id'
-      )
-      .gte('started_at', dayAgo)
-      .order('started_at', { ascending: false })
-      .limit(50)
-    if (error) {
-      focusSessions.value = []
-      return
-    }
-    focusSessions.value = (data || [])
-      .filter((s) => s.status === 'active' || s.status === 'completed')
-      .map((s) => ({
-        ...s,
-        ownerName: s.user_id === userId.value
-          ? 'You'
-          : actorLabel(s.user_id, null).name,
-        isSelf: s.user_id === userId.value
-      }))
-  }
-
-  async function startFocusSession(language, durationMinutes, activityType = 'vocabulary') {
-    if (!profile.value) return { error: 'No profile' }
-    const startedAt = new Date().toISOString()
-    const endsAt = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString()
-    const { data, error } = await supabase
-      .from('focus_sessions')
-      .insert({
-        user_id: userId.value,
-        language_id: language.id,
-        language_name: language.name,
-        language_color: language.color,
-        activity_type: activityType,
-        duration_minutes: Math.max(1, Math.round(durationMinutes)),
-        started_at: startedAt,
-        ends_at: endsAt,
-        status: 'active'
-      })
-      .select()
-      .single()
-    if (error) {
-      toast.error('Could not start focus session.')
-      return { error }
-    }
-    focusSessions.value = [normalizeFocusSession(data), ...focusSessions.value]
-    return { data }
-  }
-
-  async function joinFocusSession(sessionId) {
-    if (!profile.value) return { error: 'No profile' }
-    const parent = focusSessions.value.find((s) => s.id === sessionId)
-    if (!parent) return { error: 'Session not found' }
-    const { data, error } = await startFocusSession(
-      { id: parent.language_id, name: parent.language_name, color: parent.language_color },
-      parent.duration_minutes,
-      parent.activity_type
-    )
-    if (error) return { error }
-    if (data) {
-      await supabase
-        .from('focus_sessions')
-        .update({ parent_session_id: sessionId })
-        .eq('id', data.id)
-      data.parent_session_id = sessionId
-      const idx = focusSessions.value.findIndex((s) => s.id === data.id)
-      if (idx !== -1) focusSessions.value[idx] = normalizeFocusSession(data)
-    }
-    return { data }
-  }
-
-  // Invite specific friends to a focus session — each gets an 'invite' nudge
-  // that points back at the session, surfaced in their notifications bell.
-  async function inviteToFocus(sessionId, recipientIds = []) {
-    if (!profile.value || recipientIds.length === 0) return
-    const rows = recipientIds.map((rid) => ({
-      sender_id: userId.value,
-      recipient_id: rid,
-      kind: 'invite',
-      focus_session_id: sessionId
-    }))
-    const { error } = await supabase.from('nudges').insert(rows)
-    if (error) {
-      toast.error('Could not send the invite.')
-      return
-    }
-    toast.success(recipientIds.length === 1 ? 'Invite sent.' : 'Invites sent.')
-  }
-
-  async function cancelFocusSession(sessionId) {
-    if (!profile.value) return
-    const { error } = await supabase
-      .from('focus_sessions')
-      .update({ status: 'cancelled' })
-      .eq('id', sessionId)
-      .eq('user_id', userId.value)
-    if (error) {
-      toast.error('Could not cancel focus session.')
-      return
-    }
-    focusSessions.value = focusSessions.value.map((s) =>
-      s.id === sessionId ? { ...s, status: 'cancelled' } : s
-    )
-  }
-
-  async function completeFocusSession(sessionId) {
-    if (!profile.value) return
-    const { error } = await supabase.rpc('complete_focus_session', { p_session_id: sessionId })
-    if (error) {
-      toast.error('Could not complete focus session.')
-      return
-    }
-    focusSessions.value = focusSessions.value.map((s) =>
-      s.id === sessionId ? { ...s, status: 'completed' } : s
-    )
-    toast.success('Focus session tended — logged to your garden.')
-  }
-
-  async function expireFocusSessions() {
-    await supabase.rpc('expire_focus_sessions')
-    await loadFocusSessions()
-  }
-
-  function normalizeFocusSession(s) {
-    return {
-      ...s,
-      ownerName: s.user_id === userId.value
-        ? 'You'
-        : actorLabel(s.user_id, null).name,
-      isSelf: s.user_id === userId.value
-    }
   }
 
   // ---------------------------------------------------------------------------
@@ -578,74 +270,6 @@ export function useSocial() {
   }
 
   // ---------------------------------------------------------------------------
-  // Nudges / cheers
-  // ---------------------------------------------------------------------------
-
-  async function loadNudgesReceived() {
-    if (!profile.value) return
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-    const { data, error } = await supabase
-      .from('nudges')
-      .select(
-        'id, sender_id, recipient_id, kind, commitment_id, focus_session_id, created_at, ' +
-        'sender:profiles!nudges_sender_id_fkey(username, display_name), ' +
-        'commitment:circle_commitments!nudges_commitment_id_fkey(language_name, language_color, target_minutes), ' +
-        'session:focus_sessions!nudges_focus_session_id_fkey(language_name, language_color, duration_minutes, status, ends_at)'
-      )
-      .eq('recipient_id', userId.value)
-      .gte('created_at', weekAgo)
-      .order('created_at', { ascending: false })
-      .limit(50)
-    if (error) {
-      nudgesReceived.value = []
-      return
-    }
-    nudgesReceived.value = (data || []).map((n) => ({
-      ...n,
-      senderName: n.sender?.display_name || n.sender?.username || 'A gardener'
-    }))
-  }
-
-  async function sendNudge(recipientId, kind, commitmentId) {
-    if (!profile.value) return
-    const { error } = await supabase
-      .from('nudges')
-      .insert({
-        sender_id: userId.value,
-        recipient_id: recipientId,
-        kind,
-        commitment_id: commitmentId
-      })
-    if (error) {
-      toast.error(`Could not send ${kind}.`)
-      return
-    }
-    toast.success(kind === 'cheer' ? 'Cheer sent — sunshine on its way.' : 'Nudge sent.')
-  }
-
-  // ---------------------------------------------------------------------------
-  // Circle report
-  // ---------------------------------------------------------------------------
-
-  async function ensureCircleReport() {
-    if (!profile.value) return
-    // Only generate once per week. Regenerating on every load reshuffled the
-    // feed (fresh id each time) and burned writes, so skip if one already exists.
-    const weekStart = weekStartFor()
-    const { data, error } = await supabase
-      .from('activity_events')
-      .select('id')
-      .eq('actor_id', userId.value)
-      .eq('kind', 'circle_report')
-      .gte('occurred_on', weekStart)
-      .limit(1)
-    if (error) return
-    if (data && data.length > 0) return
-    await supabase.rpc('generate_circle_report')
-    await loadFeed()
-  }
-
-  // ---------------------------------------------------------------------------
   // Realtime subscriptions
   // ---------------------------------------------------------------------------
 
@@ -658,7 +282,7 @@ export function useSocial() {
         { event: 'INSERT', schema: 'public', table: 'activity_events' },
         (payload) => {
           const item = normalizeEvent(payload.new)
-          if (!['milestone', 'bloom', 'commitment_progress', 'circle_report', 'new_language'].includes(item.kind)) return
+          if (!['milestone', 'bloom', 'commitment_progress', 'new_language'].includes(item.kind)) return
           if (feed.value.some((e) => e.id === item.id)) return
           feed.value = [item, ...feed.value].slice(0, 50)
         }
@@ -708,93 +332,6 @@ export function useSocial() {
     }
   }
 
-  function subscribeComments() {
-    if (commentsChannel) return
-    commentsChannel = supabase
-      .channel('garden-comments')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'event_comments' },
-        async (payload) => {
-          const c = payload.new
-          // Keep the open detail view live.
-          if (selectedEvent.value?.id === c.event_id) {
-            const { data } = await supabase
-              .from('event_comments')
-              .select(
-                'id, event_id, author_id, body, created_at, ' +
-                'author:profiles!event_comments_author_id_fkey(username, display_name)'
-              )
-              .eq('id', c.id)
-              .single()
-            if (data) {
-              if (!commentsByEvent.value[c.event_id]) commentsByEvent.value[c.event_id] = []
-              const arr = commentsByEvent.value[c.event_id]
-              if (!arr.some((x) => x.id === c.id)) {
-                arr.push({
-                  ...data,
-                  authorName: data.author?.display_name || data.author?.username || 'A gardener'
-                })
-              }
-            }
-          }
-          // Refresh notification bell for comments on the user's own dispatches.
-          loadRecentCommentsOnMine()
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'event_comments' },
-        (payload) => {
-          const c = payload.old
-          const arr = commentsByEvent.value[c.event_id]
-          if (arr) commentsByEvent.value[c.event_id] = arr.filter((x) => x.id !== c.id)
-          recentCommentsOnMine.value = recentCommentsOnMine.value.filter((x) => x.id !== c.id)
-        }
-      )
-      .subscribe()
-  }
-
-  function unsubscribeComments() {
-    if (commentsChannel) {
-      supabase.removeChannel(commentsChannel)
-      commentsChannel = null
-    }
-  }
-
-  function subscribeWaters() {
-    if (watersChannel) return
-    watersChannel = supabase
-      .channel('garden-waters')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'waters' },
-        (payload) => {
-          const w = payload.new
-          if (w.recipient_id !== userId.value) return
-          if (!watersReceived.value.some((x) => x.id === w.id)) {
-            watersReceived.value.push({ ...w, senderName: 'A gardener' })
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'waters' },
-        (payload) => {
-          const w = payload.old
-          watersReceived.value = watersReceived.value.filter((x) => x.id !== w.id)
-        }
-      )
-      .subscribe()
-  }
-
-  function unsubscribeWaters() {
-    if (watersChannel) {
-      supabase.removeChannel(watersChannel)
-      watersChannel = null
-    }
-  }
-
   function subscribeCommitments() {
     if (commitmentsChannel) return
     commitmentsChannel = supabase
@@ -814,163 +351,6 @@ export function useSocial() {
     }
   }
 
-  function subscribeFocusSessions() {
-    if (focusSessionsChannel) return
-    focusSessionsChannel = supabase
-      .channel('garden-focus-sessions')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'focus_sessions' },
-        () => loadFocusSessions()
-      )
-      .subscribe()
-  }
-
-  function unsubscribeFocusSessions() {
-    if (focusSessionsChannel) {
-      supabase.removeChannel(focusSessionsChannel)
-      focusSessionsChannel = null
-    }
-  }
-
-  function subscribeNudges() {
-    if (nudgesChannel) return
-    nudgesChannel = supabase
-      .channel('garden-nudges')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'nudges' },
-        (payload) => {
-          const n = payload.new
-          if (n.recipient_id !== userId.value) return
-          if (!nudgesReceived.value.some((x) => x.id === n.id)) {
-            nudgesReceived.value.unshift({ ...n, senderName: 'A gardener' })
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'nudges' },
-        (payload) => {
-          const n = payload.old
-          nudgesReceived.value = nudgesReceived.value.filter((x) => x.id !== n.id)
-        }
-      )
-      .subscribe()
-  }
-
-  function unsubscribeNudges() {
-    if (nudgesChannel) {
-      supabase.removeChannel(nudgesChannel)
-      nudgesChannel = null
-    }
-  }
-
-  function subscribeBuddyPacts() {
-    if (buddyPactsChannel) return
-    buddyPactsChannel = supabase
-      .channel('garden-buddy-pacts')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'buddy_pacts' },
-        () => loadBuddyPacts()
-      )
-      .subscribe()
-  }
-
-  function unsubscribeBuddyPacts() {
-    if (buddyPactsChannel) {
-      supabase.removeChannel(buddyPactsChannel)
-      buddyPactsChannel = null
-    }
-  }
-
-  async function loadWaters() {
-    if (!profile.value) return
-    const today = new Date().toISOString().split('T')[0]
-    const { data, error } = await supabase
-      .from('waters')
-      .select('id, recipient_id, watered_on')
-      .eq('sender_id', userId.value)
-      .eq('watered_on', today)
-    if (error) {
-      waters.value = []
-      return
-    }
-    waters.value = data || []
-  }
-
-  async function loadWatersReceived() {
-    if (!profile.value) return
-    const today = new Date().toISOString().split('T')[0]
-    const { data, error } = await supabase
-      .from('waters')
-      .select(
-        'id, sender_id, watered_on, ' +
-        'sender:profiles!waters_sender_id_fkey(username, display_name)'
-      )
-      .eq('recipient_id', userId.value)
-      .eq('watered_on', today)
-    if (error) {
-      watersReceived.value = []
-      return
-    }
-    watersReceived.value = (data || []).map((w) => ({
-      ...w,
-      senderName: w.sender?.display_name || w.sender?.username || 'A gardener'
-    }))
-  }
-
-  async function loadRecentCommentsOnMine() {
-    if (!profile.value) return
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-    const { data, error } = await supabase
-      .from('event_comments')
-      .select(
-        'id, event_id, author_id, body, created_at, ' +
-        'author:profiles!event_comments_author_id_fkey(username, display_name), ' +
-        'event:activity_events!event_comments_event_id_fkey(actor_id)'
-      )
-      .eq('event.actor_id', userId.value)
-      .neq('author_id', userId.value)
-      .gte('created_at', weekAgo)
-      .order('created_at', { ascending: false })
-      .limit(50)
-    if (error) {
-      recentCommentsOnMine.value = []
-      return
-    }
-    recentCommentsOnMine.value = (data || []).map((c) => ({
-      ...c,
-      authorName: c.author?.display_name || c.author?.username || 'A gardener'
-    }))
-  }
-
-  function hasWatered(recipientId) {
-    return waters.value.some((w) => w.recipient_id === recipientId)
-  }
-
-  async function waterFriend(recipientId) {
-    if (!profile.value) return
-    const { data, error } = await supabase
-      .from('waters')
-      .insert({ sender_id: userId.value, recipient_id: recipientId })
-      .select('id, recipient_id, watered_on')
-      .single()
-    if (error) {
-      if (error.code !== '23505') toast.error('Could not water that garden.')
-      return
-    }
-    waters.value = [...waters.value, data]
-  }
-
-  async function unwaterFriend(recipientId) {
-    const w = waters.value.find((x) => x.recipient_id === recipientId)
-    if (!w) return
-    await supabase.from('waters').delete().eq('id', w.id)
-    waters.value = waters.value.filter((x) => x.id !== w.id)
-  }
-
   async function deleteDispatch(id) {
     if (!profile.value) return
     const { error } = await supabase.from('activity_events').delete().eq('id', id)
@@ -979,23 +359,29 @@ export function useSocial() {
       return
     }
     feed.value = feed.value.filter((e) => e.id !== id)
-    if (selectedEvent.value?.id === id) selectedEvent.value = null
   }
 
-  async function toggleReaction(eventId, kind) {
+  // One like per gardener per celebration. Stored as a 'bloom' reaction so
+  // historical reactions (water, bee, …) still count toward the same total —
+  // unliking clears whatever kinds you gave under the old palette.
+  async function toggleLike(eventId) {
     if (!profile.value) return
-    const existing = (reactionsByEvent.value[eventId] || []).find(
-      (r) => r.reactor_id === userId.value && r.kind === kind
+    const mine = (reactionsByEvent.value[eventId] || []).filter(
+      (r) => r.reactor_id === userId.value
     )
-    if (existing) {
-      await supabase.from('event_reactions').delete().eq('id', existing.id)
+    if (mine.length > 0) {
+      await supabase
+        .from('event_reactions')
+        .delete()
+        .eq('event_id', eventId)
+        .eq('reactor_id', userId.value)
       reactionsByEvent.value[eventId] = reactionsByEvent.value[eventId].filter(
-        (r) => r.id !== existing.id
+        (r) => r.reactor_id !== userId.value
       )
     } else {
       const { data } = await supabase
         .from('event_reactions')
-        .insert({ event_id: eventId, reactor_id: userId.value, kind })
+        .insert({ event_id: eventId, reactor_id: userId.value, kind: 'bloom' })
         .select('id, event_id, reactor_id, kind')
         .single()
       if (data) {
@@ -1005,82 +391,6 @@ export function useSocial() {
     }
   }
 
-  async function addComment(eventId, body) {
-    if (!profile.value || !body.trim()) return
-    const { data, error } = await supabase
-      .from('event_comments')
-      .insert({ event_id: eventId, author_id: userId.value, body: body.trim() })
-      .select(
-        'id, event_id, author_id, body, created_at, ' +
-        'author:profiles!event_comments_author_id_fkey(username, display_name)'
-      )
-      .single()
-    if (error) {
-      toast.error('Could not post comment.')
-      return
-    }
-    if (!commentsByEvent.value[eventId]) commentsByEvent.value[eventId] = []
-    commentsByEvent.value[eventId].push({
-      ...data,
-      authorName: data.author?.display_name || data.author?.username || 'You'
-    })
-  }
-
-  async function deleteComment(commentId) {
-    await supabase.from('event_comments').delete().eq('id', commentId)
-    for (const eventId of Object.keys(commentsByEvent.value)) {
-      commentsByEvent.value[eventId] = commentsByEvent.value[eventId].filter(
-        (c) => c.id !== commentId
-      )
-    }
-  }
-
-  function openEventDetail(event) {
-    selectedEvent.value = event
-    loadComments(event.id)
-    if (!reactionsByEvent.value[event.id]) loadFeedReactions()
-  }
-
-  function closeEventDetail() {
-    selectedEvent.value = null
-  }
-
-  const watersReceivedToday = computed(() => watersReceived.value.length)
-
-  const unseenWaters = computed(() => {
-    const read = notificationsLastReadAt.value
-    return watersReceived.value.filter((w) => {
-      const ts = new Date(w.watered_on + 'T00:00:00').getTime()
-      return ts > read
-    }).length
-  })
-
-  const unseenComments = computed(() => {
-    const read = notificationsLastReadAt.value
-    return recentCommentsOnMine.value.filter(
-      (c) => new Date(c.created_at).getTime() > read
-    ).length
-  })
-
-  const unseenNudges = computed(() => {
-    const read = notificationsLastReadAt.value
-    return nudgesReceived.value.filter(
-      (n) => new Date(n.created_at).getTime() > read
-    ).length
-  })
-
-  const notificationCount = computed(() => unseenWaters.value + unseenComments.value + unseenNudges.value)
-  const hasNotifications = computed(() => notificationCount.value > 0)
-
-  function markNotificationsRead() {
-    notificationsLastReadAt.value = Date.now()
-    localStorage.setItem('garten:notificationsLastReadAt', String(notificationsLastReadAt.value))
-  }
-
-  function hasWateredMe(senderId) {
-    return watersReceived.value.some((w) => w.sender_id === senderId)
-  }
-
   async function refresh() {
     await loadProfile()
     if (profile.value) {
@@ -1088,26 +398,13 @@ export function useSocial() {
         loadFriends(),
         loadRequests(),
         loadFeed(),
-        loadWaters(),
-        loadWatersReceived(),
-        loadRecentCommentsOnMine(),
         loadCommitments(),
-        loadFocusSessions(),
-        loadLeaderboard(),
-        loadNudgesReceived(),
-        loadCommitmentStreaks(),
-        loadBuddyPacts(),
-        loadFriendBooks()
+        loadLeaderboard()
       ])
-      await Promise.all([loadFeedReactions(), ensureCircleReport(), expireFocusSessions()])
+      await loadFeedReactions()
       subscribeFeed()
       subscribeReactions()
-      subscribeComments()
-      subscribeWaters()
       subscribeCommitments()
-      subscribeFocusSessions()
-      subscribeNudges()
-      subscribeBuddyPacts()
     }
   }
 
@@ -1132,26 +429,13 @@ export function useSocial() {
       loadFriends(),
       loadRequests(),
       loadFeed(),
-      loadWatersReceived(),
-      loadRecentCommentsOnMine(),
       loadCommitments(),
-      loadFocusSessions(),
-      loadLeaderboard(),
-      loadNudgesReceived(),
-      loadCommitmentStreaks(),
-      loadBuddyPacts(),
-      loadFriendBooks()
+      loadLeaderboard()
     ])
     loadFeedReactions()
-    ensureCircleReport()
     subscribeFeed()
     subscribeReactions()
-    subscribeComments()
-    subscribeWaters()
     subscribeCommitments()
-    subscribeFocusSessions()
-    subscribeNudges()
-    subscribeBuddyPacts()
     return { data }
   }
 
@@ -1229,63 +513,19 @@ export function useSocial() {
   watch(userId, () => {
     unsubscribeFeed()
     unsubscribeReactions()
-    unsubscribeComments()
-    unsubscribeWaters()
     unsubscribeCommitments()
-    unsubscribeFocusSessions()
-    unsubscribeNudges()
-    unsubscribeBuddyPacts()
     profile.value = null
     profileLoaded.value = false
     friends.value = []
     incomingRequests.value = []
     outgoingRequests.value = []
     feed.value = []
-    waters.value = []
-    watersReceived.value = []
-    recentCommentsOnMine.value = []
-    nudgesReceived.value = []
     commitments.value = []
-    focusSessions.value = []
     leaderboard.value = []
     leaderboardWindow.value = 'week'
     circleBreakdown.value = {}
     circleWeekMinutes.value = 0
-    commitmentStreaks.value = {}
-    buddyPacts.value = []
-    pendingBuddyPacts.value = []
-    outgoingBuddyPacts.value = []
     reactionsByEvent.value = {}
-    commentsByEvent.value = {}
-    selectedEvent.value = null
-  })
-
-  const activeFocusSessions = computed(() =>
-    focusSessions.value.filter((s) => s.status === 'active')
-  )
-
-  const hasActiveFocusSession = computed(() =>
-    activeFocusSessions.value.some((s) => s.user_id === userId.value)
-  )
-
-  // Who's focusing right now (distinct gardeners, expired rows excluded), used
-  // by the circle-pulse header so presence reads at a glance.
-  const focusingNow = computed(() => {
-    const now = Date.now()
-    const seen = new Map()
-    for (const s of focusSessions.value) {
-      if (s.status !== 'active') continue
-      if (new Date(s.ends_at).getTime() <= now) continue
-      if (!seen.has(s.user_id)) {
-        seen.set(s.user_id, {
-          userId: s.user_id,
-          name: s.isSelf ? 'You' : s.ownerName,
-          isSelf: s.isSelf,
-          color: s.language_color
-        })
-      }
-    }
-    return Array.from(seen.values())
   })
 
   return {
@@ -1296,40 +536,16 @@ export function useSocial() {
     incomingRequests,
     outgoingRequests,
     feed,
-    waters,
-    watersReceived,
     reactionsByEvent,
-    commentsByEvent,
-    selectedEvent,
     commitments,
-    focusSessions,
-    activeFocusSessions,
-    hasActiveFocusSession,
-    focusingNow,
     leaderboard,
     leaderboardWindow,
     circleBreakdown,
     circleWeekMinutes,
-    commitmentStreaks,
-    buddyPacts,
-    pendingBuddyPacts,
-    outgoingBuddyPacts,
-    friendBooks,
-    nudgesReceived,
-    recentCommentsOnMine,
-    notificationCount,
-    hasNotifications,
-    unseenWaters,
-    unseenComments,
-    unseenNudges,
-    watersReceivedToday,
-    markNotificationsRead,
     refresh,
     loadFriends,
     loadRequests,
     loadFeed,
-    loadWatersReceived,
-    loadRecentCommentsOnMine,
     createProfile,
     updateProfile,
     toggleDiscoverable,
@@ -1337,37 +553,12 @@ export function useSocial() {
     sendRequest,
     acceptRequest,
     removeFriendship,
-    hasWatered,
-    hasWateredMe,
-    waterFriend,
-    unwaterFriend,
     deleteDispatch,
-    toggleReaction,
-    addComment,
-    deleteComment,
-    openEventDetail,
-    closeEventDetail,
+    toggleLike,
     loadCommitments,
     setCommitment,
     deleteCommitment,
-    loadBuddyPacts,
-    proposeBuddyPact,
-    acceptBuddyPact,
-    declineBuddyPact,
-    endBuddyPact,
-    loadFriendBooks,
-    loadFocusSessions,
-    startFocusSession,
-    joinFocusSession,
-    inviteToFocus,
-    cancelFocusSession,
-    completeFocusSession,
-    expireFocusSessions,
     loadLeaderboard,
-    loadCircleBreakdown,
-    loadNudgesReceived,
-    loadCommitmentStreaks,
-    sendNudge,
-    ensureCircleReport
+    loadCircleBreakdown
   }
 }

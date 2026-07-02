@@ -1,32 +1,8 @@
 <template>
   <div class="gp-card gp-pad">
-    <div class="flex items-center justify-between mb-4">
-      <div>
-        <h3 class="gp-title text-lg">Celebrations</h3>
-        <p class="text-xs text-stone-500 mt-0.5">Moments worth witnessing across your circle.</p>
-      </div>
-    </div>
-
-    <!-- Coming up: anticipate the next bloom. A milestone you can see
-         approaching motivates every day until it lands. -->
-    <div
-      v-if="comingUp.length > 0"
-      class="mb-4 rounded-xl border border-garden-100 bg-garden-50/50 px-3.5 py-3"
-    >
-      <div class="flex items-center gap-1.5 mb-2">
-        <Sprout :size="13" class="text-garden-500 animate-sway" />
-        <span class="text-[11px] font-semibold uppercase tracking-wider text-garden-700">Coming up</span>
-      </div>
-      <ul class="space-y-1.5">
-        <li
-          v-for="(item, i) in comingUp"
-          :key="i"
-          class="flex items-center gap-2 text-sm text-stone-700"
-        >
-          <span class="w-2 h-2 rounded-full flex-shrink-0" :style="{ backgroundColor: item.color }"></span>
-          <span class="leading-snug">{{ item.text }}</span>
-        </li>
-      </ul>
+    <div class="mb-4">
+      <h3 class="gp-title text-lg">Celebrations</h3>
+      <p class="text-xs text-stone-500 mt-0.5">Moments worth witnessing across your circle.</p>
     </div>
 
     <div v-if="feed.length === 0" class="text-center py-8 text-stone-400">
@@ -47,22 +23,13 @@
         </div>
 
         <div :class="isStale(item) ? 'opacity-60 transition-opacity hover:opacity-100' : ''">
-          <CircleReport
-            v-if="item.kind === 'circle_report'"
-            :item="item"
-            :start-collapsed="true"
-            @open="openDetail(item)"
-          />
-
           <div
-            v-else
             :class="[
-              'group flex items-start gap-3 p-4 rounded-xl border transition-colors cursor-pointer',
+              'group flex items-start gap-3 p-4 rounded-xl border transition-colors',
               item.isSelf
-                ? 'bg-garden-50/40 border-garden-100 hover:border-garden-200'
+                ? 'bg-garden-50/40 border-garden-100'
                 : 'bg-white border-stone-100 hover:border-stone-200'
             ]"
-            @click="openDetail(item)"
           >
             <div
               class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
@@ -135,30 +102,15 @@
               </p>
 
               <div class="flex items-center justify-between mt-3">
-                <ReactionBar :event-id="item.id" compact @toggle="(k) => social.toggleReaction(item.id, k)" />
-                <div class="flex items-center gap-3">
-                  <WaterButton
-                    v-if="!item.isSelf"
-                    :recipient-id="item.actor_id"
-                    :name="item.actorName"
-                    compact
-                  />
-                  <button
-                    v-if="item.isSelf"
-                    @click.stop="confirmRemove(item)"
-                    class="text-stone-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                    title="Remove celebration"
-                  >
-                    <Trash2 :size="14" />
-                  </button>
-                  <button
-                    @click.stop="openDetail(item)"
-                    class="text-stone-400 hover:text-garden-600 transition-colors"
-                    title="Open notes"
-                  >
-                    <MessageCircle :size="14" />
-                  </button>
-                </div>
+                <ReactionBar :event-id="item.id" @toggle="social.toggleLike(item.id)" />
+                <button
+                  v-if="item.isSelf"
+                  @click.stop="confirmRemove(item)"
+                  class="text-stone-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                  title="Remove celebration"
+                >
+                  <Trash2 :size="14" />
+                </button>
               </div>
             </div>
           </div>
@@ -180,52 +132,14 @@
 
 <script setup>
 import { computed, inject, ref } from 'vue'
-import { Sprout, MessageCircle, Trash2, Flower2, BookOpen } from 'lucide-vue-next'
+import { Sprout, Trash2, Flower2, BookOpen } from 'lucide-vue-next'
 import ConfirmDialog from '../ConfirmDialog.vue'
-import CircleReport from './CircleReport.vue'
 import ReactionBar from './ReactionBar.vue'
-import WaterButton from './WaterButton.vue'
-
-const props = defineProps({
-  // Streak milestones nearing their threshold, computed from entries upstream.
-  upcomingMilestones: { type: Array, default: () => [] }
-})
 
 const social = inject('social')
-const { feed, commitments, reactionsByEvent, friends } = social
+const { feed, reactionsByEvent, friends } = social
 
 const removeTarget = ref(null)
-
-// ---------------------------------------------------------------------------
-// Coming up — anticipation. Merge nearing streaks (from entries, passed in)
-// with self-commitments close to completion (already in the composable), rank
-// by urgency, and surface only the most imminent so the strip stays calm.
-// ---------------------------------------------------------------------------
-const comingUp = computed(() => {
-  const items = []
-
-  for (const m of props.upcomingMilestones) {
-    items.push({
-      color: m.languageColor || '#9ca3af',
-      urgency: m.urgency,
-      text: `${m.daysToGo === 1 ? '1 day' : `${m.daysToGo} days`} to your ${m.target}-day ${m.languageName} streak`
-    })
-  }
-
-  for (const c of commitments.value || []) {
-    if (!c.isSelf) continue
-    const logged = Number(c.logged_minutes) || 0
-    const target = Number(c.target_minutes) || 0
-    if (target <= 0 || logged <= 0 || logged >= target) continue
-    items.push({
-      color: c.language_color || '#9ca3af',
-      urgency: logged / target,
-      text: `${fmtMins(target - logged)} to your ${c.language_name} commitment this week`
-    })
-  }
-
-  return items.sort((a, b) => b.urgency - a.urgency).slice(0, 2)
-})
 
 // ---------------------------------------------------------------------------
 // Freshness — recent blooms read bright, older ones fade into a quiet "Earlier"
@@ -270,19 +184,6 @@ function celebratedLabel(names) {
   if (names.length === 1) return `${names[0]} celebrated this`
   if (names.length === 2) return `${names[0]} & ${names[1]} celebrated this`
   return `${names[0]}, ${names[1]} + ${names.length - 2} more celebrated this`
-}
-
-function fmtMins(mins) {
-  const m = Math.max(0, Math.round(Number(mins) || 0))
-  const h = Math.floor(m / 60)
-  const r = m % 60
-  if (h && r) return `${h}h ${r}m`
-  if (h) return `${h}h`
-  return `${r}m`
-}
-
-function openDetail(item) {
-  social.openEventDetail(item)
 }
 
 function confirmRemove(item) {

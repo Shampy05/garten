@@ -14,56 +14,42 @@
       </div>
     </div>
 
-    <!-- Sub-tabs -->
-    <div class="inline-flex items-center gap-1 p-1 rounded-xl bg-stone-100/80 border border-line mb-5">
-      <button
-        @click="subTab = 'search'"
-        class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all"
-        :class="subTab === 'search' ? 'bg-white text-garden-700 shadow-pill' : 'text-stone-500 hover:text-stone-700'"
-      >
-        <Search :size="14" /> Find books
-      </button>
-      <button
-        @click="subTab = 'library'"
-        class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all"
-        :class="subTab === 'library' ? 'bg-white text-garden-700 shadow-pill' : 'text-stone-500 hover:text-stone-700'"
-      >
-        <BookMarked :size="14" /> My library
-        <span v-if="savedBooks.length" class="ml-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-garden-100 text-garden-700 text-[10px] font-semibold">
-          {{ savedBooks.length }}
-        </span>
-      </button>
-    </div>
+    <!-- One continuous surface: search on top, your library beneath. Typing a
+         query swaps the library for results; clearing it brings it back. -->
+    <div class="space-y-5">
+      <BookSearch
+        :saved-ids="savedIds"
+        :default-language-code="defaultLanguageCode"
+        :languages="languages"
+        @save="openSaveModal"
+        @active="searchActive = $event"
+      />
 
-    <!-- Find books -->
-    <BookSearch
-      v-show="subTab === 'search'"
-      :saved-ids="savedIds"
-      :default-language-code="defaultLanguageCode"
-      :languages="languages"
-      @save="openSaveModal"
-    />
-
-    <!-- My library -->
-    <div v-if="subTab === 'library'">
-      <div v-if="!loaded && !loadError" class="text-center py-10 text-stone-400">
-        <BookOpen class="w-10 h-10 mx-auto mb-3 opacity-50 animate-breathe" />
-        <p class="text-sm">Gathering your books…</p>
-      </div>
-      <div v-else-if="loadError" class="gp-card gp-pad text-center text-stone-500 max-w-sm mx-auto">
-        <p class="text-sm mb-3">We couldn't load your library.</p>
-        <button @click="retryLoad" class="gp-btn-primary px-5 py-2 text-sm">Try again</button>
-      </div>
-      <div v-else class="space-y-5">
-        <ReadingSummary :saved-books="savedBooks" />
-        <SavedBooksList
-      :saved-books="savedBooks"
-      :language-colors="languageColorMap"
-      @edit="openEditModal"
-      @remove="confirmRemove"
-      @log="openLogModal"
-    />
-      </div>
+      <template v-if="!searchActive">
+        <div v-if="!loaded && !loadError" class="text-center py-10 text-stone-400">
+          <BookOpen class="w-10 h-10 mx-auto mb-3 opacity-50 animate-breathe" />
+          <p class="text-sm">Gathering your books…</p>
+        </div>
+        <div v-else-if="loadError" class="gp-card gp-pad text-center text-stone-500 max-w-sm mx-auto">
+          <p class="text-sm mb-3">We couldn't load your library.</p>
+          <button @click="retryLoad" class="gp-btn-primary px-5 py-2 text-sm">Try again</button>
+        </div>
+        <div v-else-if="savedBooks.length === 0" class="gp-card gp-pad text-center text-stone-400 py-10">
+          <BookOpen class="w-10 h-10 mx-auto mb-3 opacity-50" />
+          <p class="text-sm text-stone-500">Your library is empty.</p>
+          <p class="text-xs mt-1">Search above for a book in your target language to start tracking.</p>
+        </div>
+        <template v-else>
+          <ReadingSummary :saved-books="savedBooks" />
+          <SavedBooksList
+            :saved-books="savedBooks"
+            :language-colors="languageColorMap"
+            @edit="openEditModal"
+            @remove="confirmRemove"
+            @log="openLogModal"
+          />
+        </template>
+      </template>
     </div>
 
     <SaveBookModal
@@ -102,7 +88,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Library, Search, BookMarked, BookOpen } from 'lucide-vue-next'
+import { Library, BookOpen } from 'lucide-vue-next'
 import { useBooks } from '../../composables/useBooks.js'
 import { useStorage } from '../../composables/useStorage.js'
 import { codeForName, nameForCode } from '../../lib/bookLanguages.js'
@@ -123,7 +109,7 @@ const props = defineProps({
 const { savedBooks, loaded, loadError, saveBook, updateRecord, removeBook, retryLoad } = useBooks()
 const { addEntry, data: storageData } = useStorage()
 
-const subTab = ref('search')
+const searchActive = ref(false)
 
 const languageColorMap = computed(() => {
   const map = {}
