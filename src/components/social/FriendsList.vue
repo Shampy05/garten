@@ -1,6 +1,6 @@
 <template>
   <div class="gp-card gp-pad">
-    <h3 class="gp-title text-lg mb-3">Garden circle</h3>
+    <h3 class="gp-title text-lg mb-3">Your friends</h3>
 
     <div v-if="friends.length === 0" class="text-center py-8 text-stone-400">
       <Sprout :size="28" class="mx-auto mb-2 text-stone-300" />

@@ -345,7 +345,7 @@
 
       <LibraryView v-else-if="navView === 'library'" :languages="data.languages" />
 
-      <SocialView v-else :languages="data.languages" :upcoming-milestones="upcomingMilestones" />
+      <SocialView v-else :languages="data.languages" />
     </div>
 
     <!-- Language Manager Modal -->
@@ -561,35 +561,6 @@ const groupedRecentEntries = computed(() => {
 })
 
 const todayStreak = computed(() => currentStreak(data.value.entries.map(e => e.date)))
-
-// Streak milestones that get celebrated server-side (handle_new_entry). The
-// Celebrations "Coming up" sliver uses these to anticipate the next bloom — a
-// milestone you can see approaching motivates every day until it lands.
-const STREAK_MILESTONES = [7, 14, 30, 50, 100, 200, 365]
-
-const upcomingMilestones = computed(() => {
-  const out = []
-  for (const lang of data.value.languages) {
-    const dates = data.value.entries.filter(e => e.languageId === lang.id).map(e => e.date)
-    const streak = currentStreak(dates)
-    if (streak <= 0) continue
-    const next = STREAK_MILESTONES.find(m => m > streak)
-    if (!next) continue
-    const daysToGo = next - streak
-    // Only surface what's genuinely imminent — a week out or closer.
-    if (daysToGo > 7) continue
-    out.push({
-      kind: 'streak',
-      languageName: lang.name,
-      languageColor: lang.color,
-      target: next,
-      daysToGo,
-      // Closer crossings feel more urgent; 1 = tomorrow, fades toward a week out.
-      urgency: 1 - (daysToGo - 1) / 7
-    })
-  }
-  return out.sort((a, b) => b.urgency - a.urgency)
-})
 
 const todayMinutes = computed(() => {
   const today = localDateStr(new Date())

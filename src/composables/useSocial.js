@@ -20,7 +20,6 @@ export function useSocial() {
   const outgoingRequests = ref([])
   const feed = ref([])
   const reactionsByEvent = ref({})
-  const selectedEvent = ref(null)
 
   // Garden Circle state
   const commitments = ref([])
@@ -360,23 +359,29 @@ export function useSocial() {
       return
     }
     feed.value = feed.value.filter((e) => e.id !== id)
-    if (selectedEvent.value?.id === id) selectedEvent.value = null
   }
 
-  async function toggleReaction(eventId, kind) {
+  // One like per gardener per celebration. Stored as a 'bloom' reaction so
+  // historical reactions (water, bee, …) still count toward the same total —
+  // unliking clears whatever kinds you gave under the old palette.
+  async function toggleLike(eventId) {
     if (!profile.value) return
-    const existing = (reactionsByEvent.value[eventId] || []).find(
-      (r) => r.reactor_id === userId.value && r.kind === kind
+    const mine = (reactionsByEvent.value[eventId] || []).filter(
+      (r) => r.reactor_id === userId.value
     )
-    if (existing) {
-      await supabase.from('event_reactions').delete().eq('id', existing.id)
+    if (mine.length > 0) {
+      await supabase
+        .from('event_reactions')
+        .delete()
+        .eq('event_id', eventId)
+        .eq('reactor_id', userId.value)
       reactionsByEvent.value[eventId] = reactionsByEvent.value[eventId].filter(
-        (r) => r.id !== existing.id
+        (r) => r.reactor_id !== userId.value
       )
     } else {
       const { data } = await supabase
         .from('event_reactions')
-        .insert({ event_id: eventId, reactor_id: userId.value, kind })
+        .insert({ event_id: eventId, reactor_id: userId.value, kind: 'bloom' })
         .select('id, event_id, reactor_id, kind')
         .single()
       if (data) {
@@ -384,15 +389,6 @@ export function useSocial() {
         reactionsByEvent.value[eventId].push(data)
       }
     }
-  }
-
-  function openEventDetail(event) {
-    selectedEvent.value = event
-    if (!reactionsByEvent.value[event.id]) loadFeedReactions()
-  }
-
-  function closeEventDetail() {
-    selectedEvent.value = null
   }
 
   async function refresh() {
@@ -530,7 +526,6 @@ export function useSocial() {
     circleBreakdown.value = {}
     circleWeekMinutes.value = 0
     reactionsByEvent.value = {}
-    selectedEvent.value = null
   })
 
   return {
@@ -542,7 +537,6 @@ export function useSocial() {
     outgoingRequests,
     feed,
     reactionsByEvent,
-    selectedEvent,
     commitments,
     leaderboard,
     leaderboardWindow,
@@ -560,9 +554,7 @@ export function useSocial() {
     acceptRequest,
     removeFriendship,
     deleteDispatch,
-    toggleReaction,
-    openEventDetail,
-    closeEventDetail,
+    toggleLike,
     loadCommitments,
     setCommitment,
     deleteCommitment,

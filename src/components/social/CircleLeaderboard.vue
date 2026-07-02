@@ -1,7 +1,7 @@
 <template>
   <div class="gp-card gp-pad">
     <div class="flex items-center justify-between gap-3 mb-4">
-      <h3 class="gp-title text-lg">Circle leaderboard</h3>
+      <h3 class="gp-title text-lg">Leaderboard</h3>
       <div class="inline-flex items-center p-0.5 rounded-lg bg-stone-100">
         <button
           v-for="w in windows"
@@ -212,18 +212,14 @@ function pct(row, mins) {
   return Math.max(2, (mins / total) * 100)
 }
 
-// Garden palette, not medal colors: deepest green leads, lighter tints follow,
-// and you always carry a subtle ring so you can spot yourself in the row.
+// Collaborative, not competitive: every row reads the same, and the only
+// highlight is a subtle ring so you can spot yourself.
 function rowClasses(row) {
   if (row.isSelf) return 'bg-garden-50/50 border-garden-200 ring-1 ring-garden-100'
-  if (row.rank === 1) return 'bg-garden-50/60 border-garden-100'
   return 'bg-white border-stone-100 hover:border-stone-200'
 }
 
-function rankClasses(rank) {
-  if (rank === 1) return 'bg-garden-600 text-white shadow-sm'
-  if (rank === 2) return 'bg-garden-100 text-garden-700'
-  if (rank === 3) return 'bg-garden-50 text-garden-600'
+function rankClasses() {
   return 'bg-stone-100 text-stone-500'
 }
 
