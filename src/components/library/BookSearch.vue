@@ -42,45 +42,43 @@
       </p>
     </div>
 
-    <!-- Loading -->
-    <div v-if="loading" class="text-center py-10 text-stone-400">
-      <BookOpen class="w-10 h-10 mx-auto mb-3 opacity-50 animate-breathe" />
-      <p class="text-sm">Searching the shelves…</p>
-    </div>
-
-    <!-- Error -->
-    <div v-else-if="error" class="gp-card gp-pad text-center text-stone-500">
-      <p class="text-sm mb-3">We couldn't reach the book service. Please try again.</p>
-      <button @click="searchNow" class="gp-btn-primary px-5 py-2 text-sm">Retry</button>
-    </div>
-
-    <!-- Results -->
-    <div v-else-if="results.length">
-      <p v-if="source === 'openlibrary'" class="text-xs text-stone-400 mb-3 inline-flex items-center gap-1">
-        <Info :size="12" /> Google Books is busy — showing results from Open Library.
-      </p>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <BookResultCard
-          v-for="book in results"
-          :key="book.externalId"
-          :book="book"
-          :saved="savedIds.includes(book.externalId)"
-          @save="$emit('save', $event)"
-        />
+    <!-- Result states only while a query is active; when the box is empty the
+         saved library (rendered by the parent) takes the stage instead. -->
+    <template v-if="isActive">
+      <!-- Loading -->
+      <div v-if="loading" class="text-center py-10 text-stone-400">
+        <BookOpen class="w-10 h-10 mx-auto mb-3 opacity-50 animate-breathe" />
+        <p class="text-sm">Searching the shelves…</p>
       </div>
-    </div>
 
-    <!-- Empty after a search -->
-    <div v-else-if="hasSearched" class="text-center py-10 text-stone-400">
-      <BookOpen class="w-10 h-10 mx-auto mb-3 opacity-50" />
-      <p class="text-sm">No books found{{ selectedLanguageName ? ` in ${selectedLanguageName}` : '' }}. Try another title or language.</p>
-    </div>
+      <!-- Error -->
+      <div v-else-if="error" class="gp-card gp-pad text-center text-stone-500">
+        <p class="text-sm mb-3">We couldn't reach the book service. Please try again.</p>
+        <button @click="searchNow" class="gp-btn-primary px-5 py-2 text-sm">Retry</button>
+      </div>
 
-    <!-- Initial prompt -->
-    <div v-else class="text-center py-10 text-stone-400">
-      <BookOpen class="w-12 h-12 mx-auto mb-3 opacity-50" />
-      <p class="text-sm">Search for a book to start your reading list.</p>
-    </div>
+      <!-- Results -->
+      <div v-else-if="results.length">
+        <p v-if="source === 'openlibrary'" class="text-xs text-stone-400 mb-3 inline-flex items-center gap-1">
+          <Info :size="12" /> Google Books is busy — showing results from Open Library.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <BookResultCard
+            v-for="book in results"
+            :key="book.externalId"
+            :book="book"
+            :saved="savedIds.includes(book.externalId)"
+            @save="$emit('save', $event)"
+          />
+        </div>
+      </div>
+
+      <!-- Empty after a search -->
+      <div v-else-if="hasSearched" class="text-center py-10 text-stone-400">
+        <BookOpen class="w-10 h-10 mx-auto mb-3 opacity-50" />
+        <p class="text-sm">No books found{{ selectedLanguageName ? ` in ${selectedLanguageName}` : '' }}. Try another title or language.</p>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -99,12 +97,17 @@ const props = defineProps({
   languages: { type: Array, default: () => [] },
 })
 
-defineEmits(['save'])
+const emit = defineEmits(['save', 'active'])
 
 const { query, languageCode, results, source, loading, error, hasSearched, search, searchNow, setLanguage, cleanup } = useBookSearch()
 
 const selectedLanguageId = ref('')
 const searchInput = ref(null)
+
+// Tell the parent whether a search is underway so it can swap the saved
+// library back in the moment the box is cleared.
+const isActive = computed(() => query.value.trim().length > 0)
+watch(isActive, (v) => emit('active', v), { immediate: true })
 
 function clearSearch() {
   query.value = ''
