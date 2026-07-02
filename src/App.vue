@@ -51,10 +51,15 @@
           </button>
           <button
             @click="navView = 'friends'"
-            class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200"
+            class="relative flex-1 sm:flex-initial inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200"
             :class="navView === 'friends' ? 'bg-gradient-to-b from-garden-500 to-garden-600 text-white shadow-[0_6px_14px_-8px_rgba(32,96,53,0.8)]' : 'text-stone-500 hover:text-stone-700'"
           >
             <Users :size="15" /> Friends
+            <!-- Pending friend requests wait inside the Friends view -->
+            <span
+              v-if="social.incomingRequests.value.length > 0 && navView !== 'friends'"
+              class="absolute top-0.5 right-1 w-2 h-2 rounded-full bg-garden-500"
+            ></span>
           </button>
         </div>
       </div>
@@ -85,10 +90,6 @@
                 {{ userInitial }}
               </span>
               <ChevronDown :size="14" class="text-stone-400 transition-transform" :class="{ 'rotate-180': userMenuOpen }" />
-              <span
-                v-if="social.hasNotifications.value"
-                class="absolute top-0 left-0 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white"
-              ></span>
             </button>
 
             <Transition
@@ -108,16 +109,6 @@
                   <div class="text-sm font-medium text-stone-700 truncate">{{ userEmail }}</div>
                 </div>
                 <div class="h-px bg-line my-1"></div>
-                <button @click="openNotifications" class="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-sm text-stone-700 hover:bg-stone-50 transition-colors">
-                  <Mail :size="16" class="text-stone-400" />
-                  Notifications
-                  <span
-                    v-if="social.notificationCount.value > 0"
-                    class="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-medium"
-                  >
-                    {{ social.notificationCount.value > 9 ? '9+' : social.notificationCount.value }}
-                  </span>
-                </button>
                 <button @click="openLangManager" class="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-sm text-stone-700 hover:bg-stone-50 transition-colors">
                   <Settings :size="16" class="text-stone-400" />
                   Manage languages
@@ -389,18 +380,13 @@
       @cancel="cancelDelete"
     />
 
-    <NotificationsPanel
-      v-model="showNotificationsPanel"
-      @open-event="openNotificationEvent"
-    />
-
     <Toast />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, provide, onMounted, onBeforeUnmount } from 'vue'
-import { Settings, Pencil, Trash2, Sprout, Users, Mail, Flame, ChevronDown, LogOut, BookOpen } from 'lucide-vue-next'
+import { Settings, Pencil, Trash2, Sprout, Users, Flame, ChevronDown, LogOut, BookOpen } from 'lucide-vue-next'
 import { useAuth } from './composables/useAuth.js'
 import { useStorage } from './composables/useStorage.js'
 import { useLanguageLookup } from './composables/useLanguageLookup.js'
@@ -424,7 +410,6 @@ import ConfirmDialog from './components/ConfirmDialog.vue'
 import Toast from './components/Toast.vue'
 import SocialView from './components/social/SocialView.vue'
 import LibraryView from './components/library/LibraryView.vue'
-import NotificationsPanel from './components/social/NotificationsPanel.vue'
 import { useSocial } from './composables/useSocial.js'
 
 const { user, loading: authLoading, signIn, signUp, signOut, resetPassword } = useAuth()
@@ -442,20 +427,14 @@ const navView = ref(
   (localStorage.getItem('garten:socialMode') === 'true' ? 'friends' : 'garden')
 )
 watch(navView, (val) => localStorage.setItem(NAV_VIEW_KEY, val))
-const showNotificationsPanel = ref(false)
 
-// Account menu — consolidates identity, notifications, language management and
-// sign-out so the header carries motivation + action, not a button cluster.
+// Account menu — consolidates identity, language management and sign-out so
+// the header carries motivation + action, not a button cluster.
 const userMenuOpen = ref(false)
 const userMenuRef = ref(null)
 const userEmail = computed(() => user.value?.email || '')
 const userInitial = computed(() => (user.value?.email?.[0] || 's').toUpperCase())
 
-function openNotifications() {
-  userMenuOpen.value = false
-  showNotificationsPanel.value = true
-  social.markNotificationsRead()
-}
 function openLangManager() {
   userMenuOpen.value = false
   showLangManager.value = true
@@ -479,12 +458,6 @@ const analyticsTabs = [
   { key: 'activity', label: 'Activity' },
   { key: 'horizon', label: 'Horizon' },
 ]
-
-function openNotificationEvent(event) {
-  showNotificationsPanel.value = false
-  navView.value = 'friends'
-  social.openEventDetail(event)
-}
 
 const { data, loaded, loadError, weeklyGoal, nativeLanguage, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, updateLanguage: storageUpdateLanguage, saveGoal, saveNativeLanguage, retryLoad } = useStorage()
 

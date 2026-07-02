@@ -41,11 +41,6 @@
                   </span>
                 </template>
 
-                <template v-else-if="event.kind === 'circle_report'">
-                  shared a weekly report of <span class="font-medium">{{ fmtDuration(event.minutes) }}</span>
-                  <span v-if="event.language_name"> — mostly {{ event.language_name }}</span>
-                </template>
-
                 <template v-else-if="event.kind === 'commitment_progress'">
                   <template v-if="event.details?.milestone === 100">
                     hit their weekly commitment for
@@ -74,67 +69,7 @@
 
           <!-- Actions -->
           <div class="flex items-center gap-4 mt-4">
-            <WaterButton
-              v-if="!event.isSelf"
-              :recipient-id="event.actor_id"
-              :name="event.actorName"
-              compact
-            />
             <ReactionBar :event-id="event.id" @toggle="toggle" />
-          </div>
-
-          <!-- Comments -->
-          <div class="mt-6">
-            <h4 class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-2">Garden notes</h4>
-            <div v-if="comments.length === 0" class="text-center py-6 text-stone-400 text-sm">
-              No notes yet. Be the first to leave one.
-            </div>
-            <div v-else class="space-y-3">
-              <div
-                v-for="c in comments"
-                :key="c.id"
-                class="flex items-start gap-2.5"
-              >
-                <div
-                  class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
-                  :class="c.author_id === userId.value ? 'bg-stone-100 text-stone-500' : 'bg-garden-50 text-garden-700'"
-                >
-                  {{ c.authorName[0].toUpperCase() }}
-                </div>
-                <div class="min-w-0 flex-1 bg-stone-50 rounded-lg px-3 py-2">
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="text-xs font-medium text-stone-700">{{ c.author_id === userId.value ? 'You' : c.authorName }}</span>
-                    <button
-                      v-if="c.author_id === userId.value"
-                      @click="removeComment(c.id)"
-                      class="text-stone-300 hover:text-red-500 transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 :size="12" />
-                    </button>
-                  </div>
-                  <p class="text-sm text-stone-600 mt-0.5 whitespace-pre-wrap">{{ c.body }}</p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Add comment -->
-            <div class="mt-3 flex items-start gap-2">
-              <input
-                v-model="commentBody"
-                @keydown.enter.prevent="postComment"
-                type="text"
-                placeholder="Leave a garden note..."
-                class="gp-input flex-1 min-w-0"
-              />
-              <button
-                @click="postComment"
-                :disabled="!commentBody.trim()"
-                class="gp-btn-primary px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Send
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -143,58 +78,38 @@
 </template>
 
 <script setup>
-import { computed, inject, ref, watch } from 'vue'
-import { X, Trash2 } from 'lucide-vue-next'
-import { useAuth } from '../../composables/useAuth.js'
-import WaterButton from './WaterButton.vue'
-import ReactionBar from './ReactionBar.vue'
+import { computed, inject } from 'vue'
+import { X } from 'lucide-vue-next'
 
-const props = defineProps({
+defineProps({
   visible: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['close'])
 
 const social = inject('social')
-const { userId } = useAuth()
-const { selectedEvent, commentsByEvent, toggleReaction, addComment, deleteComment } = social
-
-const commentBody = ref('')
+const { selectedEvent, toggleReaction } = social
 
 const event = computed(() => selectedEvent.value)
 
 const modalTitle = computed(() => {
-  if (!event.value) return 'Garden notes'
+  if (!event.value) return 'Celebration'
   switch (event.value.kind) {
     case 'milestone': return `${event.value.streak_days ?? ''}-day streak`.trim()
-    case 'circle_report': return 'Weekly report'
     case 'commitment_progress': return 'Commitment update'
     case 'new_language': return 'New language'
     case 'reading_milestone': return 'Reading milestone'
     case 'bloom': return 'Cross-pollination'
-    default: return 'Garden notes'
+    default: return 'Celebration'
   }
 })
-const comments = computed(() => commentsByEvent.value[event.value?.id] || [])
 
 function close() {
-  commentBody.value = ''
   emit('close')
 }
 
 async function toggle(kind) {
   await toggleReaction(event.value.id, kind)
-}
-
-async function postComment() {
-  const body = commentBody.value.trim()
-  if (!body) return
-  await addComment(event.value.id, body)
-  commentBody.value = ''
-}
-
-async function removeComment(id) {
-  await deleteComment(id)
 }
 
 function fmtDuration(mins) {
@@ -217,8 +132,4 @@ function relDay(dateStr) {
   if (diff < 7) return `${diff} days ago`
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
-
-watch(() => props.visible, (v) => {
-  if (v) commentBody.value = ''
-})
 </script>

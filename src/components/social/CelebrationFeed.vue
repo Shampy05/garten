@@ -47,15 +47,7 @@
         </div>
 
         <div :class="isStale(item) ? 'opacity-60 transition-opacity hover:opacity-100' : ''">
-          <CircleReport
-            v-if="item.kind === 'circle_report'"
-            :item="item"
-            :start-collapsed="true"
-            @open="openDetail(item)"
-          />
-
           <div
-            v-else
             :class="[
               'group flex items-start gap-3 p-4 rounded-xl border transition-colors cursor-pointer',
               item.isSelf
@@ -137,12 +129,6 @@
               <div class="flex items-center justify-between mt-3">
                 <ReactionBar :event-id="item.id" compact @toggle="(k) => social.toggleReaction(item.id, k)" />
                 <div class="flex items-center gap-3">
-                  <WaterButton
-                    v-if="!item.isSelf"
-                    :recipient-id="item.actor_id"
-                    :name="item.actorName"
-                    compact
-                  />
                   <button
                     v-if="item.isSelf"
                     @click.stop="confirmRemove(item)"
@@ -182,9 +168,7 @@
 import { computed, inject, ref } from 'vue'
 import { Sprout, MessageCircle, Trash2, Flower2, BookOpen } from 'lucide-vue-next'
 import ConfirmDialog from '../ConfirmDialog.vue'
-import CircleReport from './CircleReport.vue'
 import ReactionBar from './ReactionBar.vue'
-import WaterButton from './WaterButton.vue'
 
 const props = defineProps({
   // Streak milestones nearing their threshold, computed from entries upstream.

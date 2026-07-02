@@ -42,7 +42,6 @@
       </div>
 
       <RequestsInbox />
-      <BuddyInbox />
 
       <!-- Empty circle: one inviting prompt instead of a row of dead cards -->
       <div
@@ -96,13 +95,9 @@
             <WeeklyGoalsPanel
               v-else-if="activeTab === 'commitments'"
               :commitments="commitments"
-              @propose="showBuddyModal = true"
-              @end="endBuddyPact"
               @add="openCommitmentModal(null)"
               @edit="openCommitmentModal"
               @delete="removeCommitment"
-              @cheer="sendCheer"
-              @nudge="sendNudge"
             />
 
             <CelebrationFeed
@@ -126,14 +121,6 @@
         :commitment="editingCommitment"
         @close="showCommitmentModal = false; editingCommitment = null"
         @save="saveCommitment"
-      />
-
-      <ProposeBuddyModal
-        :visible="showBuddyModal"
-        :languages="availableLanguages"
-        :friends="friends"
-        @close="showBuddyModal = false"
-        @propose="proposeBuddy"
       />
 
       <!-- Profile modal: opened from both the leaderboard and the friends list -->
@@ -160,8 +147,6 @@ import FriendProfile from './FriendProfile.vue'
 import WeeklyGoalsPanel from './WeeklyGoalsPanel.vue'
 import SetCommitmentModal from './SetCommitmentModal.vue'
 import CelebrationFeed from './CelebrationFeed.vue'
-import BuddyInbox from './BuddyInbox.vue'
-import ProposeBuddyModal from './ProposeBuddyModal.vue'
 
 const props = defineProps({
   languages: { type: Array, default: () => [] },
@@ -189,7 +174,6 @@ const leaderboardProfile = ref(null)
 // ── Modals ─────────────────────────────────────────────────────────────────
 const showCommitmentModal = ref(false)
 const editingCommitment = ref(null)
-const showBuddyModal = ref(false)
 
 const availableLanguages = computed(() => props.languages)
 
@@ -239,24 +223,6 @@ async function saveCommitment({ language, targetMinutes }) {
   await social.setCommitment(language, targetMinutes)
   showCommitmentModal.value = false
   editingCommitment.value = null
-}
-
-async function sendCheer(commitment) {
-  await social.sendNudge(commitment.user_id, 'cheer', commitment.id)
-}
-
-async function sendNudge(commitment) {
-  await social.sendNudge(commitment.user_id, 'nudge', commitment.id)
-}
-
-// ── Buddy pact handlers ────────────────────────────────────────────────────
-async function proposeBuddy({ friendId, language, targetMinutes }) {
-  const res = await social.proposeBuddyPact(friendId, language, targetMinutes)
-  if (!res?.error) showBuddyModal.value = false
-}
-
-async function endBuddyPact(pact) {
-  await social.endBuddyPact(pact.id)
 }
 
 // ── Profile opening ────────────────────────────────────────────────────────

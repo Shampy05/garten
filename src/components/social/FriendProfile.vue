@@ -78,46 +78,6 @@
             No cross-pollinations yet. Log a session in one of their languages and watch a bloom appear.
           </p>
 
-          <!-- Water exchange -->
-          <div class="mt-5 space-y-1.5">
-            <div v-if="hasWateredMe(friend.friend_id)" class="text-sm text-sky-700 bg-sky-50 rounded-lg px-3 py-2">
-              They watered your garden today.
-            </div>
-            <div v-if="hasWatered(friend.friend_id)" class="text-sm text-garden-700 bg-garden-50 rounded-lg px-3 py-2">
-              You watered their garden today.
-            </div>
-          </div>
-
-          <!-- Currently reading -->
-          <div v-if="currentlyReading.length > 0" class="mt-5">
-            <h5 class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-2">Currently reading</h5>
-            <div class="space-y-2">
-              <div
-                v-for="book in currentlyReading"
-                :key="book.book_id"
-                class="flex items-center gap-2.5 p-2 rounded-lg bg-stone-50"
-              >
-                <div class="w-8 h-11 flex-shrink-0 rounded overflow-hidden bg-stone-200 border border-line">
-                  <img
-                    v-if="book.cover_url"
-                    :src="book.cover_url"
-                    :alt="book.title"
-                    class="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                </div>
-                <div class="min-w-0 flex-1">
-                  <p class="text-xs font-medium text-stone-700 leading-snug line-clamp-2">{{ book.title }}</p>
-                  <p v-if="book.author" class="text-[11px] text-stone-400 truncate mt-0.5">{{ book.author }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div class="mt-6 flex items-center gap-3">
-            <WaterButton :recipient-id="friend.friend_id" :name="displayName" />
-          </div>
         </div>
       </div>
     </div>
@@ -128,7 +88,6 @@
 import { computed, inject } from 'vue'
 import { X, Flower2 } from 'lucide-vue-next'
 import { useAuth } from '../../composables/useAuth.js'
-import WaterButton from './WaterButton.vue'
 
 const props = defineProps({
   friend: { type: Object, required: true },
@@ -138,7 +97,7 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const social = inject('social')
-const { feed, hasWatered, hasWateredMe, circleBreakdown, friendBooks } = social
+const { feed, circleBreakdown } = social
 const { userId } = useAuth()
 
 const displayName = computed(() => props.friend.display_name || props.friend.username)
@@ -168,12 +127,6 @@ const topLanguageName = computed(() => {
   const bd = circleBreakdown.value?.[props.friend.friend_id]
   return bd?.languages?.[0]?.name || null
 })
-
-const currentlyReading = computed(() =>
-  (friendBooks.value || [])
-    .filter((b) => b.friend_id === props.friend.friend_id && b.status === 'reading')
-    .slice(0, 3)
-)
 
 function close() {
   emit('close')
