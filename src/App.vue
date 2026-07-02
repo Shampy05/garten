@@ -283,7 +283,7 @@
 
       <!-- Recent Sessions -->
       <div class="gp-card gp-pad mt-6 animate-fade-up">
-        <h3 class="gp-title text-lg mb-4">Recent Sessions</h3>
+        <h3 class="gp-title text-lg mb-4">Recent sessions</h3>
 
         <div v-if="groupedRecentEntries.length" class="space-y-5">
           <div v-for="group in groupedRecentEntries" :key="group.date">
