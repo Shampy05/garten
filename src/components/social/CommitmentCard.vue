@@ -46,10 +46,8 @@
 
     <div class="mb-3">
       <div class="flex items-center justify-between text-xs mb-1.5">
-        <span class="font-medium inline-flex items-center gap-1" :class="statusColor">
-          <Flower2 v-if="percent >= 100" :size="13" class="text-garden-500 animate-grow-in" />
-          {{ statusLabel }}
-        </span>
+        <Flower2 v-if="percent >= 100" :size="13" class="text-garden-500 animate-grow-in" />
+        <span v-else></span>
         <span class="text-stone-500 tabular-nums">
           {{ fmtHours(commitment.logged_minutes) }} / {{ fmtHours(commitment.target_minutes) }}
         </span>
@@ -95,22 +93,6 @@ const streakWeeks = computed(() => social.commitmentStreaks.value[props.commitme
 const percent = computed(() => {
   const t = props.commitment.target_minutes || 1
   return Math.round((props.commitment.logged_minutes / t) * 100)
-})
-
-// Garden vocabulary keeps the whole circle in one voice (tended, blooming,
-// cross-pollinated) instead of flat progress-tracker language.
-const statusLabel = computed(() => {
-  if (percent.value >= 100) return 'In bloom'
-  if (percent.value >= 50) return 'Growing'
-  if (percent.value > 0) return 'Sprouting'
-  return 'Not planted yet'
-})
-
-const statusColor = computed(() => {
-  if (percent.value >= 100) return 'text-garden-600'
-  if (percent.value >= 50) return 'text-amber-600'
-  if (percent.value > 0) return 'text-stone-500'
-  return 'text-stone-400'
 })
 
 const cardClasses = computed(() => {

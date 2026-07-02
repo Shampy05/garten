@@ -5,7 +5,7 @@
       <div class="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-xl border border-line w-full max-w-lg z-10 max-h-[85vh] sm:max-h-[80vh] flex flex-col">
         <!-- Header -->
         <div class="flex items-center justify-between p-4 border-b border-stone-100">
-          <h3 class="gp-title">Dispatch</h3>
+          <h3 class="gp-title">{{ modalTitle }}</h3>
           <button @click="close" class="text-stone-400 hover:text-stone-600 p-1 rounded-lg hover:bg-stone-100 transition-colors">
             <X :size="18" />
           </button>
@@ -162,6 +162,19 @@ const { selectedEvent, commentsByEvent, toggleReaction, addComment, deleteCommen
 const commentBody = ref('')
 
 const event = computed(() => selectedEvent.value)
+
+const modalTitle = computed(() => {
+  if (!event.value) return 'Garden notes'
+  switch (event.value.kind) {
+    case 'milestone': return `${event.value.streak_days ?? ''}-day streak`.trim()
+    case 'circle_report': return 'Weekly report'
+    case 'commitment_progress': return 'Commitment update'
+    case 'new_language': return 'New language'
+    case 'reading_milestone': return 'Reading milestone'
+    case 'bloom': return 'Cross-pollination'
+    default: return 'Garden notes'
+  }
+})
 const comments = computed(() => commentsByEvent.value[event.value?.id] || [])
 
 function close() {

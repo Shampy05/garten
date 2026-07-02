@@ -30,63 +30,92 @@
         class="rounded-xl border transition-colors"
         :class="rowClasses(row)"
       >
-        <!-- The neat line. Tapping it reveals the activity texture below. -->
-        <button
-          type="button"
-          class="w-full flex items-center gap-3 p-3 text-left"
-          :class="{ 'cursor-default': !hasDetail(row) }"
-          @click="toggle(row)"
-        >
-          <div
-            class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
-            :class="rankClasses(row.rank)"
-          >
-            {{ row.rank }}
-          </div>
-          <div
-            class="w-9 h-9 rounded-full flex items-center justify-center font-display font-bold text-sm flex-shrink-0"
-            :class="row.isSelf ? 'bg-stone-100 text-stone-600' : 'bg-garden-50 text-garden-700'"
-          >
-            {{ (row.display_name || row.username)[0].toUpperCase() }}
-          </div>
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-medium text-stone-700 truncate">
-                {{ row.isSelf ? 'You' : (row.display_name || row.username) }}
-              </span>
-              <span
-                v-if="row.current_streak > 0"
-                class="text-xs font-medium text-orange-500 flex-shrink-0"
-              >
-                {{ row.current_streak }}d
-              </span>
-            </div>
-            <!-- Language-mix ribbon: texture as colour, no text. Shows at a
-                 glance who's all-in on one language vs spread across many. -->
+        <!-- Visible summary row. Layout: rank | avatar | name+streak | hours | chevron -->
+        <div class="p-3">
+          <div class="flex items-center gap-3">
+            <!-- Rank badge -->
             <div
-              v-if="langs(row).length > 0"
-              class="mt-1.5 flex gap-px h-1.5 rounded-full overflow-hidden bg-stone-100"
+              class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
+              :class="rankClasses(row.rank)"
             >
-              <div
-                v-for="l in langs(row)"
-                :key="l.name"
-                class="h-1.5"
-                :style="{ width: pct(row, l.minutes) + '%', backgroundColor: l.color }"
-                :title="`${l.name} · ${fmtHours(l.minutes)}`"
-              ></div>
+              {{ row.rank }}
             </div>
+
+            <!-- Avatar — tapping this opens the profile for friends -->
+            <button
+              v-if="!row.isSelf"
+              type="button"
+              class="w-9 h-9 rounded-full flex items-center justify-center font-display font-bold text-sm flex-shrink-0 bg-garden-50 text-garden-700 hover:bg-garden-100 transition-colors"
+              :title="`View ${row.display_name || row.username}'s profile`"
+              @click="openProfile(row)"
+            >
+              {{ (row.display_name || row.username)[0].toUpperCase() }}
+            </button>
+            <div
+              v-else
+              class="w-9 h-9 rounded-full flex items-center justify-center font-display font-bold text-sm flex-shrink-0 bg-stone-100 text-stone-600"
+            >
+              {{ (row.display_name || row.username)[0].toUpperCase() }}
+            </div>
+
+            <!-- Name + streak — name also opens profile for friends -->
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2 min-w-0">
+                <button
+                  v-if="!row.isSelf"
+                  type="button"
+                  class="text-sm font-medium text-stone-700 hover:text-garden-700 truncate transition-colors text-left"
+                  @click="openProfile(row)"
+                >
+                  {{ row.display_name || row.username }}
+                </button>
+                <span v-else class="text-sm font-medium text-stone-700 truncate">You</span>
+                <span
+                  v-if="row.current_streak > 0"
+                  class="text-xs font-medium text-orange-500 flex-shrink-0"
+                >
+                  {{ row.current_streak }}d
+                </span>
+              </div>
+            </div>
+
+            <!-- Hours -->
+            <div class="text-right flex-shrink-0">
+              <div class="text-sm font-bold text-stone-800 tabular-nums">{{ fmtHours(row.minutes) }}</div>
+              <div class="text-[10px] text-stone-400 uppercase tracking-wide">hours</div>
+            </div>
+
+            <!-- Expand / collapse chevron — distinct click target from profile -->
+            <button
+              v-if="hasDetail(row)"
+              type="button"
+              class="flex-shrink-0 p-0.5 text-stone-300 hover:text-stone-500 transition-colors"
+              :title="expanded[row.user_id] ? 'Collapse' : 'Expand language detail'"
+              @click="toggle(row)"
+            >
+              <ChevronDown
+                :size="15"
+                class="transition-transform duration-200"
+                :class="{ 'rotate-180': expanded[row.user_id] }"
+              />
+            </button>
           </div>
-          <div class="text-right flex-shrink-0">
-            <div class="text-sm font-bold text-stone-800 tabular-nums">{{ fmtHours(row.minutes) }}</div>
-            <div class="text-[10px] text-stone-400 uppercase tracking-wide">hours</div>
+
+          <!-- Language-mix ribbon — sits below the summary line, full inner width.
+               Texture as colour: who's all-in on one language vs spread across many. -->
+          <div
+            v-if="langs(row).length > 0"
+            class="mt-2.5 flex gap-px h-2 rounded-full overflow-hidden bg-stone-100"
+          >
+            <div
+              v-for="l in langs(row)"
+              :key="l.name"
+              class="h-2"
+              :style="{ width: pct(row, l.minutes) + '%', backgroundColor: l.color }"
+              :title="`${l.name} · ${fmtHours(l.minutes)}`"
+            ></div>
           </div>
-          <ChevronDown
-            v-if="hasDetail(row)"
-            :size="15"
-            class="flex-shrink-0 text-stone-300 transition-transform duration-200"
-            :class="{ 'rotate-180': expanded[row.user_id] }"
-          />
-        </button>
+        </div>
 
         <!-- Expanded texture: what they're actually growing. -->
         <div
@@ -123,6 +152,8 @@
 import { computed, inject, ref } from 'vue'
 import { Trophy, ChevronDown } from 'lucide-vue-next'
 
+const emit = defineEmits(['open-profile'])
+
 const social = inject('social')
 const { leaderboard, leaderboardWindow, circleBreakdown } = social
 
@@ -146,6 +177,12 @@ function setWindow(w) {
 function toggle(row) {
   if (!hasDetail(row)) return
   expanded.value[row.user_id] = !expanded.value[row.user_id]
+}
+
+// Emit open-profile for non-self rows so the parent can render the profile modal.
+function openProfile(row) {
+  if (row.isSelf) return
+  emit('open-profile', row.user_id)
 }
 
 const visibleRows = computed(() => {

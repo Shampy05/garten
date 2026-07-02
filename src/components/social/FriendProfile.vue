@@ -32,12 +32,14 @@
               <div class="text-[10px] text-stone-400 uppercase tracking-wide">this week</div>
             </div>
             <div class="bg-stone-50 rounded-xl p-3 text-center">
-              <div class="text-lg font-display font-bold text-stone-800">{{ bloomsTogether.length }}</div>
-              <div class="text-[10px] text-stone-400 uppercase tracking-wide">blooms</div>
+              <div class="text-lg font-display font-bold text-stone-800 truncate px-1">{{ topLanguageName || '—' }}</div>
+              <div class="text-[10px] text-stone-400 uppercase tracking-wide">top language</div>
             </div>
             <div class="bg-stone-50 rounded-xl p-3 text-center">
-              <div class="text-lg font-display font-bold text-garden-700">{{ friendshipLevel.label }}</div>
-              <div class="text-[10px] text-stone-400 uppercase tracking-wide">friendship</div>
+              <div class="text-lg font-display font-bold text-stone-800">
+                {{ friend.current_streak > 0 ? friend.current_streak + 'd' : '—' }}
+              </div>
+              <div class="text-[10px] text-stone-400 uppercase tracking-wide">streak</div>
             </div>
           </div>
 
@@ -72,22 +74,7 @@
             </div>
           </div>
 
-          <!-- Recent blooms -->
-          <div v-if="bloomsTogether.length" class="mt-5">
-            <h5 class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-2">Recent blooms</h5>
-            <div class="space-y-2">
-              <div
-                v-for="b in bloomsTogether.slice(0, 6)"
-                :key="b.id"
-                class="flex items-center gap-2 text-sm text-stone-600 bg-amber-50/50 rounded-lg px-3 py-2"
-              >
-                <Flower2 :size="14" class="text-amber-500 flex-shrink-0" />
-                <span>{{ bloomText(b) }}</span>
-              </div>
-            </div>
-          </div>
-
-          <p v-else class="mt-5 text-sm text-stone-500">
+          <p v-if="!sharedLanguages.length" class="mt-5 text-sm text-stone-500">
             No cross-pollinations yet. Log a session in one of their languages and watch a bloom appear.
           </p>
 
@@ -98,6 +85,32 @@
             </div>
             <div v-if="hasWatered(friend.friend_id)" class="text-sm text-garden-700 bg-garden-50 rounded-lg px-3 py-2">
               You watered their garden today.
+            </div>
+          </div>
+
+          <!-- Currently reading -->
+          <div v-if="currentlyReading.length > 0" class="mt-5">
+            <h5 class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-2">Currently reading</h5>
+            <div class="space-y-2">
+              <div
+                v-for="book in currentlyReading"
+                :key="book.book_id"
+                class="flex items-center gap-2.5 p-2 rounded-lg bg-stone-50"
+              >
+                <div class="w-8 h-11 flex-shrink-0 rounded overflow-hidden bg-stone-200 border border-line">
+                  <img
+                    v-if="book.cover_url"
+                    :src="book.cover_url"
+                    :alt="book.title"
+                    class="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-xs font-medium text-stone-700 leading-snug line-clamp-2">{{ book.title }}</p>
+                  <p v-if="book.author" class="text-[11px] text-stone-400 truncate mt-0.5">{{ book.author }}</p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -125,7 +138,7 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const social = inject('social')
-const { feed, hasWatered, hasWateredMe } = social
+const { feed, hasWatered, hasWateredMe, circleBreakdown, friendBooks } = social
 const { userId } = useAuth()
 
 const displayName = computed(() => props.friend.display_name || props.friend.username)
@@ -151,13 +164,16 @@ const sharedLanguages = computed(() => {
   return Array.from(map.values())
 })
 
-const friendshipLevel = computed(() => {
-  const n = bloomsTogether.value.length
-  if (n >= 10) return { label: 'In full bloom', color: 'text-pink-600' }
-  if (n >= 5) return { label: 'Budding', color: 'text-amber-600' }
-  if (n >= 2) return { label: 'Sprouting', color: 'text-garden-600' }
-  return { label: 'Seedling', color: 'text-stone-500' }
+const topLanguageName = computed(() => {
+  const bd = circleBreakdown.value?.[props.friend.friend_id]
+  return bd?.languages?.[0]?.name || null
 })
+
+const currentlyReading = computed(() =>
+  (friendBooks.value || [])
+    .filter((b) => b.friend_id === props.friend.friend_id && b.status === 'reading')
+    .slice(0, 3)
+)
 
 function close() {
   emit('close')
@@ -172,10 +188,5 @@ function fmtHours(mins) {
   return `${r}m`
 }
 
-function bloomText(b) {
-  const d = b.occurred_on
-    ? new Date(b.occurred_on + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-    : ''
-  return `${b.language_name} bloomed ${d ? `on ${d}` : 'recently'}`
-}
+
 </script>

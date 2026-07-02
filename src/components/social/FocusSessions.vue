@@ -61,6 +61,13 @@
           </button>
         </div>
       </div>
+      <!-- Elapsed progress bar -->
+      <div class="mt-3 h-1 w-full rounded-full bg-stone-200/70 overflow-hidden">
+        <div
+          class="h-full rounded-full transition-all duration-1000"
+          :style="{ width: elapsedPct + '%', backgroundColor: myActiveSession.language_color }"
+        ></div>
+      </div>
     </div>
 
     <div v-if="friendActiveSessions.length > 0" class="space-y-2">
@@ -175,6 +182,13 @@ const remainingMs = computed(() => {
   if (!myActiveSession.value) return 0
   const end = new Date(myActiveSession.value.ends_at).getTime()
   return Math.max(0, end - now.value)
+})
+
+const elapsedPct = computed(() => {
+  if (!myActiveSession.value) return 0
+  const total = myActiveSession.value.duration_minutes * 60 * 1000
+  const elapsed = total - remainingMs.value
+  return Math.min(100, Math.max(0, (elapsed / total) * 100))
 })
 
 const remainingLabel = computed(() => {

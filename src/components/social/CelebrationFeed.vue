@@ -50,12 +50,18 @@
           <CircleReport
             v-if="item.kind === 'circle_report'"
             :item="item"
+            :start-collapsed="true"
             @open="openDetail(item)"
           />
 
           <div
             v-else
-            class="group flex items-start gap-3 p-4 rounded-xl bg-white border border-stone-100 hover:border-stone-200 transition-colors cursor-pointer"
+            :class="[
+              'group flex items-start gap-3 p-4 rounded-xl border transition-colors cursor-pointer',
+              item.isSelf
+                ? 'bg-garden-50/40 border-garden-100 hover:border-garden-200'
+                : 'bg-white border-stone-100 hover:border-stone-200'
+            ]"
             @click="openDetail(item)"
           >
             <div

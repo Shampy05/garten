@@ -61,28 +61,21 @@
     @confirm="executeRemove"
     @cancel="removeTarget = null"
   />
-
-  <FriendProfile
-    v-if="selectedFriend"
-    :friend="selectedFriend"
-    :visible="true"
-    @close="selectedFriend = null"
-  />
 </template>
 
 <script setup>
 import { ref, inject } from 'vue'
 import { Sprout, X } from 'lucide-vue-next'
 import ConfirmDialog from '../ConfirmDialog.vue'
-import FriendProfile from './FriendProfile.vue'
+
+const emit = defineEmits(['open-profile'])
 
 const social = inject('social')
 const { friends } = social
 const removeTarget = ref(null)
-const selectedFriend = ref(null)
 
 function openFriend(f) {
-  selectedFriend.value = f
+  emit('open-profile', f.friend_id)
 }
 
 function confirmRemove(f) {
