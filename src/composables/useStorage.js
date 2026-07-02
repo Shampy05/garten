@@ -42,6 +42,7 @@ export function useStorage() {
   const loadError = ref(false)
   const weeklyGoal = ref(null)
   const nativeLanguage = ref(null)
+  const activityGoals = ref({})
   const { userId } = useAuth()
   const toast = useToast()
 
@@ -87,12 +88,14 @@ export function useStorage() {
     // Settings are non-blocking — a failure here degrades gracefully to
     // defaults rather than blocking the dashboard or triggering a retry.
     try {
-      const { data: settings } = await supabase.from('user_settings').select('weekly_goal_hours, native_language').eq('user_id', userId.value).single()
+      const { data: settings } = await supabase.from('user_settings').select('weekly_goal_hours, native_language, activity_goals').eq('user_id', userId.value).single()
       weeklyGoal.value = settings?.weekly_goal_hours ?? null
       nativeLanguage.value = settings?.native_language ?? null
+      activityGoals.value = settings?.activity_goals ?? {}
     } catch (e) {
       weeklyGoal.value = null
       nativeLanguage.value = null
+      activityGoals.value = {}
     }
   }
 
@@ -106,6 +109,7 @@ export function useStorage() {
       data.value = { languages: [], entries: [] }
       weeklyGoal.value = null
       nativeLanguage.value = null
+      activityGoals.value = {}
       loaded.value = false
     }
   }, { immediate: true })
@@ -212,6 +216,17 @@ export function useStorage() {
     weeklyGoal.value = hours
   }
 
+  const saveActivityGoals = async (nextGoals) => {
+    if (!userId.value) return
+
+    const { error } = await supabase.from('user_settings').upsert({ user_id: userId.value, activity_goals: nextGoals, updated_at: new Date().toISOString() })
+    if (error) {
+      toast.error('Failed to save goal. Please try again.')
+      return
+    }
+    activityGoals.value = nextGoals
+  }
+
   const saveNativeLanguage = async (lang) => {
     if (!userId.value) return
 
@@ -235,6 +250,7 @@ export function useStorage() {
     loadError,
     weeklyGoal,
     nativeLanguage,
+    activityGoals,
     addEntry,
     addLanguage,
     deleteLanguage,
@@ -242,6 +258,7 @@ export function useStorage() {
     updateEntry,
     updateLanguage,
     saveGoal,
+    saveActivityGoals,
     saveNativeLanguage,
     retryLoad
   }

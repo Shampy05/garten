@@ -24,7 +24,7 @@ This is a Vue 3 + Vite SPA deployed to GitHub Pages. It uses Supabase (PostgreSQ
 All data operations go through the `useStorage` composable which maps between JS camelCase and DB snake_case:
 - `languages`: Array of { id, name, color, types[], prior_hours } — stored as-is in Supabase. `prior_hours` (numeric, default 0) is the "starting point" credited from experience before tracking; feeds the Fluency Horizon only.
 - `entries`: Array of { id, date, languageId, type, hours, minutes, notes } — `languageId` maps to `language_id` in DB
-- `user_settings`: { user_id, weekly_goal_hours, native_language } — per-user weekly study goal and L1. `native_language` (nullable text) feeds the Fluency Horizon's proximity-based target adjustment; NULL = English baseline.
+- `user_settings`: { user_id, weekly_goal_hours, native_language, activity_goals } — per-user weekly study goal and L1. `native_language` (nullable text) feeds the Fluency Horizon's proximity-based target adjustment; NULL = English baseline. `activity_goals` (jsonb, migration `20260702000000`) maps activity type → target hours/week, e.g. `{"reading": 3}`; missing key = no goal set for that type. Mirrors `weekly_goal_hours` but scoped per activity type instead of one overall total — see "Activity goals" below.
 
 The Reading Library (Library tab) persists through its own `useBooks` composable, not `useStorage` — two per-user tables joined 1:1 in memory under each book's `.record`:
 - `books`: { id, externalId, title, author, coverUrl, description, languageCode } — saved external-book metadata; `external_id` is unique per user (re-saving updates, never duplicates).
@@ -172,6 +172,16 @@ The Library tab is the third top-level view (alongside My Garden and Friends) fo
 ## Activity Types
 
 Fixed set defined in `src/lib/types.js`: reading, grammar, vocabulary, listening, speaking, writing, pronunciation. Displayed as toggleable pills in both the LogForm and LanguageManager.
+
+## Activity Goals
+
+A per-activity-type weekly goal (`src/components/ActivityGoals.vue`, `src/composables/useActivityGoals.js`), mirroring the overall `useWeeklyGoal` but scoped to one activity type across all languages instead of one grand total — e.g. "Reading: 1h40m / 3h this week", "Writing: no goal set". Lives in its own "Goals" tab alongside Insights / Activity / Horizon in App.vue's analytics tab group (uses unfiltered `data.entries`/`data.languages`, not the FilterBar-scoped `filteredEntries`, matching the top-of-page weekly goal's scope).
+
+- **Which types are offered**: the union of `types` across the user's languages (`trackedTypes` in `useActivityGoals`) — not the full global `ACTIVITY_TYPES` list, so a type never added to any language never shows a goal row.
+- **Storage**: `user_settings.activity_goals` (see Data Model above). `useActivityGoals.setGoal(type, hours)` reads the current map, adds/removes the one key, and calls `useStorage.saveActivityGoals(nextMap)` which upserts the *whole* map in one write (no partial jsonb update) — same shape as `saveGoal` for the overall target.
+- **Interaction**: inline edit only, no modal — click "+ Set goal" (or the pencil once a goal exists) to reveal a number input + Save/Cancel/Remove, exactly the affordance the overall weekly goal already uses in the status card.
+- **Bar color**: a single garden-green hue at stepped opacity per row (`BAR_OPACITIES` in `ActivityGoals.vue`), not a distinct color per type — avoids inventing a second color-coding scheme that would compete with the language colors used everywhere else.
+- **Row order**: rows with a goal set sort first (least-progressed first, so what needs attention leads), then goal-less rows sorted by recent usage.
 
 ## Deployment
 

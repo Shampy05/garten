@@ -271,6 +271,12 @@
             :entries="filteredEntries"
             :languages="data.languages"
           />
+          <ActivityGoals
+            v-else-if="analyticsTab === 'goals'"
+            :rows="activityGoalRows"
+            @set-goal="setActivityGoal"
+            @clear-goal="clearActivityGoal"
+          />
           <FluencyHorizon
             v-else
             :entries="data.entries"
@@ -392,6 +398,7 @@ import { useStorage } from './composables/useStorage.js'
 import { useLanguageLookup } from './composables/useLanguageLookup.js'
 import { useTimeframe } from './composables/useTimeframe.js'
 import { useWeeklyGoal } from './composables/useWeeklyGoal.js'
+import { useActivityGoals } from './composables/useActivityGoals.js'
 import { localDateStr, currentStreak, getMonthRange, getQuarterRange, getYearRange } from './lib/date.js'
 import AuthScreen from './components/AuthScreen.vue'
 import LanguageSetup from './components/LanguageSetup.vue'
@@ -403,6 +410,7 @@ import Heatmap from './components/Heatmap.vue'
 import InsightCard from './components/InsightCard.vue'
 import FluencyHorizon from './components/FluencyHorizon.vue'
 import ActivityBreakdown from './components/ActivityBreakdown.vue'
+import ActivityGoals from './components/ActivityGoals.vue'
 import Leaderboard from './components/Leaderboard.vue'
 import EditSession from './components/EditSession.vue'
 import SproutIcon from './components/SproutIcon.vue'
@@ -451,15 +459,16 @@ function onUserMenuDocClick(e) {
 onMounted(() => document.addEventListener('click', onUserMenuDocClick))
 onBeforeUnmount(() => document.removeEventListener('click', onUserMenuDocClick))
 
-// Analytics tabs keep Insights / Activity / Horizon to one panel at a time.
+// Analytics tabs keep Insights / Activity / Goals / Horizon to one panel at a time.
 const analyticsTab = ref('insights')
 const analyticsTabs = [
   { key: 'insights', label: 'Insights' },
   { key: 'activity', label: 'Activity' },
+  { key: 'goals', label: 'Goals' },
   { key: 'horizon', label: 'Horizon' },
 ]
 
-const { data, loaded, loadError, weeklyGoal, nativeLanguage, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, updateLanguage: storageUpdateLanguage, saveGoal, saveNativeLanguage, retryLoad } = useStorage()
+const { data, loaded, loadError, weeklyGoal, nativeLanguage, activityGoals, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, updateLanguage: storageUpdateLanguage, saveGoal, saveActivityGoals, saveNativeLanguage, retryLoad } = useStorage()
 
 const { nameFor, colorFor } = useLanguageLookup(() => data.value.languages)
 
@@ -573,6 +582,13 @@ const { goalHours, goalEditing, weekMinutes, goalProgress, goalSegments, saveGoa
   computed(() => data.value.languages),
   weeklyGoal,
   saveGoal
+)
+
+const { rows: activityGoalRows, setGoal: setActivityGoal, clearGoal: clearActivityGoal } = useActivityGoals(
+  computed(() => data.value.entries),
+  computed(() => data.value.languages),
+  activityGoals,
+  saveActivityGoals
 )
 
 const updateFilter = (filter) => {
