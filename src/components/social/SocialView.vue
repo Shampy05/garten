@@ -16,7 +16,7 @@
         <div class="relative flex items-start justify-between gap-3">
           <div class="min-w-0">
             <h2 class="gp-title text-2xl sm:text-3xl text-stone-900">Your garden circle</h2>
-            <p class="text-sm text-stone-500 mt-1">Commit, focus, and grow alongside friends.</p>
+            <p class="text-sm text-stone-500 mt-1">Grow alongside friends.</p>
           </div>
           <div class="text-right flex-shrink-0">
             <div class="text-sm font-medium text-stone-700">@{{ profile.username }}</div>
@@ -34,38 +34,15 @@
           </div>
         </div>
 
-        <!-- Live status line -->
-        <div class="relative mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
-          <div class="inline-flex items-center gap-2">
-            <span class="relative flex h-2.5 w-2.5">
-              <span
-                v-if="focusingNow.length > 0"
-                class="absolute inline-flex h-full w-full rounded-full bg-garden-400 animate-breathe"
-              ></span>
-              <span
-                class="relative inline-flex h-2.5 w-2.5 rounded-full"
-                :class="focusingNow.length > 0 ? 'bg-garden-500' : 'bg-stone-300'"
-              ></span>
-            </span>
-            <span class="text-sm text-stone-600">
-              <template v-if="focusingNow.length > 0">
-                <span class="font-semibold text-stone-800">{{ focusingNow.length }}</span>
-                {{ focusingNow.length === 1 ? 'gardener' : 'gardeners' }} focusing now
-              </template>
-              <template v-else>No one's focusing right now</template>
-            </span>
-          </div>
-
-          <div class="inline-flex items-baseline gap-1.5">
-            <span class="text-sm font-semibold text-stone-800 tabular-nums">{{ fmtHours(circleWeekMinutes) }}</span>
-            <span class="text-sm text-stone-500">tended together this week</span>
-          </div>
+        <!-- This-week total -->
+        <div class="relative mt-4 inline-flex items-baseline gap-1.5">
+          <span class="text-sm font-semibold text-stone-800 tabular-nums">{{ fmtHours(circleWeekMinutes) }}</span>
+          <span class="text-sm text-stone-500">tended together this week</span>
         </div>
       </div>
 
       <RequestsInbox />
       <BuddyInbox />
-      <FocusSessions :languages="languages" />
 
       <!-- Empty circle: one inviting prompt instead of a row of dead cards -->
       <div
@@ -77,8 +54,8 @@
         </div>
         <h3 class="gp-title text-lg">Plant your circle</h3>
         <p class="text-sm text-stone-500 mt-1 max-w-sm mx-auto">
-          Gardens grow better together. Add a friend to share commitments, focus
-          sessions, and a friendly leaderboard.
+          Gardens grow better together. Add a friend to share weekly goals and
+          a friendly leaderboard.
         </p>
         <div class="mt-4 max-w-sm mx-auto text-left">
           <FriendSearch />
@@ -178,7 +155,6 @@ import FriendSearch from './FriendSearch.vue'
 import RequestsInbox from './RequestsInbox.vue'
 import FriendsList from './FriendsList.vue'
 import DispatchDetail from './DispatchDetail.vue'
-import FocusSessions from './FocusSessions.vue'
 import CircleLeaderboard from './CircleLeaderboard.vue'
 import FriendProfile from './FriendProfile.vue'
 import WeeklyGoalsPanel from './WeeklyGoalsPanel.vue'
@@ -199,7 +175,6 @@ const {
   selectedEvent,
   commitments,
   friends,
-  focusingNow,
   circleWeekMinutes,
   feed,
   leaderboard,

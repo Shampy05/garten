@@ -32,7 +32,6 @@ export function useSocial() {
 
   // Garden Circle state
   const commitments = ref([])
-  const focusSessions = ref([])
   const leaderboard = ref([])
   const leaderboardWindow = ref('week')
   // Per-gardener language + activity texture for the leaderboard, keyed by
@@ -53,7 +52,6 @@ export function useSocial() {
   let commentsChannel = null
   let watersChannel = null
   let commitmentsChannel = null
-  let focusSessionsChannel = null
   let nudgesChannel = null
   let buddyPactsChannel = null
 
@@ -375,149 +373,6 @@ export function useSocial() {
   }
 
   // ---------------------------------------------------------------------------
-  // Focus sessions
-  // ---------------------------------------------------------------------------
-
-  async function loadFocusSessions() {
-    if (!profile.value) return
-    // Fetch the most recent sessions and filter client-side. Focus sessions are
-    // low-volume, so this keeps the query simple and avoids Supabase OR quirks.
-    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-    const { data, error } = await supabase
-      .from('focus_sessions')
-      .select(
-        'id, user_id, language_id, language_name, language_color, activity_type, duration_minutes, started_at, ends_at, status, parent_session_id'
-      )
-      .gte('started_at', dayAgo)
-      .order('started_at', { ascending: false })
-      .limit(50)
-    if (error) {
-      focusSessions.value = []
-      return
-    }
-    focusSessions.value = (data || [])
-      .filter((s) => s.status === 'active' || s.status === 'completed')
-      .map((s) => ({
-        ...s,
-        ownerName: s.user_id === userId.value
-          ? 'You'
-          : actorLabel(s.user_id, null).name,
-        isSelf: s.user_id === userId.value
-      }))
-  }
-
-  async function startFocusSession(language, durationMinutes, activityType = 'vocabulary') {
-    if (!profile.value) return { error: 'No profile' }
-    const startedAt = new Date().toISOString()
-    const endsAt = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString()
-    const { data, error } = await supabase
-      .from('focus_sessions')
-      .insert({
-        user_id: userId.value,
-        language_id: language.id,
-        language_name: language.name,
-        language_color: language.color,
-        activity_type: activityType,
-        duration_minutes: Math.max(1, Math.round(durationMinutes)),
-        started_at: startedAt,
-        ends_at: endsAt,
-        status: 'active'
-      })
-      .select()
-      .single()
-    if (error) {
-      toast.error('Could not start focus session.')
-      return { error }
-    }
-    focusSessions.value = [normalizeFocusSession(data), ...focusSessions.value]
-    return { data }
-  }
-
-  async function joinFocusSession(sessionId) {
-    if (!profile.value) return { error: 'No profile' }
-    const parent = focusSessions.value.find((s) => s.id === sessionId)
-    if (!parent) return { error: 'Session not found' }
-    const { data, error } = await startFocusSession(
-      { id: parent.language_id, name: parent.language_name, color: parent.language_color },
-      parent.duration_minutes,
-      parent.activity_type
-    )
-    if (error) return { error }
-    if (data) {
-      await supabase
-        .from('focus_sessions')
-        .update({ parent_session_id: sessionId })
-        .eq('id', data.id)
-      data.parent_session_id = sessionId
-      const idx = focusSessions.value.findIndex((s) => s.id === data.id)
-      if (idx !== -1) focusSessions.value[idx] = normalizeFocusSession(data)
-    }
-    return { data }
-  }
-
-  // Invite specific friends to a focus session — each gets an 'invite' nudge
-  // that points back at the session, surfaced in their notifications bell.
-  async function inviteToFocus(sessionId, recipientIds = []) {
-    if (!profile.value || recipientIds.length === 0) return
-    const rows = recipientIds.map((rid) => ({
-      sender_id: userId.value,
-      recipient_id: rid,
-      kind: 'invite',
-      focus_session_id: sessionId
-    }))
-    const { error } = await supabase.from('nudges').insert(rows)
-    if (error) {
-      toast.error('Could not send the invite.')
-      return
-    }
-    toast.success(recipientIds.length === 1 ? 'Invite sent.' : 'Invites sent.')
-  }
-
-  async function cancelFocusSession(sessionId) {
-    if (!profile.value) return
-    const { error } = await supabase
-      .from('focus_sessions')
-      .update({ status: 'cancelled' })
-      .eq('id', sessionId)
-      .eq('user_id', userId.value)
-    if (error) {
-      toast.error('Could not cancel focus session.')
-      return
-    }
-    focusSessions.value = focusSessions.value.map((s) =>
-      s.id === sessionId ? { ...s, status: 'cancelled' } : s
-    )
-  }
-
-  async function completeFocusSession(sessionId) {
-    if (!profile.value) return
-    const { error } = await supabase.rpc('complete_focus_session', { p_session_id: sessionId })
-    if (error) {
-      toast.error('Could not complete focus session.')
-      return
-    }
-    focusSessions.value = focusSessions.value.map((s) =>
-      s.id === sessionId ? { ...s, status: 'completed' } : s
-    )
-    toast.success('Focus session tended — logged to your garden.')
-  }
-
-  async function expireFocusSessions() {
-    await supabase.rpc('expire_focus_sessions')
-    await loadFocusSessions()
-  }
-
-  function normalizeFocusSession(s) {
-    return {
-      ...s,
-      ownerName: s.user_id === userId.value
-        ? 'You'
-        : actorLabel(s.user_id, null).name,
-      isSelf: s.user_id === userId.value
-    }
-  }
-
-  // ---------------------------------------------------------------------------
   // Leaderboard
   // ---------------------------------------------------------------------------
 
@@ -814,25 +669,6 @@ export function useSocial() {
     }
   }
 
-  function subscribeFocusSessions() {
-    if (focusSessionsChannel) return
-    focusSessionsChannel = supabase
-      .channel('garden-focus-sessions')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'focus_sessions' },
-        () => loadFocusSessions()
-      )
-      .subscribe()
-  }
-
-  function unsubscribeFocusSessions() {
-    if (focusSessionsChannel) {
-      supabase.removeChannel(focusSessionsChannel)
-      focusSessionsChannel = null
-    }
-  }
-
   function subscribeNudges() {
     if (nudgesChannel) return
     nudgesChannel = supabase
@@ -1092,20 +928,18 @@ export function useSocial() {
         loadWatersReceived(),
         loadRecentCommentsOnMine(),
         loadCommitments(),
-        loadFocusSessions(),
         loadLeaderboard(),
         loadNudgesReceived(),
         loadCommitmentStreaks(),
         loadBuddyPacts(),
         loadFriendBooks()
       ])
-      await Promise.all([loadFeedReactions(), ensureCircleReport(), expireFocusSessions()])
+      await Promise.all([loadFeedReactions(), ensureCircleReport()])
       subscribeFeed()
       subscribeReactions()
       subscribeComments()
       subscribeWaters()
       subscribeCommitments()
-      subscribeFocusSessions()
       subscribeNudges()
       subscribeBuddyPacts()
     }
@@ -1135,7 +969,6 @@ export function useSocial() {
       loadWatersReceived(),
       loadRecentCommentsOnMine(),
       loadCommitments(),
-      loadFocusSessions(),
       loadLeaderboard(),
       loadNudgesReceived(),
       loadCommitmentStreaks(),
@@ -1149,7 +982,6 @@ export function useSocial() {
     subscribeComments()
     subscribeWaters()
     subscribeCommitments()
-    subscribeFocusSessions()
     subscribeNudges()
     subscribeBuddyPacts()
     return { data }
@@ -1232,7 +1064,6 @@ export function useSocial() {
     unsubscribeComments()
     unsubscribeWaters()
     unsubscribeCommitments()
-    unsubscribeFocusSessions()
     unsubscribeNudges()
     unsubscribeBuddyPacts()
     profile.value = null
@@ -1246,7 +1077,6 @@ export function useSocial() {
     recentCommentsOnMine.value = []
     nudgesReceived.value = []
     commitments.value = []
-    focusSessions.value = []
     leaderboard.value = []
     leaderboardWindow.value = 'week'
     circleBreakdown.value = {}
@@ -1258,34 +1088,6 @@ export function useSocial() {
     reactionsByEvent.value = {}
     commentsByEvent.value = {}
     selectedEvent.value = null
-  })
-
-  const activeFocusSessions = computed(() =>
-    focusSessions.value.filter((s) => s.status === 'active')
-  )
-
-  const hasActiveFocusSession = computed(() =>
-    activeFocusSessions.value.some((s) => s.user_id === userId.value)
-  )
-
-  // Who's focusing right now (distinct gardeners, expired rows excluded), used
-  // by the circle-pulse header so presence reads at a glance.
-  const focusingNow = computed(() => {
-    const now = Date.now()
-    const seen = new Map()
-    for (const s of focusSessions.value) {
-      if (s.status !== 'active') continue
-      if (new Date(s.ends_at).getTime() <= now) continue
-      if (!seen.has(s.user_id)) {
-        seen.set(s.user_id, {
-          userId: s.user_id,
-          name: s.isSelf ? 'You' : s.ownerName,
-          isSelf: s.isSelf,
-          color: s.language_color
-        })
-      }
-    }
-    return Array.from(seen.values())
   })
 
   return {
@@ -1302,10 +1104,6 @@ export function useSocial() {
     commentsByEvent,
     selectedEvent,
     commitments,
-    focusSessions,
-    activeFocusSessions,
-    hasActiveFocusSession,
-    focusingNow,
     leaderboard,
     leaderboardWindow,
     circleBreakdown,
@@ -1356,13 +1154,6 @@ export function useSocial() {
     declineBuddyPact,
     endBuddyPact,
     loadFriendBooks,
-    loadFocusSessions,
-    startFocusSession,
-    joinFocusSession,
-    inviteToFocus,
-    cancelFocusSession,
-    completeFocusSession,
-    expireFocusSessions,
     loadLeaderboard,
     loadCircleBreakdown,
     loadNudgesReceived,
