@@ -42,19 +42,12 @@
               'border-2 border-blue-500': day.date === todayStr,
               'ring-2 ring-yellow-400/70 shadow-[0_0_8px_rgba(250,204,21,0.25)]': day.inRange && streakDaysSet.has(day.date)
             }"
-            :style="day.inRange ? { backgroundColor: dayBgColor(day) } : { background: 'transparent' }"
+            :style="day.inRange ? { background: dayBgColor(day) } : { background: 'transparent' }"
             @mouseenter="day.inRange && hoverShow(day, $event)"
             @mouseleave="hoverHide()"
             @click="day.inRange && toggleTooltip(day, $event)"
           >
             <div v-if="day.inRange" class="absolute inset-0 pointer-events-none">
-              <div v-if="showMosaic(day)" class="absolute inset-0 grid grid-cols-5 grid-rows-5 gap-[1.5px] p-[2px]">
-                <div v-for="(color, si) in getMosaicGrid(day)" :key="si"
-                  class="rounded-[1.5px]"
-                  :class="color ? '' : 'invisible'"
-                  :style="color ? { backgroundColor: color } : {}"
-                ></div>
-              </div>
               <span class="absolute top-0.5 left-1 text-[9px] font-medium text-stone-500/70 leading-none select-none z-10">
                 {{ getDayNumber(day) }}
               </span>
@@ -92,19 +85,12 @@
                     'border-2 border-blue-500': day.date === todayStr,
                     'ring-1 ring-yellow-400/70 shadow-[0_0_4px_rgba(250,204,21,0.2)]': day.inRange && streakDaysSet.has(day.date)
                   }"
-                  :style="day.inRange ? { backgroundColor: dayBgColor(day), width: cellSizeQ + 'px', height: cellSizeQ + 'px' } : { width: cellSizeQ + 'px', height: cellSizeQ + 'px', background: 'transparent' }"
+                  :style="day.inRange ? { background: dayBgColor(day), width: cellSizeQ + 'px', height: cellSizeQ + 'px' } : { width: cellSizeQ + 'px', height: cellSizeQ + 'px', background: 'transparent' }"
                   @mouseenter="day.inRange && hoverShow(day, $event)"
                   @mouseleave="hoverHide()"
                   @click="day.inRange && toggleTooltip(day, $event)"
                 >
                   <div v-if="day.inRange" class="absolute inset-0 pointer-events-none">
-                    <div v-if="showMosaic(day)" class="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-px p-px">
-                      <div v-for="(color, si) in getMosaicGrid(day, 3)" :key="si"
-                        class="rounded-[0.5px]"
-                        :class="color ? '' : 'invisible'"
-                        :style="color ? { backgroundColor: color } : {}"
-                      ></div>
-                    </div>
                     <span class="absolute top-px left-0.5 text-[6px] font-medium text-stone-500/70 leading-none select-none z-10">
                       {{ getDayNumber(day) }}
                     </span>
@@ -142,18 +128,11 @@
                   'border border-blue-500': day.date === todayStr,
                   'ring-[0.5px] ring-yellow-400/70': day.inRange && streakDaysSet.has(day.date)
                 }"
-                :style="day.inRange ? { backgroundColor: day.totalMinutes > 0 ? dayBgColor(day) : '#f3f4f6' } : { background: 'transparent' }"
+                :style="day.inRange ? { background: day.totalMinutes > 0 ? dayBgColor(day) : '#f3f4f6' } : { background: 'transparent' }"
                 @mouseenter="day.inRange && hoverShow(day, $event)"
                 @mouseleave="hoverHide()"
                 @click="day.inRange && toggleTooltip(day, $event)"
               >
-                <div v-if="day.inRange && showMosaic(day)" class="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px p-px">
-                  <div v-for="(color, si) in getMosaicGrid(day, 2)" :key="si"
-                    class="rounded-[0.5px]"
-                    :class="color ? '' : 'invisible'"
-                    :style="color ? { backgroundColor: color } : {}"
-                  ></div>
-                </div>
               </div>
             </div>
           </div>
@@ -189,7 +168,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { localDateStr, daysBetween, getMonthRange, getQuarterRange, getYearRange } from '../lib/date.js'
-import { toHexColor } from '../lib/color.js'
+import { toHexColor, glossyGradient, lightenColor, darkenColor } from '../lib/color.js'
 import { useLanguageLookup } from '../composables/useLanguageLookup.js'
 
 const props = defineProps({
@@ -302,7 +281,11 @@ const adjustColor = (color, intensity) => {
   const r = parseInt(hex.slice(1, 3), 16)
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)
-  return `rgb(${Math.round(243 + (r - 243) * intensity)}, ${Math.round(244 + (g - 244) * intensity)}, ${Math.round(246 + (b - 246) * intensity)})`
+  const toHex = (v) => Math.round(v).toString(16).padStart(2, '0')
+  const rr = Math.round(243 + (r - 243) * intensity)
+  const gg = Math.round(244 + (g - 244) * intensity)
+  const bb = Math.round(246 + (b - 246) * intensity)
+  return `#${toHex(rr)}${toHex(gg)}${toHex(bb)}`
 }
 
 const getColorAtIntensity = (hex, minutes) => {
@@ -327,13 +310,36 @@ const getLanguageActivities = (day) => {
   return groups
 }
 
-// Distinct languages studied on a given day.
-const dayLanguageCount = (day) => Object.keys(getLanguageActivities(day)).length
+// Build one continuous glossy gradient for a mixed-language day. Each
+// language gets a light→base→dark band sized by proportion, and adjacent
+// bands overlap at their base colors so the transition feels smooth rather
+// than tiled.
+const multiLanguageGradient = (day) => {
+  const groups = getLanguageActivities(day)
+  const entries = Object.entries(groups).sort((a, b) => b[1] - a[1])
+  const total = entries.reduce((s, [, mins]) => s + mins, 0)
 
-// The mosaic only earns its grid when a day actually mixes languages. A
-// single-language day is rendered as one clean solid block instead — so a
-// tiled cell becomes a meaningful signal of a varied day.
-const showMosaic = (day) => useMosaic.value && day.totalMinutes > 0 && dayLanguageCount(day) > 1
+  const stops = []
+  let cumulative = 0
+  entries.forEach(([langId, mins], index) => {
+    const color = colorFor(langId)
+    const proportion = mins / total
+    const start = cumulative
+    const end = cumulative + proportion
+    const mid = (start + end) / 2
+
+    if (index === 0) {
+      stops.push(`${lightenColor(color, 0.35)} ${start * 100}%`)
+    }
+    stops.push(`${color} ${mid * 100}%`)
+    if (index === entries.length - 1) {
+      stops.push(`${darkenColor(color, 0.15)} ${end * 100}%`)
+    }
+    cumulative += proportion
+  })
+
+  return `linear-gradient(145deg, ${stops.join(', ')})`
+}
 
 const dayBgColor = (day) => {
   if (day.totalMinutes === 0) return '#f3f4f6'
@@ -341,49 +347,22 @@ const dayBgColor = (day) => {
     const lang = props.filter.language
       ? languageFor(props.filter.language)
       : activeLanguages.value[0]
-    return getColorAtIntensity(lang?.color || '#16a34a', day.totalMinutes)
+    return glossyGradient(
+      getColorAtIntensity(lang?.color || '#16a34a', day.totalMinutes),
+      { lightenAmount: 0.12, darkenAmount: 0.06 }
+    )
   }
-  // Mosaic mode: solid block for a single-language day, grey backdrop for the
-  // multi-language mosaic to sit on.
+  // Mosaic mode: single-language days get a subtle glossy gradient at their
+  // intensity so the level differences stay readable; mixed days get a more
+  // pronounced glossy block blending each language.
   const ids = Object.keys(getLanguageActivities(day))
-  if (ids.length === 1) return getColorAtIntensity(colorFor(ids[0]), day.totalMinutes)
-  return '#f3f4f6'
-}
-
-const getMosaicGrid = (day, gridSize = 5) => {
-  if (day.totalMinutes === 0) return []
-  const maxSquares = gridSize * gridSize
-  const groups = getLanguageActivities(day)
-  const entries = Object.entries(groups).sort((a, b) => b[1] - a[1])
-
-  if (entries.length === 1) {
-    const color = colorFor(entries[0][0])
-    return Array(maxSquares).fill(getColorAtIntensity(color, day.totalMinutes))
+  if (ids.length === 1) {
+    return glossyGradient(
+      getColorAtIntensity(colorFor(ids[0]), day.totalMinutes),
+      { lightenAmount: 0.12, darkenAmount: 0.06 }
+    )
   }
-
-  const totalMins = Object.values(groups).reduce((s, v) => s + v, 0)
-
-  const allocation = entries.map(([langId, mins]) => {
-    const exact = (mins / totalMins) * maxSquares
-    return { langId, exact, floor: Math.floor(exact), remainder: exact - Math.floor(exact) }
-  })
-
-  let sum = allocation.reduce((s, a) => s + a.floor, 0)
-  const sorted = [...allocation].sort((a, b) => b.remainder - a.remainder)
-  let ri = 0
-  while (sum < maxSquares && ri < sorted.length) {
-    sorted[ri].floor++
-    sum++
-    ri++
-  }
-
-  const colors = []
-  for (const a of allocation) {
-    const color = colorFor(a.langId)
-    for (let j = 0; j < a.floor; j++) colors.push(color)
-  }
-  while (colors.length < maxSquares) colors.push(null)
-  return colors
+  return multiLanguageGradient(day)
 }
 
 const getDayNumber = (day) => {

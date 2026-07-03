@@ -128,3 +128,30 @@ export function toHexColor(color) {
   const toHex = (v) => Math.round(v * 255).toString(16).padStart(2, '0')
   return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`
 }
+
+const lighten = (v, amt) => Math.min(255, Math.round(v + (255 - v) * amt))
+const darken = (v, amt) => Math.max(0, Math.round(v * (1 - amt)))
+
+export function lightenColor(color, amount = 0.35) {
+  const hex = toHexColor(color)
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `rgb(${lighten(r, amount)}, ${lighten(g, amount)}, ${lighten(b, amount)})`
+}
+
+export function darkenColor(color, amount = 0.15) {
+  const hex = toHexColor(color)
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `rgb(${darken(r, amount)}, ${darken(g, amount)}, ${darken(b, amount)})`
+}
+
+// Build a glossy gradient from a flat language color. The light catch at the
+// top-left and the deeper shade at the bottom-right make mosaic tiles feel
+// like polished seed-packet gems while keeping the language identity intact.
+export function glossyGradient(color, { lightenAmount = 0.35, darkenAmount = 0.15 } = {}) {
+  const base = toHexColor(color)
+  return `linear-gradient(145deg, ${lightenColor(base, lightenAmount)} 0%, ${base} 55%, ${darkenColor(base, darkenAmount)} 100%)`
+}
