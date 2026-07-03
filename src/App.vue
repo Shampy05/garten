@@ -86,9 +86,7 @@
               :title="userEmail"
               aria-label="Account menu"
             >
-              <span class="w-8 h-8 rounded-full bg-gradient-to-b from-garden-500 to-garden-600 text-white font-display font-bold text-sm flex items-center justify-center">
-                {{ userInitial }}
-              </span>
+              <BloomAvatar :seed="user?.id" :hours="totalLoggedHours" :variant="social.profile.value?.avatar_variant ?? null" :size="32" />
               <ChevronDown :size="14" class="text-stone-400 transition-transform" :class="{ 'rotate-180': userMenuOpen }" />
             </button>
 
@@ -109,6 +107,10 @@
                   <div class="text-sm font-medium text-stone-700 truncate">{{ userEmail }}</div>
                 </div>
                 <div class="h-px bg-line my-1"></div>
+                <button @click="openProfile" class="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-sm text-stone-700 hover:bg-stone-50 transition-colors">
+                  <User :size="16" class="text-stone-400" />
+                  My profile
+                </button>
                 <button @click="openLangManager" class="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-sm text-stone-700 hover:bg-stone-50 transition-colors">
                   <Settings :size="16" class="text-stone-400" />
                   Manage languages
@@ -123,16 +125,25 @@
           </div>
         </div>
 
-        <div class="flex items-center gap-3 mb-4">
+        <div v-if="todayStreak > 0 || todayMinutes > 0" class="flex items-center gap-3 mb-3">
           <span v-if="todayStreak > 0"
             class="inline-flex items-center gap-1.5 text-sm font-semibold text-orange-600 bg-orange-50 ring-1 ring-orange-100 px-2.5 py-1 rounded-full"
           >
             <Flame :size="14" class="fill-orange-500/20" />
             {{ todayStreak }} day streak
           </span>
-          <span class="text-sm text-stone-500">
-            {{ todayMinutes > 0 ? `${todayMinutes}m tended today` : 'Ready to plant today\'s seed?' }}
+          <span v-if="todayMinutes > 0" class="text-sm text-stone-500">
+            {{ todayMinutes }}m tended today
           </span>
+        </div>
+
+        <!-- Today's seed: one gentle next-best-action, computed from the data -->
+        <div
+          class="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl border text-sm animate-fade-up"
+          :class="nextActionUi.classes"
+        >
+          <component :is="nextActionUi.icon" :size="15" class="flex-shrink-0" />
+          <span>{{ nextAction.message }}</span>
         </div>
 
         <!-- Weekly Goal -->
@@ -368,6 +379,16 @@
       @close="showLangManager = false"
     />
 
+    <GardenerProfile
+      mode="self"
+      :visible="showProfile"
+      :self="selfProfileInput"
+      @close="showProfile = false"
+      @save-bio="saveBio"
+      @save-variant="saveVariant"
+      @go-to-friends="showProfile = false; navView = 'friends'"
+    />
+
     <EditSession
       :entry="editingEntry"
       :languages="data.languages"
@@ -392,14 +413,18 @@
 
 <script setup>
 import { ref, computed, watch, provide, onMounted, onBeforeUnmount } from 'vue'
-import { Settings, Pencil, Trash2, Sprout, Users, Flame, ChevronDown, LogOut, BookOpen } from 'lucide-vue-next'
+import { Settings, Pencil, Trash2, Sprout, Users, Flame, ChevronDown, LogOut, BookOpen, User, Target, Droplets } from 'lucide-vue-next'
 import { useAuth } from './composables/useAuth.js'
 import { useStorage } from './composables/useStorage.js'
+import { useToast } from './composables/useToast.js'
 import { useLanguageLookup } from './composables/useLanguageLookup.js'
 import { useTimeframe } from './composables/useTimeframe.js'
 import { useWeeklyGoal } from './composables/useWeeklyGoal.js'
 import { useActivityGoals } from './composables/useActivityGoals.js'
 import { localDateStr, currentStreak, getMonthRange, getQuarterRange, getYearRange } from './lib/date.js'
+import { levelForHours } from './lib/proficiency.js'
+import { computeNextAction } from './lib/nextAction.js'
+import { detectMilestone } from './lib/milestones.js'
 import AuthScreen from './components/AuthScreen.vue'
 import LanguageSetup from './components/LanguageSetup.vue'
 import LogForm from './components/LogForm.vue'
@@ -414,6 +439,8 @@ import ActivityGoals from './components/ActivityGoals.vue'
 import Leaderboard from './components/Leaderboard.vue'
 import EditSession from './components/EditSession.vue'
 import SproutIcon from './components/SproutIcon.vue'
+import BloomAvatar from './components/BloomAvatar.vue'
+import GardenerProfile from './components/GardenerProfile.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import Toast from './components/Toast.vue'
 import SocialView from './components/social/SocialView.vue'
@@ -422,6 +449,7 @@ import { useSocial } from './composables/useSocial.js'
 
 const { user, loading: authLoading, signIn, signUp, signOut, resetPassword } = useAuth()
 provide('auth', { signIn, signUp, resetPassword })
+const toast = useToast()
 
 const social = useSocial()
 provide('social', social)
@@ -441,11 +469,31 @@ watch(navView, (val) => localStorage.setItem(NAV_VIEW_KEY, val))
 const userMenuOpen = ref(false)
 const userMenuRef = ref(null)
 const userEmail = computed(() => user.value?.email || '')
-const userInitial = computed(() => (user.value?.email?.[0] || 's').toUpperCase())
+// Drives the header avatar's growth stage — logged hours only (no prior-hours
+// credit): the plant reflects the garden tended here.
+const totalLoggedHours = computed(() =>
+  data.value.entries.reduce((sum, e) => sum + e.hours * 60 + e.minutes, 0) / 60
+)
 
 function openLangManager() {
   userMenuOpen.value = false
   showLangManager.value = true
+}
+// My profile — a personal garden dashboard. Ensure the (cheap) profile row is
+// loaded so name/handle/bio/bloom appear even if the Friends view was never
+// opened this session; this fetches only the single profiles row, not the
+// whole social layer.
+const showProfile = ref(false)
+function openProfile() {
+  userMenuOpen.value = false
+  if (!social.profileLoaded.value) social.loadProfile()
+  showProfile.value = true
+}
+function saveBio(bio) {
+  if (social.profile.value) social.updateProfile({ bio: bio || null })
+}
+function saveVariant(variant) {
+  if (social.profile.value) social.updateProfile({ avatar_variant: variant })
 }
 function signOutFromMenu() {
   userMenuOpen.value = false
@@ -584,6 +632,22 @@ const { goalHours, goalEditing, weekMinutes, goalProgress, goalSegments, saveGoa
   saveGoal
 )
 
+// Everything the self-profile modal renders from — assembled here so it reads
+// App.vue's single useStorage instance (rather than re-instantiating it) and
+// stays live while the modal is open. Books are loaded lazily inside the modal.
+const selfProfileInput = computed(() => ({
+  userId: user.value?.id || '',
+  email: user.value?.email || '',
+  profile: social.profile.value,
+  entries: data.value.entries,
+  languages: data.value.languages,
+  nativeLanguage: nativeLanguage.value,
+  streak: todayStreak.value,
+  weekMinutes: weekMinutes.value,
+  goalHours: goalHours.value,
+  totalHours: totalLoggedHours.value,
+}))
+
 const { rows: activityGoalRows, setGoal: setActivityGoal, clearGoal: clearActivityGoal } = useActivityGoals(
   computed(() => data.value.entries),
   computed(() => data.value.languages),
@@ -591,11 +655,63 @@ const { rows: activityGoalRows, setGoal: setActivityGoal, clearGoal: clearActivi
   saveActivityGoals
 )
 
+// "Today's seed" — the single next-best-action shown in the header card.
+const nextAction = computed(() =>
+  computeNextAction({
+    entries: data.value.entries,
+    languages: data.value.languages,
+    todayMinutes: todayMinutes.value,
+    weekMinutes: weekMinutes.value,
+    goalHours: goalHours.value,
+    activityRows: activityGoalRows.value,
+  })
+)
+const NEXT_ACTION_TONES = {
+  urgent: { icon: Flame, classes: 'bg-amber-50 border-amber-100 text-amber-700' },
+  opportunity: { icon: Target, classes: 'bg-garden-50 border-garden-100 text-garden-700' },
+  nudge: { icon: Target, classes: 'bg-amber-50 border-amber-100 text-amber-700' },
+  gentle: { icon: Sprout, classes: 'bg-stone-50 border-line text-stone-600' },
+  calm: { icon: Sprout, classes: 'bg-garden-50/60 border-garden-100 text-garden-700' },
+}
+const NEXT_ACTION_ICONS = { flame: Flame, target: Target, sprout: Sprout, droplets: Droplets }
+const nextActionUi = computed(() => {
+  const tone = NEXT_ACTION_TONES[nextAction.value.tone] || NEXT_ACTION_TONES.gentle
+  return { icon: NEXT_ACTION_ICONS[nextAction.value.icon] || Sprout, classes: tone.classes }
+})
+
 const updateFilter = (filter) => {
   activeFilter.value = filter
 }
 
-const addEntry = (entry) => { storageAddEntry(entry) }
+// Snapshot of the milestone-relevant aggregates, taken before and after a log
+// so we can detect a threshold the session just crossed. Logged hours per
+// language exclude prior-hours credit; the CEFR level uses prior+logged.
+function milestoneSnapshot() {
+  const loggedByLang = {}
+  for (const e of data.value.entries) {
+    loggedByLang[e.languageId] = (loggedByLang[e.languageId] || 0) + e.hours * 60 + e.minutes
+  }
+  const langs = {}
+  for (const l of data.value.languages) {
+    const logged = (loggedByLang[l.id] || 0) / 60
+    const total = (Number(l.prior_hours) || 0) + logged
+    langs[l.id] = { name: l.name, hours: logged, level: levelForHours(l.name, total, nativeLanguage.value) }
+  }
+  return {
+    streak: currentStreak(data.value.entries.map((e) => e.date)),
+    weekReached: !!goalHours.value && weekMinutes.value >= goalHours.value * 60,
+    langs,
+  }
+}
+
+// Logging a session is the one moment stats should feed back: snapshot around
+// the add, and if it pushed the user across a milestone, celebrate it quietly.
+const addEntry = async (entry) => {
+  const before = milestoneSnapshot()
+  await storageAddEntry(entry)
+  const milestone = detectMilestone(before, milestoneSnapshot())
+  if (milestone) toast.show(milestone.message, 'celebrate', 6000)
+}
 const addLanguage = (language) => { storageAddLanguage(language) }
 const deleteLanguage = (langId) => { storageDeleteLanguage(langId) }
 const updateLanguage = (data) => { const { id, ...updates } = data; storageUpdateLanguage(id, updates) }

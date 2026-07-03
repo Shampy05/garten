@@ -15,9 +15,7 @@
         class="flex items-center gap-3 p-3 rounded-lg bg-stone-50 group cursor-pointer hover:bg-garden-50/60 transition-colors"
         @click="openFriend(f)"
       >
-        <div class="w-9 h-9 rounded-full bg-garden-100 text-garden-700 flex items-center justify-center font-display font-bold flex-shrink-0">
-          {{ (f.display_name || f.username)[0].toUpperCase() }}
-        </div>
+        <BloomAvatar :seed="f.friend_id" :size="36" :name="f.display_name || f.username" />
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2">
             <span class="text-sm font-medium text-stone-700 truncate">{{ f.display_name || f.username }}</span>
@@ -67,6 +65,7 @@
 import { ref, inject } from 'vue'
 import { Sprout, X } from 'lucide-vue-next'
 import ConfirmDialog from '../ConfirmDialog.vue'
+import BloomAvatar from '../BloomAvatar.vue'
 
 const emit = defineEmits(['open-profile'])
 

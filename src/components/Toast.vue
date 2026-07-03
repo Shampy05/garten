@@ -7,9 +7,12 @@
         class="pointer-events-auto max-w-sm px-4 py-3 rounded-xl shadow-card border text-sm font-medium flex items-center gap-2.5 animate-slideUp"
         :class="toast.type === 'error'
           ? 'bg-red-50 text-red-700 border-red-200'
-          : 'bg-garden-50 text-garden-700 border-garden-200'"
+          : toast.type === 'celebrate'
+            ? 'bg-garden-50 text-garden-800 border-garden-300 ring-1 ring-garden-200/60'
+            : 'bg-garden-50 text-garden-700 border-garden-200'"
       >
         <CircleAlert v-if="toast.type === 'error'" class="w-4 h-4 flex-shrink-0" />
+        <Sprout v-else-if="toast.type === 'celebrate'" class="w-4 h-4 flex-shrink-0 animate-sway" />
         <Check v-else class="w-4 h-4 flex-shrink-0" />
         <span class="flex-1">{{ toast.message }}</span>
         <button @click="dismiss(toast.id)" class="flex-shrink-0 opacity-60 hover:opacity-100 transition-opacity">
@@ -21,7 +24,7 @@
 </template>
 
 <script setup>
-import { CircleAlert, Check, X } from 'lucide-vue-next'
+import { CircleAlert, Check, X, Sprout } from 'lucide-vue-next'
 import { useToast } from '../composables/useToast.js'
 
 const { toasts, dismiss } = useToast()

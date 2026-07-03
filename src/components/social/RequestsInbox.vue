@@ -8,9 +8,7 @@
     <!-- Incoming -->
     <div v-if="incomingRequests.length" class="space-y-1.5">
       <div v-for="r in incomingRequests" :key="r.id" class="flex items-center gap-3 p-2 rounded-lg">
-        <div class="w-8 h-8 rounded-full bg-garden-50 text-garden-700 flex items-center justify-center font-display font-bold text-sm flex-shrink-0">
-          {{ initial(r.requester) }}
-        </div>
+        <BloomAvatar :seed="r.requester?.id" :size="32" :name="name(r.requester)" />
         <div class="min-w-0 flex-1">
           <div class="text-sm font-medium text-stone-700 truncate">{{ name(r.requester) }}</div>
           <div class="text-xs text-stone-400 truncate">wants to grow together</div>
@@ -35,9 +33,7 @@
     <div v-if="outgoingRequests.length" class="mt-3 pt-3 border-t border-stone-100 space-y-1.5">
       <div class="text-[10px] text-stone-400 font-semibold uppercase tracking-widest mb-1">Sent</div>
       <div v-for="r in outgoingRequests" :key="r.id" class="flex items-center gap-3 p-2 rounded-lg">
-        <div class="w-8 h-8 rounded-full bg-stone-100 text-stone-500 flex items-center justify-center font-display font-bold text-sm flex-shrink-0">
-          {{ initial(r.addressee) }}
-        </div>
+        <BloomAvatar :seed="r.addressee?.id" :size="32" :name="name(r.addressee)" />
         <div class="min-w-0 flex-1">
           <div class="text-sm font-medium text-stone-700 truncate">{{ name(r.addressee) }}</div>
           <div class="text-xs text-stone-400 truncate">pending…</div>
@@ -56,14 +52,12 @@
 <script setup>
 import { inject } from 'vue'
 import { Check, X } from 'lucide-vue-next'
+import BloomAvatar from '../BloomAvatar.vue'
 
 const social = inject('social')
 const { incomingRequests, outgoingRequests } = social
 
 function name(p) {
   return p?.display_name || p?.username || 'A gardener'
-}
-function initial(p) {
-  return name(p)[0].toUpperCase()
 }
 </script>

@@ -24,9 +24,7 @@
         :key="u.id"
         class="flex items-center gap-3 p-2 rounded-lg hover:bg-stone-50 transition-colors"
       >
-        <div class="w-8 h-8 rounded-full bg-garden-50 text-garden-700 flex items-center justify-center font-display font-bold text-sm flex-shrink-0">
-          {{ (u.display_name || u.username)[0].toUpperCase() }}
-        </div>
+        <BloomAvatar :seed="u.id" :size="32" :name="u.display_name || u.username" />
         <div class="min-w-0 flex-1">
           <div class="text-sm font-medium text-stone-700 truncate">{{ u.display_name || u.username }}</div>
           <div class="text-xs text-stone-400 truncate">@{{ u.username }}</div>
@@ -48,6 +46,7 @@
 <script setup>
 import { ref, inject, watch } from 'vue'
 import { Search, UserPlus } from 'lucide-vue-next'
+import BloomAvatar from '../BloomAvatar.vue'
 
 const social = inject('social')
 const query = ref('')

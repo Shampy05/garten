@@ -45,18 +45,13 @@
             <button
               v-if="!row.isSelf"
               type="button"
-              class="w-9 h-9 rounded-full flex items-center justify-center font-display font-bold text-sm flex-shrink-0 bg-garden-50 text-garden-700 hover:bg-garden-100 transition-colors"
+              class="rounded-full flex-shrink-0 hover:ring-2 hover:ring-garden-200 transition-shadow"
               :title="`View ${row.display_name || row.username}'s profile`"
               @click="openProfile(row)"
             >
-              {{ (row.display_name || row.username)[0].toUpperCase() }}
+              <BloomAvatar :seed="row.user_id" :size="36" :name="row.display_name || row.username" class="block" />
             </button>
-            <div
-              v-else
-              class="w-9 h-9 rounded-full flex items-center justify-center font-display font-bold text-sm flex-shrink-0 bg-stone-100 text-stone-600"
-            >
-              {{ (row.display_name || row.username)[0].toUpperCase() }}
-            </div>
+            <BloomAvatar v-else :seed="row.user_id" :size="36" />
 
             <!-- Name + streak — name also opens profile for friends -->
             <div class="min-w-0 flex-1">
@@ -151,6 +146,7 @@
 <script setup>
 import { computed, inject, ref } from 'vue'
 import { Trophy, ChevronDown } from 'lucide-vue-next'
+import BloomAvatar from '../BloomAvatar.vue'
 
 const emit = defineEmits(['open-profile'])
 

@@ -87,8 +87,9 @@
       />
 
       <!-- Profile modal: opened from both the leaderboard and the friends list -->
-      <FriendProfile
+      <GardenerProfile
         v-if="friendProfile"
+        mode="friend"
         :friend="friendProfile"
         :visible="true"
         @close="friendProfile = null"
@@ -105,7 +106,7 @@ import FriendSearch from './FriendSearch.vue'
 import RequestsInbox from './RequestsInbox.vue'
 import FriendsList from './FriendsList.vue'
 import CircleLeaderboard from './CircleLeaderboard.vue'
-import FriendProfile from './FriendProfile.vue'
+import GardenerProfile from '../GardenerProfile.vue'
 import WeeklyGoalsPanel from './WeeklyGoalsPanel.vue'
 import SetCommitmentModal from './SetCommitmentModal.vue'
 import CelebrationFeed from './CelebrationFeed.vue'
@@ -153,22 +154,28 @@ const heroLine = computed(() => {
 // breakdown as a compatible shape.
 const friendProfile = ref(null)
 
-function openFriendProfile(userId) {
+async function openFriendProfile(userId) {
   const fromFriends = friends.value.find((f) => f.friend_id === userId)
-  if (fromFriends) {
-    friendProfile.value = fromFriends
-    return
-  }
-  const row = leaderboard.value.find((r) => r.user_id === userId)
-  if (!row) return
-  const bd = circleBreakdown.value[userId]
-  friendProfile.value = {
-    friend_id: userId,
-    username: row.username,
-    display_name: row.display_name,
-    current_streak: row.current_streak,
-    minutes_this_week: row.minutes,
-    active_languages: bd?.languages || []
+  const base = fromFriends || (() => {
+    const row = leaderboard.value.find((r) => r.user_id === userId)
+    if (!row) return null
+    const bd = circleBreakdown.value[userId]
+    return {
+      friend_id: userId,
+      username: row.username,
+      display_name: row.display_name,
+      current_streak: row.current_streak,
+      minutes_this_week: row.minutes,
+      active_languages: bd?.languages || []
+    }
+  })()
+  if (!base) return
+  // Show immediately from the data we already have, then fold in the friend's
+  // opt-in bio + chosen bloom once the one-row read returns (RLS-guarded).
+  friendProfile.value = { ...base }
+  const extras = await social.fetchProfileExtras(userId)
+  if (extras && friendProfile.value && friendProfile.value.friend_id === userId) {
+    friendProfile.value = { ...friendProfile.value, bio: extras.bio, avatar_variant: extras.avatar_variant }
   }
 }
 
