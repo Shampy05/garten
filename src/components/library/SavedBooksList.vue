@@ -280,7 +280,9 @@ async function onMarkAsRead(book) {
   await shelves.markAsRead(book.id)
 }
 async function onReorder({ book, direction }) {
-  await shelves.reorderQueue(book.id, direction)
+  // Pass the visible (language-filtered) order so a reorder swaps with the
+  // neighbour the user actually sees, not a hidden other-language row.
+  await shelves.reorderQueue(book.id, direction, filteredQueue.value.map((b) => b.id))
 }
 function onRemoveFinished(book) {
   emit('finished-remove', book)

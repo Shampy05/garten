@@ -51,8 +51,8 @@ function bookToSnake(book) {
   }
 }
 
-function recordToSnake(record) {
-  return {
+export function recordToSnake(record) {
+  const snake = {
     target_language: record.targetLanguage,
     status: record.status,
     rating: record.rating ?? null,
@@ -64,8 +64,13 @@ function recordToSnake(record) {
     current_page: record.currentPage ?? null,
     total_pages: record.totalPages ?? null,
     sort_index: record.sortIndex ?? null,
-    added_to_queue_at: record.addedToQueueAt ?? null,
   }
+  // added_to_queue_at is NOT NULL with a DB default of now(). Never write an
+  // explicit null (it would violate the constraint on insert): omit the key so
+  // the default fires on insert and the existing value is left untouched on
+  // update. Only send it when we actually hold a value.
+  if (record.addedToQueueAt != null) snake.added_to_queue_at = record.addedToQueueAt
+  return snake
 }
 
 // Join a book row with its reading-record row into one display object. The
@@ -230,6 +235,11 @@ export function useBooks() {
       finishedAt: record.finishedAt ?? existing?.record?.finishedAt ?? null,
       currentPage: record.currentPage ?? existing?.record?.currentPage ?? null,
       totalPages: record.totalPages ?? existing?.record?.totalPages ?? volume.pageCount ?? null,
+      // Stamp when the book entered the queue so Up-next order is intentional
+      // (newest-queued first) from the first render, not an accident of
+      // in-memory insertion order. Preserved across re-saves so editing a book
+      // doesn't reshuffle the queue.
+      addedToQueueAt: existing?.record?.addedToQueueAt ?? new Date().toISOString(),
     }
 
     const { error: bookErr } = await supabase.from('books').upsert({

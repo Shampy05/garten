@@ -19,6 +19,16 @@ export { sortActive, sortQueue, sortFinished, nextSwapIndices, initSortIndices }
 
 export const ACTIVE_CAP = 3
 
+// Serialise reorders across every click and every useShelves() consumer. A
+// reorder is async: the null-queue path runs N init writes followed by a
+// 2-row swap, a long window in which a second click (users tap ▲/▼ repeatedly
+// to move a book several slots) would read a half-updated queue and interleave
+// with the first — losing a move or flinging books the wrong way. Chaining
+// each reorder after the previous one means every click runs against fresh,
+// fully-settled queue state. Module-level so it holds even though useShelves()
+// builds a new closure per caller.
+let reorderTail = Promise.resolve()
+
 // ── Composable ─────────────────────────────────────────────────────────────
 
 export function useShelves() {
@@ -110,12 +120,28 @@ export function useShelves() {
   // each book a sortIndex that mirrors its current visual position. Cost: N
   // writes on the first reorder after a save. Subsequent reorders are the
   // usual sparse 2-row swap.
-  async function reorderQueue(bookId, direction) {
+  // Public entry: chain onto the shared tail so overlapping clicks run one at
+  // a time (see reorderTail above). Returns the tail so callers can await the
+  // moment their click has been applied.
+  // `visibleIds` is the ordered id list the user is actually looking at — the
+  // language-filtered subset rendered by SavedBooksList. Neighbours are found
+  // within that subset so "up" swaps with the book above *in view*, not with a
+  // hidden other-language row (which would look like a no-op). Omit it and the
+  // whole queue is treated as visible.
+  function reorderQueue(bookId, direction, visibleIds = null) {
+    reorderTail = reorderTail.then(() => runReorder(bookId, direction, visibleIds)).catch(() => {})
+    return reorderTail
+  }
+
+  async function runReorder(bookId, direction, visibleIds) {
     const items = queue.value
-    const idx = items.findIndex((b) => b.id === bookId)
-    if (idx < 0) return
-    const newIdx = direction === 'up' ? idx - 1 : idx + 1
-    if (newIdx < 0 || newIdx >= items.length) return
+    const visible = visibleIds
+      ? visibleIds.filter((id) => items.some((b) => b.id === id))
+      : items.map((b) => b.id)
+    const vIdx = visible.indexOf(bookId)
+    if (vIdx < 0) return
+    const vNext = direction === 'up' ? vIdx - 1 : vIdx + 1
+    if (vNext < 0 || vNext >= visible.length) return
 
     if (items.some((b) => b.record?.sortIndex == null)) {
       const init = initSortIndices(items)
@@ -124,16 +150,12 @@ export function useShelves() {
       }
     }
 
-    // Re-read after init so the swap runs against the freshly-assigned
-    // indices (the reactive `queue` reflects them now).
+    // init preserves visual order, so the captured `visible` order still holds
+    // after it. Swap the target with its visible neighbour by their (now
+    // non-null) indices; a blind index swap leapfrogs any hidden rows between
+    // them without disturbing those hidden rows' positions.
     const refreshed = queue.value
-    const newIdxA = refreshed.findIndex((b) => b.id === bookId)
-    if (newIdxA < 0) return
-    const newIdxB = direction === 'up' ? newIdxA - 1 : newIdxA + 1
-    if (newIdxB < 0 || newIdxB >= refreshed.length) return
-    const a = refreshed[newIdxA]
-    const b = refreshed[newIdxB]
-    const updates = nextSwapIndices(refreshed, a.id, b.id)
+    const updates = nextSwapIndices(refreshed, bookId, visible[vNext])
     if (!updates) return
     for (const [id, sort] of Object.entries(updates)) {
       await writeSortIndex(id, sort)
