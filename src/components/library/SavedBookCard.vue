@@ -4,13 +4,24 @@
       <div class="relative w-16 h-24 flex-shrink-0 rounded-md overflow-hidden bg-stone-100 border border-line flex items-center justify-center">
         <img v-if="book.coverUrl" :src="book.coverUrl" :alt="book.title" class="w-full h-full object-cover" loading="lazy" />
         <BookOpen v-else :size="20" class="text-stone-300" />
+        <!-- Bookmark ribbon on the right edge: fills from top to bottom as you
+             read, with a forked end at the current reading position. Lives
+             inside the cover's overflow-hidden so the rounded corners clip
+             it cleanly. Replaces the old 1px bar — the V at the bottom is
+             the readable "where am I" cue, and the language color makes it
+             match the rest of the shelf. -->
         <div
-          v-if="isReading"
-          class="absolute bottom-0 inset-x-0 h-1 bg-stone-200"
+          v-if="isReading && hasTotalPages"
+          class="absolute top-0 right-0 w-2.5 pointer-events-none transition-all duration-500 ease-out"
+          :style="{ height: progressPct + '%' }"
+          :aria-label="`${Math.round(progressPct)} percent read`"
         >
           <div
-            class="h-full transition-all duration-500"
-            :style="{ width: progressPct + '%', backgroundColor: languageColor || '#16a34a' }"
+            class="w-full h-full"
+            :style="{
+              backgroundColor: languageColor || '#16a34a',
+              clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%)',
+            }"
           ></div>
         </div>
       </div>
