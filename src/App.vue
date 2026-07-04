@@ -218,7 +218,9 @@
 
         <LogForm
           :languages="data.languages"
+          :entries="data.entries"
           @add-entry="addEntry"
+          @quick-add="quickAddEntry"
         />
         </div>
       </div>
@@ -891,14 +893,42 @@ function milestoneSnapshot() {
 // grows on the avatar is the most memorable beat, so it gets the toast. The
 // corresponding `first_bloom_at` write goes through useStorage so the cache
 // stays in step with Supabase and the next add won't re-trigger the moment.
+// Returns { id, milestone } so the one-tap quick path can offer a 5s Undo
+// against the just-inserted row (id comes straight from useStorage, not by
+// fishing the array — race-safe even if two adds are in flight).
 const addEntry = async (entry) => {
   const before = milestoneSnapshot()
-  await storageAddEntry(entry)
-  const milestone = detectMilestone(before, milestoneSnapshot())
+  const inserted = await storageAddEntry(entry)
+  const after = milestoneSnapshot()
+  const milestone = detectMilestone(before, after)
   if (milestone?.kind === 'first_bloom' && milestone.langId) {
     await storageMarkFirstBloom(milestone.langId)
   }
   if (milestone) toast.show(milestone.message, 'celebrate', 6000)
+  return { id: inserted?.id || null, milestone }
+}
+
+// Quick path used by the "Plant again" chips on the collapsed log surface.
+// Same milestone-aware add as the full stepper, plus a 5s Undo toast —
+// the user can pull back the entry they just planted without leaving the
+// header. If the entry was the one that crossed a milestone, the celebrate
+// toast stacks separately; we only undo the data, not the bloom timestamp
+// (a first-bloom undo followed by a re-add won't re-celebrate — by design,
+// since the user already saw the moment and the stamp is a one-shot).
+const quickAddEntry = async (combo) => {
+  const { id } = await addEntry(combo)
+  if (!id) return
+  toast.successWithAction(
+    `${nameFor(combo.languageId)} · ${combo.type} · ${fmtMinutes(combo.hours * 60 + combo.minutes)}`,
+    {
+      label: 'Undo',
+      onClick: async () => {
+        await storageDeleteEntry(id)
+        toast.show('Undone', 'success', 2000)
+      },
+    },
+    5000
+  )
 }
 const addLanguage = (language) => { storageAddLanguage(language) }
 const deleteLanguage = (langId) => { storageDeleteLanguage(langId) }

@@ -9,6 +9,34 @@
         <Sprout :size="16" class="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-6" />
         <span>Log a session</span>
       </button>
+
+      <!-- One-tap "plant again" chips. The most-travelled path through the
+           app is logging the same combo again, so surface up to 3 quiet
+           suggestions derived from recent + frequent entries. The full
+           stepper below stays for anything new.
+
+           Visually distinct from the FilterBar pills (which are
+           white-bordered rounded-full controls): filled stone-100, no
+           border, lighter default text, with a small Repeat suffix that
+           reads as "do it again" rather than "filter by". -->
+      <div v-if="suggestions.length > 0" class="flex flex-wrap gap-1.5 mt-2.5">
+        <button
+          v-for="(s, i) in suggestions"
+          :key="`${s.languageId}-${s.type}-${i}`"
+          @click="quickLog(s)"
+          class="group inline-flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-full text-xs font-medium
+                 bg-stone-100/80 text-stone-500
+                 transition-colors duration-150
+                 hover:bg-stone-200/80 hover:text-stone-700
+                 active:scale-[0.97]"
+          :title="`Log another ${nameFor(s.languageId)} · ${s.type} session`"
+          :aria-label="`Log another ${nameFor(s.languageId)} ${s.type} session, ${formatDuration(s)}`"
+        >
+          <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" :style="{ backgroundColor: colorFor(s.languageId) }"></span>
+          <span class="truncate"><span class="font-semibold text-stone-700 group-hover:text-stone-800">{{ nameFor(s.languageId) }}</span> · {{ s.type }} · {{ formatDuration(s) }}</span>
+          <RotateCcw :size="11" class="flex-shrink-0 opacity-50 group-hover:opacity-80 transition-opacity" />
+        </button>
+      </div>
     </div>
 
     <!-- Expanded state -->
@@ -134,7 +162,7 @@
           <div class="border-t border-stone-200/70"></div>
           <div class="flex items-center justify-between">
             <span class="text-sm text-stone-500">Duration</span>
-            <span class="text-sm font-semibold text-stone-800 tabular-nums">{{ formatDuration }}</span>
+            <span class="text-sm font-semibold text-stone-800 tabular-nums">{{ formatDuration(entry) }}</span>
           </div>
           <div class="border-t border-stone-200/70"></div>
           <div class="flex items-center justify-between">
@@ -167,19 +195,27 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Sprout } from 'lucide-vue-next'
+import { Sprout, RotateCcw } from 'lucide-vue-next'
 import { useLanguageLookup } from '../composables/useLanguageLookup.js'
+import { suggestQuickLogs } from '../lib/quickLogs.js'
 
 const props = defineProps({
   languages: {
     type: Array,
     required: true
+  },
+  // Used to derive quick-repeat chips. Optional — chips just don't render
+  // when the parent doesn't pass them (e.g. the stepper is being used in
+  // isolation outside the dashboard).
+  entries: {
+    type: Array,
+    default: () => []
   }
 })
 
-const emit = defineEmits(['add-entry'])
+const emit = defineEmits(['add-entry', 'quick-add'])
 
-const { nameFor, languageFor } = useLanguageLookup(() => props.languages)
+const { nameFor, colorFor, languageFor } = useLanguageLookup(() => props.languages)
 
 const step = ref(0)
 const today = new Date().toISOString().split('T')[0]
@@ -210,14 +246,31 @@ const availableTypes = computed(() => {
   return selectedLanguage.value ? selectedLanguage.value.types : []
 })
 
-const formatDuration = computed(() => {
-  const h = entry.value.hours
-  const m = entry.value.minutes
+// One-tap suggestions: most recent + most-frequent (14d) + filler, deduped
+// and capped at 3. Filtered to languages the user still tracks — a chip for
+// a deleted language is dead UI. Only shown when the stepper is collapsed,
+// so opening the full flow never shows a competing shortcut.
+const suggestions = computed(() => {
+  if (step.value !== 0) return []
+  const tracked = new Set(props.languages.map((l) => l.id))
+  return suggestQuickLogs(props.entries)
+    .filter((s) => tracked.has(s.languageId))
+    .filter((s) => {
+      // And the type still has to be a valid option for that language — a
+      // user who removed "writing" from Spanish shouldn't see a Writing chip.
+      const lang = languageFor(s.languageId)
+      return lang && Array.isArray(lang.types) && lang.types.includes(s.type)
+    })
+})
+
+function formatDuration(item) {
+  const h = item.hours
+  const m = item.minutes
   if (h > 0 && m > 0) return `${h}h ${m}m`
   if (h > 0) return `${h}h`
   if (m > 0) return `${m}m`
   return '0m'
-})
+}
 
 const selectLanguage = (lang) => {
   entry.value.languageId = lang.id
@@ -248,6 +301,24 @@ const submitEntry = () => {
 
   emit('add-entry', { ...entry.value })
   reset()
+}
+
+const quickLog = (combo) => {
+  // Single-tap add: skip the stepper, fire the same add path, parent will
+  // snapshot before/after for milestone detection + show the undo toast.
+  // Validation is belt-and-suspenders — suggestions should already be
+  // filtered to live languages / valid types above.
+  const lang = languageFor(combo.languageId)
+  if (!lang || !lang.types || !lang.types.includes(combo.type)) return
+  if ((combo.hours === 0 && combo.minutes === 0)) return
+  emit('quick-add', {
+    languageId: combo.languageId,
+    type: combo.type,
+    hours: combo.hours,
+    minutes: combo.minutes,
+    date: today,
+    notes: '',
+  })
 }
 </script>
 

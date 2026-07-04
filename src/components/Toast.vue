@@ -15,6 +15,13 @@
         <Sprout v-else-if="toast.type === 'celebrate'" class="w-4 h-4 flex-shrink-0 animate-sway" />
         <Check v-else class="w-4 h-4 flex-shrink-0" />
         <span class="flex-1">{{ toast.message }}</span>
+        <button
+          v-if="toast.action"
+          @click="toast.action.onClick"
+          class="flex-shrink-0 px-2 py-0.5 -my-0.5 rounded-md font-semibold text-garden-700 hover:bg-garden-100 transition-colors"
+        >
+          {{ toast.action.label }}
+        </button>
         <button @click="dismiss(toast.id)" class="flex-shrink-0 opacity-60 hover:opacity-100 transition-opacity">
           <X class="w-3.5 h-3.5" />
         </button>

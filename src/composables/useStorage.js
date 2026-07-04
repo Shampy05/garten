@@ -115,7 +115,7 @@ export function useStorage() {
   }, { immediate: true })
 
   const addEntry = async (entry) => {
-    if (!userId.value) return
+    if (!userId.value) return null
 
     const newEntry = {
       ...entry,
@@ -128,10 +128,11 @@ export function useStorage() {
     })
     if (error) {
       toast.error('Failed to add entry. Please try again.')
-      return
+      return null
     }
     data.value.entries.push(newEntry)
     setCache(userId.value, data.value)
+    return newEntry
   }
 
   const addLanguage = async (language) => {
