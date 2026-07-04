@@ -150,7 +150,7 @@
       :icon="BookCheck"
       accent="stone"
     >
-      <FinishedShelf :books="filteredFinished" @remove="$emit('remove', $event)" />
+      <FinishedShelf :books="filteredFinished" @remove="$emit('remove', $event)" @start-reread="onStartReread" />
     </ShelfSection>
 
     <!-- No matches across the visible shelves -->
@@ -165,7 +165,7 @@
     <ConfirmDialog
       :visible="showCapPrompt"
       title="You're already growing 3 books"
-      :message="`${capPendingBook?.title || 'This book'} would be the ${activeCount + 1}th book you're reading at once. Finish one or move it back to Up next before starting another.`"
+      :message="`${capPending?.book?.title || 'This book'} would be the ${activeCount + 1}th book you're reading at once. Finish one or move it back to Up next before starting another.`"
       confirm-label="Add anyway"
       cancel-label="Not yet"
       @confirm="confirmCapMove"
@@ -190,7 +190,7 @@ const props = defineProps({
   languageColors: { type: Object, default: () => ({}) },
 })
 
-const emit = defineEmits(['edit', 'remove', 'log', 'quick-log', 'mark-as-read', 'reorder'])
+const emit = defineEmits(['edit', 'remove', 'log', 'quick-log', 'mark-as-read', 'reorder', 'start-reread'])
 
 const shelves = useShelves()
 
@@ -256,23 +256,38 @@ watch(languageCodes, (codes) => {
 
 // ── Soft cap prompt ────────────────────────────────────────────────────────
 const showCapPrompt = ref(false)
-const capPendingBook = ref(null)
+// A pending cap-confirm carries both the book and which action triggered
+// it (moveToReading from the queue, or startReread from Finished), so the
+// "Add anyway" button force-bypasses the cap for the right call.
+const capPending = ref(null) // { book, action: 'moveToReading' | 'startReread' }
 
 async function onMoveToReading(book) {
   const result = await shelves.moveToReading(book.id)
   if (result?.needsConfirmation) {
-    capPendingBook.value = book
+    capPending.value = { book, action: 'moveToReading' }
+    showCapPrompt.value = true
+  }
+}
+async function onStartReread(book) {
+  const result = await shelves.startReread(book.id)
+  if (result?.needsConfirmation) {
+    capPending.value = { book, action: 'startReread' }
     showCapPrompt.value = true
   }
 }
 async function confirmCapMove() {
-  if (!capPendingBook.value) return
-  await shelves.moveToReading(capPendingBook.value.id, { force: true })
-  capPendingBook.value = null
+  if (!capPending.value) return
+  const { book, action } = capPending.value
+  if (action === 'startReread') {
+    await shelves.startReread(book.id, { force: true })
+  } else {
+    await shelves.moveToReading(book.id, { force: true })
+  }
+  capPending.value = null
   showCapPrompt.value = false
 }
 function cancelCapMove() {
-  capPendingBook.value = null
+  capPending.value = null
   showCapPrompt.value = false
 }
 

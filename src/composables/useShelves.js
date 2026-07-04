@@ -73,6 +73,33 @@ export function useShelves() {
     return updateRecord(bookId, updates)
   }
 
+  // Start a re-read of a finished book. Sets status:reading, stamps a fresh
+  // startedAt, clears finishedAt, and resets currentPage to 0 so the progress
+  // bar reflects the re-read from the start. totalPages stays — that's the
+  // book, not the read-through — and so the progress bar reads sensibly as
+  // the user logs new pages.
+  //
+  // Cap-aware: the soft cap of 3 simultaneous Reading books still applies.
+  // Caller gets { needsConfirmation: true } at the cap; pass { force: true }
+  // to bypass (used after a soft-prompt confirm, same shape as moveToReading).
+  async function startReread(bookId, { force = false } = {}) {
+    if (atActiveCap.value && !force) {
+      return { needsConfirmation: true, count: activeCount.value }
+    }
+    const current = savedBooks.value.find((b) => b.id === bookId)
+    if (!current) return { error: 'Book not found' }
+    const today = new Date().toISOString().slice(0, 10)
+    return {
+      ...(await updateRecord(bookId, {
+        status: 'reading',
+        startedAt: today,
+        finishedAt: null,
+        currentPage: 0,
+      })),
+      needsConfirmation: false,
+    }
+  }
+
   // Mark a book as read. If there's an unfinished book with a known total
   // page count, also nudge currentPage to the end so the progress bar reads
   // 100%. Sets finishedAt to today if not already set.
@@ -175,6 +202,7 @@ export function useShelves() {
     activeCap: ACTIVE_CAP,
     moveToReading,
     moveToQueue,
+    startReread,
     markAsRead,
     reorderQueue,
   }

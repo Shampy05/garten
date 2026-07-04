@@ -65,8 +65,16 @@
                 {{ finishedLabel(book) }}
               </p>
               <button
+                @click="$emit('start-reread', book)"
+                class="ml-auto p-1.5 rounded-lg text-stone-400 hover:text-garden-700 hover:bg-garden-50 border border-transparent hover:border-garden-100 transition-colors opacity-60 group-hover:opacity-100"
+                title="Read again"
+                aria-label="Read again"
+              >
+                <RotateCcw :size="14" />
+              </button>
+              <button
                 @click="$emit('remove', book)"
-                class="ml-auto p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-colors opacity-60 group-hover:opacity-100"
+                class="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-colors opacity-60 group-hover:opacity-100"
                 title="Remove book"
                 aria-label="Remove book"
               >
@@ -82,14 +90,14 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { ChevronDown, BookOpen, BookMarked, Star, Trash2 } from 'lucide-vue-next'
+import { ChevronDown, BookOpen, BookMarked, Star, Trash2, RotateCcw } from 'lucide-vue-next'
 import { nameForCode } from '../../lib/bookLanguages.js'
 
 const props = defineProps({
   books: { type: Array, default: () => [] },
 })
 
-defineEmits(['remove'])
+defineEmits(['remove', 'start-reread'])
 
 // Six most-recent covers for the strip. Sorted order is preserved by the
 // caller (sortFinished in useShelves).
