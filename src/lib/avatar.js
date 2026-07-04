@@ -37,6 +37,17 @@ export const BLOOMS = [
   { name: 'cream', petal: '#ede4ce', center: '#c4a55a' },
 ]
 
+// A chosen critter perched on the avatar, mirroring how BLOOMS/avatar_variant
+// work: an opt-in index into this list, stored in profiles.avatar_companion
+// (CHECK 0..3), null = no companion. Order maps straight onto the picker
+// swatch order in GardenerProfile.
+export const COMPANIONS = [
+  { name: 'ladybird' },
+  { name: 'bee' },
+  { name: 'butterfly' },
+  { name: 'snail' },
+]
+
 export const STAGES = ['seedling', 'sprout', 'bloom', 'flourish']
 
 // Total-logged-hours thresholds for each growth stage. Logged hours only —

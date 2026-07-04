@@ -176,7 +176,7 @@ async function openFriendProfile(userId) {
   friendProfile.value = { ...base }
   const extras = await social.fetchProfileExtras(userId)
   if (extras && friendProfile.value && friendProfile.value.friend_id === userId) {
-    friendProfile.value = { ...friendProfile.value, bio: extras.bio, avatar_variant: extras.avatar_variant, garden_name: extras.garden_name }
+    friendProfile.value = { ...friendProfile.value, bio: extras.bio, avatar_variant: extras.avatar_variant, avatar_companion: extras.avatar_companion, garden_name: extras.garden_name }
   }
 }
 

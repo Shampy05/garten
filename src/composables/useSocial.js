@@ -73,8 +73,8 @@ export function useSocial() {
         // inbox renders the requester's actual bloom colour instead of the
         // id-hashed default. Without this the inbox and the friends list
         // (which gets the variant from friends_overview) could disagree.
-        'requester:profiles!friendships_requester_id_fkey(id, username, display_name, avatar_variant), ' +
-        'addressee:profiles!friendships_addressee_id_fkey(id, username, display_name, avatar_variant)'
+        'requester:profiles!friendships_requester_id_fkey(id, username, display_name, avatar_variant, avatar_companion), ' +
+        'addressee:profiles!friendships_addressee_id_fkey(id, username, display_name, avatar_variant, avatar_companion)'
       )
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
@@ -471,7 +471,7 @@ export function useSocial() {
     if (!profileId) return null
     const { data, error } = await supabase
       .from('profiles')
-      .select('bio, avatar_variant, garden_name')
+      .select('bio, avatar_variant, avatar_companion, garden_name')
       .eq('id', profileId)
       .maybeSingle()
     if (error) return null

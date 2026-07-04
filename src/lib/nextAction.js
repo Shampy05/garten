@@ -7,6 +7,7 @@
 // affirming note, so the header line is always warm rather than empty.
 
 import { localDateStr } from './date.js'
+import { gardenAnniversary } from './profileStats.js'
 
 function addDays(dateStr, n) {
   const d = new Date(dateStr + 'T12:00:00')
@@ -44,6 +45,11 @@ function cap(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s
 }
 
+const YEAR_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
+function spellYears(n) {
+  return YEAR_WORDS[n] || String(n)
+}
+
 // The language studied before but left un-watered the longest, or null.
 function mostNeglectedLanguage(entries, languages, today) {
   const lastByLang = {}
@@ -70,6 +76,7 @@ export function computeNextAction({
   weekMinutes = 0,
   goalHours = null,
   activityRows = [],
+  plantedAt = null,
   today = localDateStr(new Date()),
 } = {}) {
   // 0. Brand-new gardener.
@@ -93,6 +100,23 @@ export function computeNextAction({
       tone: 'urgent',
       icon: 'flame',
       message: `Your ${streakYesterday}-day streak is unwatered — log today to keep it alive.`,
+    }
+  }
+
+  // 1b. Garden anniversary — a once-a-year moment. Checked right after the
+  // streak-risk rung (a live streak still wins) but ahead of every other
+  // gentle nudge, since it's only ever relevant on one day a year.
+  if (plantedAt) {
+    const ann = gardenAnniversary(plantedAt, today)
+    if (ann) {
+      const d = new Date(plantedAt)
+      const label = d.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
+      return {
+        kind: 'anniversary',
+        tone: 'calm',
+        icon: 'sprout',
+        message: `Your garden turns ${spellYears(ann.years)} today — planted ${label}.`,
+      }
     }
   }
 

@@ -24,7 +24,7 @@
         :key="u.id"
         class="flex items-center gap-3 p-2 rounded-lg hover:bg-stone-50 transition-colors"
       >
-        <BloomAvatar :seed="u.id" :size="32" :name="u.display_name || u.username" :variant="u.avatar_variant" />
+        <BloomAvatar :seed="u.id" :size="32" :name="u.display_name || u.username" :variant="u.avatar_variant" :companion="u.avatar_companion" />
         <div class="min-w-0 flex-1">
           <div class="text-sm font-medium text-stone-700 truncate">{{ u.display_name || u.username }}</div>
           <div class="text-xs text-stone-400 truncate">@{{ u.username }}</div>

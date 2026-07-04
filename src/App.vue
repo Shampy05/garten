@@ -67,8 +67,24 @@
       <template v-if="navView === 'garden'">
       <!-- Garden Status Card -->
       <div class="gp-card gp-pad mb-6 relative overflow-hidden animate-grow-in">
-        <!-- soft botanical wash along the top edge -->
-        <div class="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-garden-50/80 to-transparent"></div>
+        <!-- soft botanical wash along the top edge, a touch fuller as the
+             garden's overall growth stage advances -->
+        <div class="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b to-transparent" :class="headerWashClasses"></div>
+        <!-- an extra sprig once the garden has properly bloomed -->
+        <svg
+          v-if="gardenStage === 'bloom' || gardenStage === 'flourish'"
+          class="pointer-events-none absolute top-2 right-4 w-10 h-10"
+          :class="gardenStage === 'flourish' ? 'opacity-[0.12]' : 'opacity-[0.08]'"
+          viewBox="0 0 40 40"
+          fill="none"
+          stroke="#287a41"
+          stroke-width="1.5"
+        >
+          <path d="M20 36 Q17 22 20 8" stroke-linecap="round" />
+          <path d="M20 20 Q13 17 10 10" stroke-linecap="round" />
+          <path d="M20 26 Q27 23 30 16" stroke-linecap="round" />
+          <path v-if="gardenStage === 'flourish'" d="M20 14 Q25 11 28 6" stroke-linecap="round" />
+        </svg>
         <div class="relative">
         <div class="flex items-start justify-between mb-4">
           <div class="flex items-center gap-3 group">
@@ -92,7 +108,7 @@
               :title="userEmail"
               aria-label="Account menu"
             >
-              <BloomAvatar :seed="user?.id" :hours="totalLoggedHours" :variant="social.profile.value?.avatar_variant ?? null" :size="32" />
+              <BloomAvatar :seed="user?.id" :hours="totalLoggedHours" :variant="social.profile.value?.avatar_variant ?? null" :companion="social.profile.value?.avatar_companion ?? null" :size="32" />
               <ChevronDown :size="14" class="text-stone-400 transition-transform" :class="{ 'rotate-180': userMenuOpen }" />
             </button>
 
@@ -439,6 +455,7 @@
       @save-bio="saveBio"
       @save-garden-name="saveGardenName"
       @save-variant="saveVariant"
+      @save-companion="saveCompanion"
       @go-to-friends="showProfile = false; navView = 'friends'"
     />
 
@@ -465,7 +482,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, provide, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, watchEffect, provide, onMounted, onBeforeUnmount } from 'vue'
 import {
   Settings, Pencil, Trash2, Sprout, Users, Flame, ChevronDown, LogOut, BookOpen, User, Target, Droplets,
   Layers, BookMarked, Headphones, MessageCircle, PenLine, Volume2,
@@ -505,7 +522,9 @@ import Toast from './components/Toast.vue'
 import SocialView from './components/social/SocialView.vue'
 import LibraryView from './components/library/LibraryView.vue'
 import { useSocial } from './composables/useSocial.js'
-import { growthStage, stageRank } from './lib/avatar.js'
+import { growthStage, stageRank, BLOOMS } from './lib/avatar.js'
+import { bloomFaviconDataUri } from './lib/favicon.js'
+import { plantedOnLabel, gardenAnniversary } from './lib/profileStats.js'
 
 const { user, loading: authLoading, signIn, signUp, signOut, resetPassword } = useAuth()
 provide('auth', { signIn, signUp, resetPassword })
@@ -541,6 +560,17 @@ const totalLoggedHours = computed(() =>
   data.value.entries.reduce((sum, e) => sum + e.hours * 60 + e.minutes, 0) / 60
 )
 
+// The header card's botanical wash quietly grows with the garden: a touch
+// taller and richer at each stage, mirroring the avatar's own growth.
+const gardenStage = computed(() => growthStage(totalLoggedHours.value))
+const HEADER_WASH_CLASSES = {
+  seedling: 'from-garden-50/60 h-20',
+  sprout: 'from-garden-50/80 h-28',
+  bloom: 'from-garden-100/60 h-32',
+  flourish: 'from-garden-100/75 h-36',
+}
+const headerWashClasses = computed(() => HEADER_WASH_CLASSES[gardenStage.value] || HEADER_WASH_CLASSES.seedling)
+
 function openLangManager() {
   userMenuOpen.value = false
   showLangManager.value = true
@@ -564,11 +594,39 @@ function saveVariant(variant) {
 function saveGardenName(name) {
   if (social.profile.value) social.updateProfile({ garden_name: name || null })
 }
+function saveCompanion(companion) {
+  if (social.profile.value) social.updateProfile({ avatar_companion: companion })
+}
 
 // The user's chosen garden name, surfaced in the header subtitle and the
 // GardenerProfile modal. Falls back to the static "Where your language
 // learning grows." copy when unset (handled in the template).
 const gardenName = computed(() => (social.profile.value?.garden_name || '').trim())
+
+// Load the (cheap, single-row) profile as soon as we know who's signed in, so
+// the tab title and favicon can react to the garden name / bloom colour
+// without requiring a visit to Friends or "My profile" first.
+watch(user, (u) => {
+  if (u && !social.profileLoaded.value) social.loadProfile()
+}, { immediate: true })
+
+// Tab title mirrors the header subtitle: the garden name when set, otherwise
+// the plain app name.
+watchEffect(() => {
+  document.title = gardenName.value ? `${gardenName.value} · Garten` : 'Garten'
+})
+
+// Favicon picks up the chosen bloom colour so the browser tab itself carries
+// a little personalisation; reverts to the static sprout icon when no bloom
+// is chosen.
+const DEFAULT_FAVICON = '/sprout_icon.svg'
+watchEffect(() => {
+  const link = document.querySelector('link[rel="icon"]')
+  if (!link) return
+  const variant = social.profile.value?.avatar_variant
+  const bloom = variant != null ? BLOOMS[variant] : null
+  link.href = bloom ? bloomFaviconDataUri(bloom.petal, bloom.center) : DEFAULT_FAVICON
+})
 function signOutFromMenu() {
   userMenuOpen.value = false
   signOut()
@@ -750,6 +808,7 @@ const { goalHours, goalEditing, weekMinutes, goalProgress, goalSegments, saveGoa
 const selfProfileInput = computed(() => ({
   userId: user.value?.id || '',
   email: user.value?.email || '',
+  createdAt: user.value?.created_at || null,
   profile: social.profile.value,
   entries: data.value.entries,
   languages: data.value.languages,
@@ -776,6 +835,7 @@ const nextAction = computed(() =>
     weekMinutes: weekMinutes.value,
     goalHours: goalHours.value,
     activityRows: activityGoalRows.value,
+    plantedAt: user.value?.created_at ?? null,
   })
 )
 const NEXT_ACTION_TONES = {

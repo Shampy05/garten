@@ -13,7 +13,7 @@
         <div class="p-5 overflow-y-auto">
           <!-- Identity -->
           <div class="flex items-center gap-3">
-            <BloomAvatar :seed="seed" :hours="avatarHours" :variant="avatarVariant" :size="60" :name="displayName" />
+            <BloomAvatar :seed="seed" :hours="avatarHours" :variant="avatarVariant" :companion="avatarCompanion" :size="60" :name="displayName" />
             <div class="min-w-0">
               <h4 class="text-xl font-display font-bold text-stone-900 truncate">{{ displayName }}</h4>
               <p v-if="username" class="text-sm text-stone-500">@{{ username }}</p>
@@ -21,6 +21,7 @@
               <div v-if="streak > 0" class="mt-1 inline-flex items-center gap-1 text-xs font-medium text-orange-500">
                 <Flame :size="12" /> {{ streak }} day streak
               </div>
+              <p v-if="isSelf && plantedLabel" class="mt-0.5 text-xs text-stone-400">{{ plantedLabel }}</p>
             </div>
           </div>
 
@@ -132,6 +133,28 @@
             </p>
           </div>
 
+          <!-- Companion picker (self with profile). Mirrors the bloom picker's
+               swatch interaction exactly: click to pick, click again to clear. -->
+          <div v-if="isSelf && self.profile" class="mt-4">
+            <h5 class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-2">Your companion</h5>
+            <div class="flex flex-wrap items-center gap-2">
+              <button
+                v-for="(c, i) in companions"
+                :key="c.name"
+                @click="pickCompanion(i)"
+                class="w-8 h-8 rounded-full bg-stone-50 border border-line transition-transform hover:scale-110 flex items-center justify-center"
+                :class="avatarCompanion === i ? 'ring-2 ring-offset-1 ring-stone-400' : ''"
+                :title="`${c.name}`"
+                :aria-label="`${c.name} companion`"
+              >
+                <CompanionGlyph :kind="c.name" :size="16" />
+              </button>
+            </div>
+            <p class="text-[10px] text-stone-400 mt-1.5">
+              {{ avatarCompanion == null ? 'No companion perched on your bloom yet.' : 'Tap the icon again to remove your companion.' }}
+            </p>
+          </div>
+
           <!-- Stats -->
           <div class="grid grid-cols-3 gap-3 mt-5">
             <div v-for="tile in statTiles" :key="tile.label" class="bg-stone-50 rounded-xl p-3 text-center">
@@ -169,6 +192,23 @@
                 <div class="w-full bg-stone-100 rounded-full h-1.5 overflow-hidden">
                   <div class="h-1.5 rounded-full transition-all duration-700" :style="{ width: row.pct + '%', backgroundColor: row.color }"></div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pressed blooms: a permanent keepsake row for every language that
+               has ever bloomed, independent of the one-time first-bloom toast. -->
+          <div v-if="isSelf && flowers.length" class="mt-5">
+            <h5 class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-2">Pressed blooms</h5>
+            <div class="flex flex-wrap gap-3">
+              <div
+                v-for="f in flowers"
+                :key="f.id"
+                class="flex flex-col items-center gap-1"
+                :title="`${f.name}${f.bloomedAt ? ' — ' + fmtBloomedAt(f.bloomedAt) : ''}`"
+              >
+                <PressedFlower :language-id="f.id" :color="f.color" :name="f.name" :size="30" />
+                <span class="text-[9px] text-stone-400">{{ f.bloomedAt ? fmtBloomedAt(f.bloomedAt) : f.name }}</span>
               </div>
             </div>
           </div>
@@ -276,10 +316,12 @@
 import { computed, inject, ref, watch } from 'vue'
 import { X, Flower2, Pencil, Check, Flame, Clock, BookOpen, Sprout } from 'lucide-vue-next'
 import BloomAvatar from './BloomAvatar.vue'
+import CompanionGlyph from './CompanionGlyph.vue'
+import PressedFlower from './PressedFlower.vue'
 import { useAuth } from '../composables/useAuth.js'
 import { useBooks } from '../composables/useBooks.js'
-import { BLOOMS } from '../lib/avatar.js'
-import { languageHorizons, nightstandBooks, selfMilestones } from '../lib/profileStats.js'
+import { BLOOMS, COMPANIONS } from '../lib/avatar.js'
+import { languageHorizons, nightstandBooks, selfMilestones, plantedOnLabel, pressedFlowers } from '../lib/profileStats.js'
 import { nameForCode } from '../lib/bookLanguages.js'
 
 const props = defineProps({
@@ -291,10 +333,11 @@ const props = defineProps({
   friend: { type: Object, default: null },
 })
 
-const emit = defineEmits(['close', 'save-bio', 'save-garden-name', 'save-variant', 'go-to-friends'])
+const emit = defineEmits(['close', 'save-bio', 'save-garden-name', 'save-variant', 'save-companion', 'go-to-friends'])
 
 const isSelf = computed(() => props.mode === 'self')
 const blooms = BLOOMS
+const companions = COMPANIONS
 
 // Friend-mode reactivity mirrors the old FriendProfile: shared blooms and the
 // friend's recent celebrations are read live from the shared social state.
@@ -322,7 +365,11 @@ const avatarHours = computed(() => (isSelf.value ? props.self?.totalHours ?? nul
 const avatarVariant = computed(() =>
   isSelf.value ? props.self?.profile?.avatar_variant ?? null : props.friend?.avatar_variant ?? null
 )
+const avatarCompanion = computed(() =>
+  isSelf.value ? props.self?.profile?.avatar_companion ?? null : props.friend?.avatar_companion ?? null
+)
 const streak = computed(() => (isSelf.value ? props.self?.streak || 0 : props.friend?.current_streak || 0))
+const plantedLabel = computed(() => (isSelf.value ? plantedOnLabel(props.self?.createdAt) : null))
 
 // ── Bio editing (self) ──────────────────────────────────────────────────────
 const bioText = computed(() =>
@@ -364,12 +411,18 @@ watch(() => props.visible, (v) => {
 function pickVariant(i) {
   emit('save-variant', avatarVariant.value === i ? null : i)
 }
+function pickCompanion(i) {
+  emit('save-companion', avatarCompanion.value === i ? null : i)
+}
 
 // ── Self derived views ──────────────────────────────────────────────────────
 const horizons = computed(() =>
   isSelf.value ? languageHorizons(props.self?.entries || [], props.self?.languages || [], props.self?.nativeLanguage) : []
 )
 const nightstand = computed(() => (isSelf.value ? nightstandBooks(savedBooks.value) : []))
+const flowers = computed(() =>
+  isSelf.value ? pressedFlowers(props.self?.entries || [], props.self?.languages || []) : []
+)
 const milestones = computed(() =>
   isSelf.value
     ? selfMilestones({
@@ -483,6 +536,11 @@ function fmtHours(mins) {
   if (h && r) return `${h}h ${r}m`
   if (h) return `${h}h`
   return `${r}m`
+}
+function fmtBloomedAt(iso) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
 }
 function fmtHoursShort(hours) {
   const h = Number(hours) || 0

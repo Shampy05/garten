@@ -79,12 +79,25 @@
         </g>
       </g>
     </g>
+
+    <!-- Companion: perched on the pot rim, opposite the leaf side so it never
+         overlaps the foliage. Independent of growth stage — it's a chosen
+         personalisation, not an earned one. -->
+    <CompanionGlyph
+      v-if="companionKind"
+      :kind="companionKind"
+      :x="params.leafSide === 1 ? 3 : 31"
+      y="29"
+      :width="14"
+      :height="14"
+    />
   </svg>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { avatarParams, growthStage, BLOOMS } from '../lib/avatar.js'
+import { avatarParams, growthStage, BLOOMS, COMPANIONS } from '../lib/avatar.js'
+import CompanionGlyph from './CompanionGlyph.vue'
 
 const props = defineProps({
   // Stable id (user uuid) — the same seed renders the same plant everywhere.
@@ -93,9 +106,15 @@ const props = defineProps({
   hours: { type: Number, default: null },
   // Chosen bloom colour (index into BLOOMS); null = keep the hashed default.
   variant: { type: Number, default: null },
+  // Chosen companion critter (index into COMPANIONS); null = none.
+  companion: { type: Number, default: null },
   size: { type: Number, default: 36 },
   name: { type: String, default: '' },
 })
+
+const companionKind = computed(() =>
+  props.companion != null ? COMPANIONS[props.companion]?.name : null
+)
 
 const params = computed(() => {
   const base = avatarParams(props.seed)

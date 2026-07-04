@@ -5,6 +5,9 @@ import {
   longestStreak,
   currentReadingBook,
   selfMilestones,
+  plantedOnLabel,
+  gardenAnniversary,
+  pressedFlowers,
 } from './profileStats.js'
 import { targetHours } from './proficiency.js'
 
@@ -138,5 +141,86 @@ describe('selfMilestones', () => {
     const savedBooks = [{ record: { status: 'read' } }]
     const ms = selfMilestones({ entries, savedBooks }, 2)
     expect(ms.length).toBeLessThanOrEqual(2)
+  })
+})
+
+describe('plantedOnLabel', () => {
+  it('returns null for no date', () => {
+    expect(plantedOnLabel(null)).toBeNull()
+    expect(plantedOnLabel('not-a-date')).toBeNull()
+  })
+
+  it('formats a full date', () => {
+    const label = plantedOnLabel('2026-03-14T10:00:00.000Z')
+    expect(label).toMatch(/^Planted /)
+    expect(label).toContain('2026')
+  })
+})
+
+describe('gardenAnniversary', () => {
+  it('returns null for no date or less than a year', () => {
+    expect(gardenAnniversary(null, '2026-07-04')).toBeNull()
+    expect(gardenAnniversary('2026-01-01T10:00:00.000Z', '2026-07-04')).toBeNull()
+  })
+
+  it('fires on the anniversary date', () => {
+    const ann = gardenAnniversary('2025-07-04T10:00:00.000Z', '2026-07-04')
+    expect(ann).toEqual({ years: 1 })
+  })
+
+  it('is null on a non-anniversary day', () => {
+    expect(gardenAnniversary('2025-07-04T10:00:00.000Z', '2026-07-05')).toBeNull()
+  })
+
+  it('celebrates a Feb 29 planting on Mar 1 in a non-leap year', () => {
+    expect(gardenAnniversary('2024-02-29T10:00:00.000Z', '2025-03-01')).toEqual({ years: 1 })
+    expect(gardenAnniversary('2024-02-29T10:00:00.000Z', '2025-02-28')).toBeNull()
+  })
+})
+
+describe('pressedFlowers', () => {
+  const languages = [
+    { id: 'fr', name: 'French', color: '#1', first_bloom_at: '2026-02-01T00:00:00.000Z' },
+    { id: 'de', name: 'German', color: '#2', first_bloom_at: null },
+    { id: 'es', name: 'Spanish', color: '#3', first_bloom_at: null },
+  ]
+
+  it('includes languages past the bloom threshold even without a stamp', () => {
+    // 55 one-hour sessions → 55 logged hours, past STAGE_HOURS.bloom (50).
+    const entries = Array.from({ length: 55 }, (_, i) =>
+      entry('de', `2026-${String(1 + Math.floor(i / 28)).padStart(2, '0')}-${String((i % 28) + 1).padStart(2, '0')}`, 1)
+    )
+    const flowers = pressedFlowers(entries, languages)
+    expect(flowers.map((f) => f.id)).toContain('de')
+  })
+
+  it('drops languages below the threshold with no stamp', () => {
+    const entries = [entry('es', '2026-01-01', 2)]
+    const flowers = pressedFlowers(entries, languages)
+    expect(flowers.find((f) => f.id === 'es')).toBeUndefined()
+  })
+
+  it('includes a stamped language regardless of hours', () => {
+    const flowers = pressedFlowers([], languages)
+    expect(flowers.map((f) => f.id)).toEqual(['fr'])
+  })
+
+  it('sorts dated flowers oldest-first, undated last', () => {
+    const langs = [
+      { id: 'a', name: 'A', color: '#1', first_bloom_at: '2026-03-01T00:00:00.000Z' },
+      { id: 'b', name: 'B', color: '#2', first_bloom_at: '2026-01-01T00:00:00.000Z' },
+      { id: 'c', name: 'C', color: '#3', first_bloom_at: null },
+    ]
+    const entries = Array.from({ length: 55 }, (_, i) =>
+      entry('c', `2026-${String(1 + Math.floor(i / 28)).padStart(2, '0')}-${String((i % 28) + 1).padStart(2, '0')}`, 1)
+    )
+    const flowers = pressedFlowers(entries, langs)
+    expect(flowers.map((f) => f.id)).toEqual(['b', 'a', 'c'])
+  })
+
+  it('uses the nickname when set', () => {
+    const langs = [{ id: 'fr', name: 'French', nickname: 'Français', color: '#1', first_bloom_at: '2026-01-01T00:00:00.000Z' }]
+    const flowers = pressedFlowers([], langs)
+    expect(flowers[0].name).toBe('Français')
   })
 })

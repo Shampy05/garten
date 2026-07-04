@@ -84,4 +84,37 @@ describe('computeNextAction', () => {
     expect(a.kind).toBe('thriving')
     expect(a.tone).toBe('calm')
   })
+
+  it('celebrates the garden anniversary, outranking the goal cusp', () => {
+    const entries = [entry('fr', daysBefore(5))]
+    const a = computeNextAction({
+      entries, languages: langs, todayMinutes: 20,
+      weekMinutes: 280, goalHours: 5,
+      plantedAt: `2025-${TODAY.slice(5)}T10:00:00.000Z`,
+      today: TODAY,
+    })
+    expect(a.kind).toBe('anniversary')
+    expect(a.tone).toBe('calm')
+    expect(a.message).toContain('one today')
+  })
+
+  it('does not fire the anniversary on a non-anniversary day', () => {
+    const entries = [entry('fr', TODAY)]
+    const a = computeNextAction({
+      entries, languages: langs, todayMinutes: 20,
+      plantedAt: '2025-01-01T10:00:00.000Z',
+      today: TODAY,
+    })
+    expect(a.kind).not.toBe('anniversary')
+  })
+
+  it('a live streak still wins over the anniversary', () => {
+    const entries = [entry('fr', daysBefore(1)), entry('fr', daysBefore(2))]
+    const a = computeNextAction({
+      entries, languages: langs, todayMinutes: 0,
+      plantedAt: `2025-${TODAY.slice(5)}T10:00:00.000Z`,
+      today: TODAY,
+    })
+    expect(a.kind).toBe('streak-risk')
+  })
 })

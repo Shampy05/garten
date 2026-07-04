@@ -3,6 +3,8 @@
 // data the app already holds in memory — no Supabase calls, no new reads.
 
 import { targetHours, levelForHours } from './proficiency.js'
+import { STAGE_HOURS } from './avatar.js'
+import { localDateStr } from './date.js'
 
 const MINUTES = (e) => e.hours * 60 + e.minutes
 
@@ -185,4 +187,71 @@ export function selfMilestones(
   }
 
   return out.sort((a, b) => b.weight - a.weight).slice(0, limit)
+}
+
+// "Planted <date>" — a quiet line on the self profile, derived from the auth
+// account's creation time. Entries older than 2 years aren't fetched (see
+// useStorage.js), so the account's created_at is the only zero-read source
+// for "when did this gardener start" — it reads as "when you started Garten",
+// which is honest even though it isn't the exact first-session date.
+export function plantedOnLabel(createdAtIso) {
+  if (!createdAtIso) return null
+  const d = new Date(createdAtIso)
+  if (Number.isNaN(d.getTime())) return null
+  return `Planted ${d.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}`
+}
+
+const isLeapYear = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0
+
+// { years } when today is the anniversary of the garden's planting date, else
+// null. A Feb 29 planting date celebrates on Mar 1 in non-leap years.
+export function gardenAnniversary(createdAtIso, todayStr = localDateStr(new Date())) {
+  if (!createdAtIso) return null
+  const planted = new Date(createdAtIso)
+  if (Number.isNaN(planted.getTime())) return null
+  const today = new Date(todayStr + 'T12:00:00')
+  const years = today.getFullYear() - planted.getFullYear()
+  if (years < 1) return null
+
+  let annMonth = planted.getMonth()
+  let annDay = planted.getDate()
+  if (annMonth === 1 && annDay === 29 && !isLeapYear(today.getFullYear())) {
+    annMonth = 2 // March
+    annDay = 1
+  }
+  if (today.getMonth() === annMonth && today.getDate() === annDay) {
+    return { years }
+  }
+  return null
+}
+
+// "Pressed blooms" — a permanent keepsake row of every language that has ever
+// bloomed (>= STAGE_HOURS.bloom logged hours), independent of the one-time
+// `first_bloom_at` toast. A language that crossed into bloom before the
+// first-bloom feature shipped was never stamped and never will be (no
+// backfill writes) — it still earns a flower, just without a date. Dated
+// flowers sort oldest-first (the order they actually bloomed); undated ones
+// follow. Uses LOGGED hours only, matching the avatar's own growth stage.
+export function pressedFlowers(entries = [], languages = []) {
+  const loggedByLang = {}
+  for (const e of entries) {
+    loggedByLang[e.languageId] = (loggedByLang[e.languageId] || 0) + MINUTES(e)
+  }
+  const flowers = languages
+    .filter((lang) => {
+      const logged = (loggedByLang[lang.id] || 0) / 60
+      return logged >= STAGE_HOURS.bloom || !!lang.first_bloom_at
+    })
+    .map((lang) => {
+      const alias = typeof lang.nickname === 'string' ? lang.nickname.trim() : ''
+      return {
+        id: lang.id,
+        name: alias || lang.name,
+        color: lang.color,
+        bloomedAt: lang.first_bloom_at || null,
+      }
+    })
+  const dated = flowers.filter((f) => f.bloomedAt).sort((a, b) => new Date(a.bloomedAt) - new Date(b.bloomedAt))
+  const undated = flowers.filter((f) => !f.bloomedAt)
+  return [...dated, ...undated]
 }
