@@ -65,6 +65,32 @@
       </div>
 
       <template v-if="navView === 'garden'">
+      <!-- "Your Garden" generative hero — a deterministic scene grown from
+           the user's languages, entries, streak, chosen bloom + companion
+           and garden name. Pure data → layout, then SVG. Collapsible so
+           users who want the log CTA first can hide it once. -->
+      <div class="mb-6 animate-grow-in">
+        <GardenScene
+          v-if="gardenSceneOpen"
+          :languages="data.languages"
+          :entries="data.entries"
+          :streak="todayStreak"
+          :bloom-variant="social.profile.value?.avatar_variant ?? null"
+          :companion="social.profile.value?.avatar_companion ?? null"
+          :garden-name="gardenName"
+          :pressed="pressedBlooms"
+          @collapse="gardenSceneOpen = false"
+        />
+        <button
+          v-else
+          @click="gardenSceneOpen = true"
+          class="w-full gp-card px-4 py-2.5 flex items-center justify-center gap-2 text-sm text-stone-500 hover:text-garden-600 hover:border-stone-300 transition-colors"
+        >
+          <Sprout :size="14" />
+          Show your garden
+        </button>
+      </div>
+
       <!-- Garden Status Card -->
       <div class="gp-card gp-pad mb-6 relative overflow-hidden animate-grow-in">
         <!-- soft botanical wash along the top edge, a touch fuller as the
@@ -518,6 +544,7 @@ import Leaderboard from './components/Leaderboard.vue'
 import EditSession from './components/EditSession.vue'
 import SproutIcon from './components/SproutIcon.vue'
 import BloomAvatar from './components/BloomAvatar.vue'
+import GardenScene from './components/GardenScene.vue'
 import GardenerProfile from './components/GardenerProfile.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import Toast from './components/Toast.vue'
@@ -526,7 +553,7 @@ import LibraryView from './components/library/LibraryView.vue'
 import { useSocial } from './composables/useSocial.js'
 import { growthStage, stageRank, BLOOMS } from './lib/avatar.js'
 import { bloomFaviconDataUri } from './lib/favicon.js'
-import { plantedOnLabel, gardenAnniversary } from './lib/profileStats.js'
+import { plantedOnLabel, gardenAnniversary, pressedFlowers } from './lib/profileStats.js'
 
 const { user, loading: authLoading, signIn, signUp, signOut, resetPassword } = useAuth()
 provide('auth', { signIn, signUp, resetPassword })
@@ -653,6 +680,17 @@ const analyticsTabs = [
 const { data, loaded, loadError, weeklyGoal, nativeLanguage, activityGoals, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, updateLanguage: storageUpdateLanguage, saveGoal, saveActivityGoals, saveNativeLanguage, markFirstBloom: storageMarkFirstBloom, retryLoad } = useStorage()
 
 const { nameFor, colorFor } = useLanguageLookup(() => data.value.languages)
+
+// "Your Garden" hero — collapsed state persists. Default open; user-opted
+// close writes 'false' so reloads keep it hidden.
+const GARDEN_SCENE_OPEN_KEY = 'garten:gardenSceneOpen'
+const gardenSceneOpen = ref(localStorage.getItem(GARDEN_SCENE_OPEN_KEY) !== 'false')
+watch(gardenSceneOpen, (v) => localStorage.setItem(GARDEN_SCENE_OPEN_KEY, v ? 'true' : 'false'))
+
+// Pressed blooms for the hero scene — same computation GardenerProfile and
+// recent activity use, kept here so the scene is fed from the App.vue cache
+// (rather than re-deriving per-frame).
+const pressedBlooms = computed(() => pressedFlowers(data.value.entries, data.value.languages))
 
 const setupActive = ref(false)
 

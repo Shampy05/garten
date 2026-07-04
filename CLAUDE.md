@@ -200,6 +200,40 @@ A per-activity-type weekly goal (`src/components/ActivityGoals.vue`, `src/compos
 - **Bar color**: a single garden-green hue at stepped opacity per row (`BAR_OPACITIES` in `ActivityGoals.vue`), not a distinct color per type — avoids inventing a second color-coding scheme that would compete with the language colors used everywhere else.
 - **Row order**: rows with a goal set sort first (least-progressed first, so what needs attention leads), then goal-less rows sorted by recent usage.
 
+## "Your Garden" hero (scene model + portrait)
+
+A full-width generative SVG scene at the top of the My Garden view. Every visual element grows from data already in memory — deterministic, no new Supabase reads, no `Math.random`. Collapsible.
+
+**Files**:
+- `src/lib/gardenScene.js` — `buildGardenScene(input)` returns a fully declarative layout (numbers in viewBox units). Pure: `now` is injected so tests can pin any time/season. Also exports `loggedHoursByLanguage`, `skyBand`, `seasonFor`, `plantPositions`, `GARDEN_VIEW`, `STAGE_GEOM`.
+- `src/lib/portrait.js` — `svgToPngBlob(svgEl)` + `downloadGardenPortrait(svgEl)` + pure `portraitFilename(now)`. Reuses `downloadFile` from `export.js`.
+- `src/components/GardenScene.vue` — dumb renderer; owns the 10-min clock tick (`setInterval` set up in `onMounted`, cleared in `onBeforeUnmount`) and the download/collapse buttons. View-agnostic — takes plain data props, no injected composables — so it can be promoted to a fourth top-level tab later by cut-paste.
+- `src/components/GardenPlant.vue` — one plant's SVG subtree from a precomputed `plant` object (4 species × 4 stages).
+
+**Scene model shape** (viewBox `0 0 1200 320`, groundY 264):
+- `sky: { band, stops[3], glow }` — `band` is `dawn|day|dusk|night` from `skyBand(hour)`. `glow` is true on streak ≥ 3 outside night.
+- `season: { name, leafTint, grassTint, frost, particles }` — `seasonFor(month)` (meteorological, NH). Spring/autumn emit ≤ 8 drift particles; summer/winter emit none; winter sets `frost: true`.
+- `plants[]` — `{ id, name, color, x, species, stage, hours, scale, droop, droopTransform, tilt, jitter, bloomColor, swayDelay, colors }`. Per-plant determinism from `hashSeed(languageId)`. `scale` is the within-stage size lerp (clamped 0.85–1.15, ×0.9 when ≥ 7 languages).
+- `beds[]` — pressed blooms as ground clusters at the plant's feet (recipe mirrors `PressedFlower.vue`'s 5/6-petal fan).
+- `sign: { show, text, x } | null` — `gardenName` clamped to 18 chars + `…`; null when no name.
+- `companion: { kind, pathKind: 'air'|'ground' } | null` — from the chosen `avatar_companion` index; null when none or out of range.
+- `fireflies[]` — exactly 7 (night + streak ≥ 3 only), at hashed air positions, with a per-firefly delay.
+
+**Layout**: `plantPositions(count)` returns even slots across `[140, 1060]`. A single plant gets center-stage at `x = 600`. Per-plant hashed x-jitter is ±12% of slot width; 0-hour languages render as a seedling mound; droop fires at 7+ days of staleness (never-watered → no droop, just a mound).
+
+**Hours vs prior-hours**: `loggedHoursByLanguage` sums `hours + minutes/60` per language. `languageHorizons` is **not** reusable here — it filters 0-hour languages and adds `prior_hours`, but the scene needs both 0-hour languages (as seed mounds) and logged hours only (matching avatar/pressed-flower semantics).
+
+**The one hard invariant — attribute-only styling for rasterization**:
+An SVG loaded into an `<img>` has no access to external stylesheets. In `GardenScene.vue`, every visual property (fill, opacity, base transform) must be an SVG attribute or inline style; classes may carry only animation. The scene's animation classes (`.gs-sway`, `.gs-firefly`, `.gs-drift`, `.gs-wander-*`) are scoped behind the root `.gs-live` class, and the portrait clone drops `.gs-live` (belt-and-braces — the styles wouldn't apply anyway). The portal scene only embeds pure shapes, so the canvas can't taint.
+
+**SMIL prohibition**: no `animateMotion` etc. The reduced-motion guard at the top of `garden.css` neutralizes CSS animations but cannot reach SMIL — a SMIL animation would keep moving for users who asked for stillness. The CSS keyframes for sway, fireflies, drift, ground/air wander, and streak glow all live in `garden.css` under a `/* Garden scene */` section beside the guard.
+
+**Collapse persistence**: key `garten:gardenSceneOpen`, values `'true'|'false'`, default open. The collapsed state is a quiet "Show your garden" strip (`<Sprout>` icon + label) that costs ~40px — discoverable, no auto-collapse on mobile.
+
+**Portrait PNG** (`src/lib/portrait.js`): `cloneNode(true)`, strip `.gs-live` + any `gs-*` animation classes, ensure `xmlns` + explicit `width="1200" height="320"`, serialize via `XMLSerializer`, load as a `data:image/svg+xml;charset=utf-8,…` URI (`encodeURIComponent`, not `btoa` — non-Latin-1 garden names), draw onto a 2× canvas filled with the paper tone `#f6f7f2`, then `toBlob('image/png')` and `downloadFile`. Filename is `garten-garden-YYYY-MM-DD.png`. Failure surfaces as `toast.error('Portrait failed to grow — try again.')`.
+
+**Mobile lightness**: `max-h-56 sm:max-h-72` on the SVG; `preserveAspectRatio="xMidYMax meet"` so it scales down cleanly. The 10-min `setInterval` is the only per-frame cost; the panel renders only when `navView === 'garden'`, and `v-if` on collapse fully unmounts the scene and its interval.
+
 ## Deployment
 
 - Build output goes to `dist/`

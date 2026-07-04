@@ -1,61 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ---------------------------------------------------------------------------
-   Base — a warm "garden journal" canvas. A soft paper tone with the faintest
-   wash of light at the top (sky) settling into a cooler base (soil), so the
-   page feels organic without competing with the content.
+   Canvas — a warm paper gradient from sky to soil. Screens render directly
+   on it (no bg-gray-50 wrappers), which is what makes the app feel like one
+   garden journal rather than a stack of admin cards.
 --------------------------------------------------------------------------- */
-html {
-  -webkit-text-size-adjust: 100%;
-}
-
 body {
-  min-height: 100vh;
-  color: #2c2a26;
-  background-color: #f6f7f2;
-  background-image:
-    radial-gradient(1100px 480px at 50% -8%, rgba(86, 171, 109, 0.10), transparent 70%),
-    radial-gradient(900px 520px at 100% 0%, rgba(120, 190, 230, 0.06), transparent 60%),
-    linear-gradient(180deg, #f9faf5 0%, #f3f5ef 100%);
-  background-attachment: fixed;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+  @apply text-stone-800 antialiased;
+  background:
+    linear-gradient(
+      180deg,
+      #f3f7f0 0%,
+      #f7f6ef 40%,
+      #f5f1e6 100%
+    )
+    fixed;
+  font-feature-settings: 'cv02', 'cv03', 'cv04';
 }
 
-/* Fraunces reads best a touch tighter for headings and tabular for numbers. */
-.font-display {
-  letter-spacing: -0.012em;
-}
+/* Numbers should line up in tables and stats. */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
-}
-
-/* Quiet, organic scrollbars that match the palette. */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #cdd3c8 transparent;
-}
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-*::-webkit-scrollbar-thumb {
-  background-color: #cdd3c8;
-  border: 3px solid transparent;
-  border-radius: 9999px;
-  background-clip: content-box;
-}
-*::-webkit-scrollbar-thumb:hover {
-  background-color: #b6bdb0;
-}
-
-/* A green, on-brand selection highlight. */
-::selection {
-  background-color: rgba(40, 122, 65, 0.18);
 }
 
 /* Consistent, keyboard-only focus ring across the app. */
@@ -77,73 +46,69 @@ body {
 
 /* ---------------------------------------------------------------------------
    Component layer — the shared building blocks of the redesign. Templates
-   compose these so every card, button and field shares one visual language.
+   compose these instead of hand-rolling card/button/input styles so future
+   design changes happen in one place.
 --------------------------------------------------------------------------- */
 @layer components {
-  /* Surfaces */
   .gp-card {
     @apply bg-white rounded-2xl border border-line shadow-card;
   }
+
   .gp-card-hover {
     @apply transition-all duration-300 hover:shadow-card-hover hover:-translate-y-0.5;
   }
+
   .gp-pad {
     @apply p-4 sm:p-6;
   }
 
-  /* Section headings */
   .gp-title {
-    @apply font-display font-semibold text-stone-800 tracking-tight;
+    @apply font-display font-semibold text-stone-900;
   }
 
-  /* Primary CTA — a soft forest-green gradient with a glassy top highlight. */
   .gp-btn-primary {
-    @apply relative inline-flex items-center justify-center gap-2 rounded-xl font-medium text-white
-           bg-gradient-to-b from-garden-500 to-garden-600
-           shadow-[0_1px_0_rgba(255,255,255,0.25)_inset,0_8px_20px_-10px_rgba(32,96,53,0.7)]
-           transition-all duration-200
-           hover:from-garden-400 hover:to-garden-600 hover:shadow-[0_1px_0_rgba(255,255,255,0.3)_inset,0_12px_26px_-10px_rgba(32,96,53,0.8)]
-           active:scale-[0.985]
-           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+    @apply relative inline-flex items-center justify-center gap-2 rounded-xl
+      bg-gradient-to-b from-garden-500 to-garden-600 text-white font-semibold
+      shadow-pill transition-all duration-300
+      hover:from-garden-400 hover:to-garden-600 hover:shadow-lg
+      active:scale-[0.98]
+      disabled:opacity-50 disabled:pointer-events-none
+      overflow-hidden;
   }
 
-  /* Quiet secondary button */
+  .gp-btn-primary::before {
+    content: '';
+    @apply absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/25 to-transparent pointer-events-none;
+  }
+
   .gp-btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl font-medium
-           text-stone-600 bg-white border border-line
-           transition-all duration-200 hover:border-stone-300 hover:text-stone-800 hover:shadow-pill
-           active:scale-[0.985];
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-line
+      bg-white text-stone-600 font-medium transition-colors
+      hover:bg-stone-50 hover:text-stone-800
+      disabled:opacity-50 disabled:pointer-events-none;
   }
 
-  /* Text inputs / textareas / selects */
   .gp-input {
-    @apply w-full px-3 py-2.5 rounded-xl border border-line bg-white text-sm text-stone-800
-           placeholder:text-stone-400
-           transition-shadow duration-200
-           focus:outline-none focus:border-garden-400 focus:ring-2 focus:ring-garden-500/25;
+    @apply w-full rounded-xl border border-line bg-white px-3 py-2 text-stone-800
+      placeholder:text-stone-400
+      focus:outline-none focus:ring-2 focus:ring-garden-500/40 focus:border-garden-400
+      transition-shadow;
   }
 
-  /* Pill / chip */
-  .gp-chip {
-    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium
-           transition-all duration-200;
-  }
-
-  /* Icon button (settings / mail / nav) */
   .gp-icon-btn {
-    @apply inline-flex items-center justify-center rounded-xl bg-white border border-line
-           text-stone-500 transition-all duration-200
-           hover:border-stone-300 hover:text-stone-700 hover:shadow-pill active:scale-95;
+    @apply inline-flex items-center justify-center rounded-lg text-stone-400
+      hover:text-stone-600 hover:bg-stone-100 transition-colors;
+  }
+
+  .gp-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors;
   }
 }
 
-/* ---------------------------------------------------------------------------
-   Heatmap grid (unchanged behavior — only the cell interaction polish lives
-   here so the documented color semantics in Heatmap.vue stay intact).
---------------------------------------------------------------------------- */
+/* Heatmap grid columns (custom property so year view stays dense). */
 .heatmap-grid {
   display: grid;
-  grid-template-columns: repeat(53, 1fr);
+  grid-template-columns: repeat(53, minmax(0, 1fr));
   gap: 3px;
 }
 
@@ -152,4 +117,126 @@ body {
     grid-template-columns: repeat(53, 1fr);
     gap: 2px;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Garden scene — generative hero SVG.
+
+   Every animation lives behind the `.gs-live` root-class so the rasterized
+   PNG portrait (loaded as <img>, with no stylesheet access) can drop the
+   class and end up with a clean, frozen frame. SMIL is intentionally
+   avoided: the prefers-reduced-motion guard at the top of this file
+   neutralizes CSS animations but cannot reach SMIL, so an animateMotion
+   would keep moving for users who asked for stillness. The reduced-motion
+   guard also shortens *every* CSS animation (including these) to 0.001ms.
+--------------------------------------------------------------------------- */
+.gs-live .gs-firefly {
+  animation: gs-firefly 4s ease-in-out infinite;
+}
+
+.gs-live .gs-drift {
+  animation: gs-drift 12s linear infinite;
+}
+
+.gs-live .gs-wander-ground {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: gs-wander-ground 45s ease-in-out infinite;
+}
+
+.gs-live .gs-wander-ground.gs-wander-slow {
+  /* Snail — the joke is in the duration. */
+  animation-duration: 90s;
+}
+
+.gs-live .gs-wander-air {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: gs-wander-air 36s ease-in-out infinite;
+}
+
+.gs-live .gs-bob {
+  /* Wing-beat bob layered under the wander — air companions only. */
+  animation: gs-bob 1.8s ease-in-out infinite;
+}
+
+.gs-live .gs-cloud {
+  /* Very slow horizontal drift; duration/delay are set inline per cloud. */
+  animation: gs-cloud 100s ease-in-out infinite alternate;
+}
+
+.gs-live .gs-sun-rays {
+  /* 12 short rays drift slowly counter to the day. Origin at (0,0) since
+     the lines are drawn radiating outward from the group origin (which
+     the parent translate places at the sun's centre). */
+  transform-origin: 0 0;
+  animation: gs-sun-rays 60s linear infinite;
+}
+
+.gs-live .gs-bee-fly {
+  /* Follows the per-scene --bee-path with linear offset-distance. The path
+     is closed so the bee loops smoothly. offset-rotate is locked so the
+     bee stays upright (the arcs handle the visual heading). */
+  offset-path: path(var(--bee-path));
+  offset-rotate: 0deg;
+  animation: gs-bee-fly var(--bee-duration, 24s) linear infinite;
+}
+
+@keyframes gs-firefly {
+  0%, 100% { opacity: 0.15; transform: translate(0, 0); }
+  50%      { opacity: 0.9;  transform: translate(2px, -2px); }
+}
+
+@keyframes gs-drift {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  10%  { opacity: 0.9; }
+  90%  { opacity: 0.9; }
+  100% { transform: translate(-30px, 240px) rotate(120deg); opacity: 0; }
+}
+
+/* Amble → pause → amble → turn, both directions. The pauses are what make it
+   read as a creature, not a marquee. */
+@keyframes gs-wander-ground {
+  0%   { transform: translate(0, 0) scaleX(1); }
+  16%  { transform: translate(290px, 0) scaleX(1); }
+  23%  { transform: translate(290px, 0) scaleX(1); }
+  44%  { transform: translate(720px, 0) scaleX(1); }
+  50%  { transform: translate(720px, 0) scaleX(-1); }
+  66%  { transform: translate(430px, 0) scaleX(-1); }
+  73%  { transform: translate(430px, 0) scaleX(-1); }
+  95%  { transform: translate(0, 0) scaleX(-1); }
+  100% { transform: translate(0, 0) scaleX(1); }
+}
+
+/* A lazy figure-of-eight-ish loop with height changes and a slight lean —
+   deliberately not a straight line. */
+@keyframes gs-wander-air {
+  0%   { transform: translate(0px, 0px) rotate(0deg); }
+  12%  { transform: translate(180px, -50px) rotate(4deg); }
+  28%  { transform: translate(430px, 12px) rotate(-3deg); }
+  45%  { transform: translate(640px, -70px) rotate(3deg); }
+  60%  { transform: translate(820px, -18px) rotate(-4deg); }
+  75%  { transform: translate(560px, -90px) rotate(2deg); }
+  88%  { transform: translate(240px, -30px) rotate(-2deg); }
+  100% { transform: translate(0px, 0px) rotate(0deg); }
+}
+
+@keyframes gs-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+
+@keyframes gs-cloud {
+  from { transform: translateX(-30px); }
+  to   { transform: translateX(30px); }
+}
+
+@keyframes gs-sun-rays {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes gs-bee-fly {
+  from { offset-distance: 0%; }
+  to   { offset-distance: 100%; }
 }

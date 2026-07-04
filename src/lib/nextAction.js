@@ -50,14 +50,25 @@ function spellYears(n) {
   return YEAR_WORDS[n] || String(n)
 }
 
-// The language studied before but left un-watered the longest, or null.
-function mostNeglectedLanguage(entries, languages, today) {
+// The most recent session date per language, or null when the language has
+// never been logged. Exported so the Garden scene can render a "droop" on
+// plants that haven't been watered in a while — the same notion of
+// "left un-watered" that the next-action ladder uses for the "neglected"
+// nudge. A language that has never been logged is intentionally absent:
+// the scene renders it as a fresh mound, not as neglected.
+export function lastWateredByLanguage(entries = []) {
   const lastByLang = {}
   for (const e of entries) {
     if (!lastByLang[e.languageId] || e.date > lastByLang[e.languageId]) {
       lastByLang[e.languageId] = e.date
     }
   }
+  return lastByLang
+}
+
+// The language studied before but left un-watered the longest, or null.
+function mostNeglectedLanguage(entries, languages, today) {
+  const lastByLang = lastWateredByLanguage(entries)
   let worst = null
   for (const lang of languages) {
     const last = lastByLang[lang.id]
