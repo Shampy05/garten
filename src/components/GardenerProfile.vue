@@ -66,10 +66,12 @@
             <p v-else-if="bioText" class="text-sm text-stone-600 whitespace-pre-line">{{ bioText }}</p>
           </div>
 
-          <!-- Bloom picker (self with profile) -->
+          <!-- Bloom picker (self with profile). flex-wrap so the row folds
+               onto a second line if more blooms are added later, rather
+               than overflowing the modal on narrow screens. -->
           <div v-if="isSelf && self.profile" class="mt-4">
             <h5 class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-2">Your bloom</h5>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
               <button
                 v-for="(b, i) in blooms"
                 :key="b.name"
@@ -83,6 +85,12 @@
                 <span class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: b.center }"></span>
               </button>
             </div>
+            <p v-if="avatarVariant == null" class="text-[10px] text-stone-400 mt-1.5">
+              Showing your default bloom (hashed from your id). Pick a colour above to personalise.
+            </p>
+            <p v-else class="text-[10px] text-stone-400 mt-1.5">
+              Tap the swatch again to go back to the default.
+            </p>
           </div>
 
           <!-- Stats -->

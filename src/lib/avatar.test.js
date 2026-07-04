@@ -50,6 +50,23 @@ describe('avatarParams', () => {
     for (let i = 0; i < 100; i++) seen.add(avatarParams(`seed-${i}`).bloom.name)
     expect(seen.size).toBe(BLOOMS.length)
   })
+
+  it('keeps the bloom palette count and names stable', () => {
+    // The DB CHECK on profiles.avatar_variant is 0..(BLOOMS.length - 1) and the
+    // GardenerProfile picker iterates BLOOMS by index — so any change to the
+    // palette needs both a DB migration and a deliberate test update. Pin
+    // both here so a silent add can't ship without the corresponding lift.
+    expect(BLOOMS).toHaveLength(9)
+    expect(BLOOMS.map((b) => b.name)).toEqual([
+      'rose', 'coral', 'amber', 'lilac', 'sky', 'blush', 'sage', 'plum', 'cream',
+    ])
+    // Every entry needs the two-color shape BloomAvatar reads.
+    for (const b of BLOOMS) {
+      expect(b.name).toMatch(/^[a-z]+$/)
+      expect(b.petal).toMatch(/^#[0-9a-f]{6}$/i)
+      expect(b.center).toMatch(/^#[0-9a-f]{6}$/i)
+    }
+  })
 })
 
 describe('growthStage', () => {

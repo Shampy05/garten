@@ -18,6 +18,13 @@ export function hashSeed(seed) {
 
 // Bloom colours sit in the warm, muted register of the Garden Journal palette
 // so they read on white and garden-50 backgrounds without shouting.
+//
+// Nine entries (the CHECK constraint on profiles.avatar_variant allows 0..8):
+// the original six — rose, coral, amber, lilac, sky, blush — plus sage, plum,
+// and cream. The new three close tonal gaps: sage is a desaturated cool that
+// stays distinct from the leaf green (#389150 / #5cae6b), plum is a deeper
+// cool, and cream is a warm light (cherry-blossom-ish). Index 0..N maps
+// straight onto the picker swatch order in the GardenerProfile modal.
 export const BLOOMS = [
   { name: 'rose', petal: '#e2a0ad', center: '#b95c72' },
   { name: 'coral', petal: '#eda98f', center: '#c96a4a' },
@@ -25,6 +32,9 @@ export const BLOOMS = [
   { name: 'lilac', petal: '#bfa8dc', center: '#8568b4' },
   { name: 'sky', petal: '#9ec2df', center: '#5583ad' },
   { name: 'blush', petal: '#dfb1c8', center: '#a86489' },
+  { name: 'sage', petal: '#b8c4a8', center: '#7a8a6a' },
+  { name: 'plum', petal: '#b88aae', center: '#7d3a64' },
+  { name: 'cream', petal: '#ede4ce', center: '#c4a55a' },
 ]
 
 export const STAGES = ['seedling', 'sprout', 'bloom', 'flourish']
