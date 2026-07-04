@@ -136,7 +136,19 @@ export function useBooks() {
       if (recordsRes.error) throw recordsRes.error
 
       const recordByBook = new Map((recordsRes.data || []).map((r) => [r.book_id, r]))
-      savedBooks.value = (booksRes.data || []).map((b) => joinToCamel(b, recordByBook.get(b.id)))
+      const dbBooks = (booksRes.data || []).map((b) => joinToCamel(b, recordByBook.get(b.id)))
+
+      // Merge with in-memory, don't blindly replace. The initial load is
+      // async; a user who signs in and immediately searches + saves a book
+      // can finish the save *before* this query returns, so the DB result
+      // here is a snapshot from before the save and would overwrite the
+      // just-saved book with empty/stale data (the "save says In library
+      // but the book is nowhere" bug). Keep any in-memory books whose id
+      // isn't in the DB result — those are local saves the query didn't
+      // see. Books present in both use the DB state.
+      const dbIds = new Set(dbBooks.map((b) => b.id))
+      const localOnly = savedBooks.value.filter((b) => !dbIds.has(b.id))
+      savedBooks.value = [...dbBooks, ...localOnly]
       setCache(cacheKey(userId.value), savedBooks.value)
       loaded.value = true
     } catch (e) {
