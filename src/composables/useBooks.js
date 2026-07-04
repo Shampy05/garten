@@ -21,10 +21,22 @@ import { nameForCode } from '../lib/bookLanguages.js'
 const savedBooks = ref([])
 const loaded = ref(false)
 const loadError = ref(false)
+// All of the user's reading_progress rows (across every book), for the Recent
+// Sessions story — a book's own history is still loaded on demand by
+// loadProgress(bookId) inside LogPagesModal; this is the "everything at once"
+// view App.vue merges into the day-grouped timeline.
+const readingProgress = ref([])
+const progressLoaded = ref(false)
 let initialized = false
 
 function cacheKey(userId) {
   return `books_${userId}`
+}
+
+// Distinct cache key so this never collides with the per-user `books_<uid>`
+// entry above or useStorage's `garten_data_<uid>`.
+function progressCacheKey(userId) {
+  return `books_progress_${userId}`
 }
 
 function bookToSnake(book) {
@@ -124,6 +136,45 @@ export function useBooks() {
     }
   }
 
+  // All-books reading history, cached the same way as loadBooks. Used only to
+  // enrich Recent Sessions with "Read N pages · Title" rows — a failure here
+  // degrades silently (no toast) since the timeline works fine without it.
+  const loadAllProgress = async () => {
+    if (!userId.value) {
+      readingProgress.value = []
+      progressLoaded.value = false
+      return
+    }
+
+    const cached = getCached(progressCacheKey(userId.value))
+    if (cached) {
+      readingProgress.value = cached
+      progressLoaded.value = true
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('reading_progress')
+        .select('id, book_id, date, pages_read, minutes, created_at')
+        .eq('user_id', userId.value)
+      if (error) throw error
+      readingProgress.value = (data || []).map((r) => ({
+        id: r.id,
+        bookId: r.book_id,
+        date: r.date,
+        pagesRead: r.pages_read,
+        minutes: r.minutes,
+        createdAt: r.created_at,
+      }))
+      setCache(progressCacheKey(userId.value), readingProgress.value)
+      progressLoaded.value = true
+    } catch (e) {
+      // Silent — Recent Sessions simply shows study entries only, as before.
+      progressLoaded.value = false
+    }
+  }
+
   if (!initialized) {
     initialized = true
     watch(
@@ -131,9 +182,12 @@ export function useBooks() {
       (id) => {
         if (id) {
           loadBooks()
+          loadAllProgress()
         } else {
           savedBooks.value = []
           loaded.value = false
+          readingProgress.value = []
+          progressLoaded.value = false
         }
       },
       { immediate: true }
@@ -387,5 +441,7 @@ export function useBooks() {
     loadProgress,
     logProgress,
     updateTotalPages,
+    readingProgress,
+    progressLoaded,
   }
 }

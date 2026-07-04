@@ -302,50 +302,96 @@
       <div class="gp-card gp-pad mt-6 animate-fade-up">
         <h3 class="gp-title text-lg mb-4">Recent sessions</h3>
 
-        <div v-if="groupedRecentEntries.length" class="space-y-5">
-          <div v-for="group in groupedRecentEntries" :key="group.date">
-            <!-- Day header -->
-            <div class="flex items-baseline gap-2 pb-2 mb-2 border-b border-line">
-              <span class="text-xs font-semibold uppercase tracking-wide text-stone-500">{{ group.label }}</span>
-              <span class="text-xs text-stone-300">·</span>
-              <span class="text-xs font-medium text-stone-400 tabular-nums">{{ group.totalFormatted }}</span>
+        <div v-if="recentStory.length" class="space-y-5">
+          <template v-for="item in recentStory" :key="item.key">
+            <!-- Week digest: one line marking the start of a new week -->
+            <div
+              v-if="item.itemType === 'digest'"
+              class="flex items-center gap-2 text-xs text-stone-400 pt-1 first:pt-0"
+            >
+              <span class="font-semibold uppercase tracking-wide">{{ item.label }}</span>
+              <template v-if="item.totalMinutes > 0">
+                <span class="text-stone-300">·</span>
+                <span class="tabular-nums">{{ fmtMinutes(item.totalMinutes) }}</span>
+                <span class="text-stone-300">·</span>
+                <span>{{ item.activeDays }} {{ item.activeDays === 1 ? 'day' : 'days' }}</span>
+                <span v-if="item.topLanguageName" class="text-stone-300">·</span>
+                <span v-if="item.topLanguageName">mostly {{ item.topLanguageName }}</span>
+              </template>
+              <span class="flex-1 h-px bg-line"></span>
             </div>
 
-            <!-- Day sessions -->
-            <div class="space-y-1.5">
-              <div
-                v-for="entry in group.entries"
-                :key="entry.id"
-                class="group relative flex flex-col rounded-xl bg-stone-50/70 hover:bg-stone-100/70 transition-colors pl-4 pr-3 py-2.5 overflow-hidden"
-              >
-                <div class="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl"
-                  :style="{ backgroundColor: getLanguageColor(entry.languageId) }"
+            <!-- Day block -->
+            <div v-else>
+              <div class="flex items-baseline gap-2 pb-2 mb-2 border-b border-line">
+                <span class="text-xs font-semibold uppercase tracking-wide text-stone-500">{{ item.label }}</span>
+                <span v-if="item.totalFormatted" class="text-xs text-stone-300">·</span>
+                <span v-if="item.totalFormatted" class="text-xs font-medium text-stone-400 tabular-nums">{{ item.totalFormatted }}</span>
+              </div>
+
+              <!-- Per-day language mix — same visual grammar as the weekly goal bar -->
+              <div v-if="item.mix.length > 1" class="flex gap-px h-1 rounded-full overflow-hidden mb-2 bg-stone-100">
+                <div
+                  v-for="seg in item.mix"
+                  :key="seg.name"
+                  class="h-1"
+                  :style="{ width: seg.percent + '%', backgroundColor: seg.color }"
+                  :title="`${seg.name} · ${Math.round(seg.percent)}%`"
                 ></div>
-                <div class="flex items-center gap-2">
-                  <span class="font-semibold text-stone-700 text-sm truncate">{{ getLanguageName(entry.languageId) }}</span>
-                  <span class="text-stone-300 text-xs">·</span>
-                  <span class="text-stone-500 text-xs capitalize">{{ entry.type }}</span>
-                  <span class="text-sm font-semibold text-stone-600 ml-auto tabular-nums">
-                    {{ fmtMinutes(entry.hours * 60 + entry.minutes) }}
-                  </span>
-                </div>
-                <div class="flex items-center gap-3 mt-1">
-                  <p v-if="entry.notes" class="text-xs text-stone-400 truncate flex-1">{{ entry.notes }}</p>
-                  <div class="flex items-center gap-1 ml-auto flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                    <button @click="openEdit(entry)" class="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors" title="Edit">
-                      <Pencil :size="14" />
-                    </button>
-                    <button @click="confirmDeleteEntry(entry)" class="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
-                      <Trash2 :size="14" />
-                    </button>
+              </div>
+
+              <div class="space-y-1.5">
+                <div
+                  v-for="row in item.rows"
+                  :key="row.id"
+                  class="group relative flex flex-col rounded-xl bg-stone-50/70 hover:bg-stone-100/70 transition-colors pl-4 pr-3 py-2.5 overflow-hidden"
+                >
+                  <div class="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl"
+                    :style="{ backgroundColor: row.kind === 'reading' ? row.color : getLanguageColor(row.languageId) }"
+                  ></div>
+
+                  <!-- Study session row -->
+                  <template v-if="row.kind === 'session'">
+                    <div class="flex items-center gap-2">
+                      <component :is="activityIcon(row.type)" :size="14" class="text-stone-400 flex-shrink-0" />
+                      <span class="font-semibold text-stone-700 text-sm truncate">{{ getLanguageName(row.languageId) }}</span>
+                      <span class="text-stone-300 text-xs">·</span>
+                      <span class="text-stone-500 text-xs capitalize">{{ row.type }}</span>
+                      <span class="text-sm font-semibold text-stone-600 ml-auto tabular-nums">
+                        {{ fmtMinutes(row.hours * 60 + row.minutes) }}
+                      </span>
+                    </div>
+                    <div class="flex items-center gap-3 mt-1">
+                      <p v-if="row.notes" class="text-xs text-stone-400 truncate flex-1">{{ row.notes }}</p>
+                      <div class="flex items-center gap-1 ml-auto flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        <button @click="openEdit(row)" class="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors" title="Edit">
+                          <Pencil :size="14" />
+                        </button>
+                        <button @click="confirmDeleteEntry(row)" class="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
+                          <Trash2 :size="14" />
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+
+                  <!-- Reading-progress row -->
+                  <div v-else class="flex items-center gap-2">
+                    <BookOpen :size="14" class="text-stone-400 flex-shrink-0" />
+                    <span class="text-stone-500 text-xs flex-shrink-0">Read</span>
+                    <span class="font-semibold text-stone-700 text-sm tabular-nums flex-shrink-0">{{ row.pagesRead }} pages</span>
+                    <span class="text-stone-300 text-xs">·</span>
+                    <span class="text-stone-600 text-sm truncate">{{ row.bookTitle }}</span>
+                    <span v-if="row.minutes" class="text-sm font-semibold text-stone-500 ml-auto tabular-nums flex-shrink-0">
+                      {{ fmtMinutes(row.minutes) }}
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          </template>
 
           <button
-            v-if="recentEntries.length < data.entries.length"
+            v-if="visibleTimelineRows.length < timelineRows.length"
             @click="recentLimit += 10"
             class="w-full py-2.5 text-sm font-medium text-stone-500 hover:text-garden-600 transition-colors"
           >
@@ -413,10 +459,14 @@
 
 <script setup>
 import { ref, computed, watch, provide, onMounted, onBeforeUnmount } from 'vue'
-import { Settings, Pencil, Trash2, Sprout, Users, Flame, ChevronDown, LogOut, BookOpen, User, Target, Droplets } from 'lucide-vue-next'
+import {
+  Settings, Pencil, Trash2, Sprout, Users, Flame, ChevronDown, LogOut, BookOpen, User, Target, Droplets,
+  Layers, BookMarked, Headphones, MessageCircle, PenLine, Volume2,
+} from 'lucide-vue-next'
 import { useAuth } from './composables/useAuth.js'
 import { useStorage } from './composables/useStorage.js'
 import { useToast } from './composables/useToast.js'
+import { useBooks } from './composables/useBooks.js'
 import { useLanguageLookup } from './composables/useLanguageLookup.js'
 import { useTimeframe } from './composables/useTimeframe.js'
 import { useWeeklyGoal } from './composables/useWeeklyGoal.js'
@@ -425,6 +475,8 @@ import { localDateStr, currentStreak, getMonthRange, getQuarterRange, getYearRan
 import { levelForHours } from './lib/proficiency.js'
 import { computeNextAction } from './lib/nextAction.js'
 import { detectMilestone } from './lib/milestones.js'
+import { mergeTimelineRows, groupRowsByDay, dayLanguageMix, weekStartFor, weekSummary } from './lib/recentActivity.js'
+import { codeForName } from './lib/bookLanguages.js'
 import AuthScreen from './components/AuthScreen.vue'
 import LanguageSetup from './components/LanguageSetup.vue'
 import LogForm from './components/LogForm.vue'
@@ -453,6 +505,12 @@ const toast = useToast()
 
 const social = useSocial()
 provide('social', social)
+
+// Reading rows for the Recent Sessions story (see recentStory below). useBooks
+// is a shared module-singleton, so this is the same instance LibraryView and
+// GardenerProfile use — calling it here starts its (cached, 30s TTL) load
+// once per session rather than duplicating it.
+const booksApi = useBooks()
 // Top-level view: 'garden' | 'library' | 'friends'. Persisted; migrates the
 // previous boolean 'garten:socialMode' key on first load so existing users who
 // were on the Friends tab stay there. (Named navView to avoid colliding with
@@ -572,15 +630,6 @@ const heroHours = computed(() =>
 const heroSessions = computed(() => heroPeriodEntries.value.length)
 
 const recentLimit = ref(10)
-const recentEntries = computed(() => {
-  return [...data.value.entries]
-    .sort((a, b) => {
-      const dateDiff = new Date(b.date) - new Date(a.date)
-      if (dateDiff !== 0) return dateDiff
-      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
-    })
-    .slice(0, recentLimit.value)
-})
 
 const fmtMinutes = (totalMinutes) => {
   const h = Math.floor(totalMinutes / 60)
@@ -600,22 +649,69 @@ const relativeDayLabel = (dateStr) => {
   return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
-const groupedRecentEntries = computed(() => {
-  const groups = []
-  const byDate = new Map()
-  for (const entry of recentEntries.value) {
-    let group = byDate.get(entry.date)
-    if (!group) {
-      group = { date: entry.date, label: relativeDayLabel(entry.date), totalMinutes: 0, totalFormatted: '', entries: [] }
-      byDate.set(entry.date, group)
-      groups.push(group)
+// Recent sessions, told as a story: study sessions merged with reading
+// progress, grouped by day, with a per-day language mix and a digest divider
+// at the start of each represented week. Reading rows are joined against
+// useBooks' bulk-loaded progress + saved books (see useBooks.js) — a lazy,
+// cached, best-effort enrichment that degrades to sessions-only if it fails.
+const sessionRows = computed(() => data.value.entries.map((e) => ({ ...e, kind: 'session' })))
+const readingRows = computed(() => {
+  const booksById = new Map(booksApi.savedBooks.value.map((b) => [b.id, b]))
+  return booksApi.readingProgress.value.map((r) => {
+    const book = booksById.get(r.bookId)
+    const lang = book ? data.value.languages.find((l) => codeForName(l.name) === book.languageCode) : null
+    return {
+      id: `progress-${r.id}`,
+      date: r.date,
+      createdAt: r.createdAt,
+      kind: 'reading',
+      bookTitle: book?.title || 'a book',
+      pagesRead: r.pagesRead,
+      minutes: r.minutes,
+      color: lang?.color || '#a8a29e',
     }
-    group.entries.push(entry)
-    group.totalMinutes += entry.hours * 60 + entry.minutes
-  }
-  for (const group of groups) group.totalFormatted = fmtMinutes(group.totalMinutes)
-  return groups
+  })
 })
+const timelineRows = computed(() => mergeTimelineRows(sessionRows.value, readingRows.value))
+const visibleTimelineRows = computed(() => timelineRows.value.slice(0, recentLimit.value))
+
+const recentStory = computed(() => {
+  const groups = groupRowsByDay(visibleTimelineRows.value)
+  const items = []
+  let lastWeek = null
+  for (const group of groups) {
+    const wk = weekStartFor(group.date)
+    if (wk !== lastWeek) {
+      items.push({ itemType: 'digest', key: `digest-${wk}`, ...weekSummary(data.value.entries, data.value.languages, group.date) })
+      lastWeek = wk
+    }
+    const dayEntries = group.rows.filter((r) => r.kind === 'session')
+    const totalMinutes = dayEntries.reduce((s, e) => s + e.hours * 60 + e.minutes, 0)
+    items.push({
+      itemType: 'day',
+      key: group.date,
+      date: group.date,
+      label: relativeDayLabel(group.date),
+      totalFormatted: dayEntries.length ? fmtMinutes(totalMinutes) : null,
+      mix: dayLanguageMix(dayEntries, data.value.languages),
+      rows: group.rows,
+    })
+  }
+  return items
+})
+
+const ACTIVITY_ICONS = {
+  reading: BookOpen,
+  grammar: Layers,
+  vocabulary: BookMarked,
+  listening: Headphones,
+  speaking: MessageCircle,
+  writing: PenLine,
+  pronunciation: Volume2,
+}
+function activityIcon(type) {
+  return ACTIVITY_ICONS[type] || Sprout
+}
 
 const todayStreak = computed(() => currentStreak(data.value.entries.map(e => e.date)))
 
@@ -716,10 +812,24 @@ const addLanguage = (language) => { storageAddLanguage(language) }
 const deleteLanguage = (langId) => { storageDeleteLanguage(langId) }
 const updateLanguage = (data) => { const { id, ...updates } = data; storageUpdateLanguage(id, updates) }
 const deleteEntry = (id) => { storageDeleteEntry(id) }
-const openEdit = (entry) => { editingEntry.value = entry; editingVisible.value = true }
+// Recent-sessions rows are display copies (tagged with `kind`, possibly a
+// reading-progress row) — resolve back to the real stored entry so edit/delete
+// never round-trip a stray field, and so a reading row (no matching entry)
+// safely no-ops instead of opening a bogus editor.
+const openEdit = (row) => {
+  const entry = data.value.entries.find((e) => e.id === row.id)
+  if (!entry) return
+  editingEntry.value = entry
+  editingVisible.value = true
+}
 const saveEdit = (entry) => { storageUpdateEntry(entry); editingVisible.value = false; editingEntry.value = null }
 
-const confirmDeleteEntry = (entry) => { deleteTarget.value = entry; showDeleteConfirm.value = true }
+const confirmDeleteEntry = (row) => {
+  const entry = data.value.entries.find((e) => e.id === row.id)
+  if (!entry) return
+  deleteTarget.value = entry
+  showDeleteConfirm.value = true
+}
 const cancelDelete = () => { deleteTarget.value = null; showDeleteConfirm.value = false }
 const executeDelete = () => { if (deleteTarget.value) storageDeleteEntry(deleteTarget.value.id); deleteTarget.value = null; showDeleteConfirm.value = false }
 
