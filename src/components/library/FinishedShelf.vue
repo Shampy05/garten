@@ -36,13 +36,13 @@
       />
     </button>
 
-    <!-- Expanded: 2-col grid of read-only cards, plus a quiet remove link -->
+    <!-- Expanded: 2-col grid of read-only cards with per-card removal -->
     <div v-if="expanded" class="mt-3 animate-fade-up">
       <div v-if="books.length" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div
           v-for="book in books"
           :key="book.id"
-          class="gp-card p-3 flex gap-3"
+          class="gp-card p-3 flex gap-3 group"
         >
           <div class="w-14 h-20 flex-shrink-0 rounded-md overflow-hidden bg-stone-100 border border-line flex items-center justify-center">
             <img v-if="book.coverUrl" :src="book.coverUrl" :alt="book.title" class="w-full h-full object-cover" loading="lazy" />
@@ -60,19 +60,21 @@
                 {{ book.record.rating.toFixed(1) }}
               </span>
             </div>
-            <p v-if="finishedLabel(book)" class="text-[11px] text-stone-400 mt-auto pt-1.5 tabular-nums">
-              {{ finishedLabel(book) }}
-            </p>
+            <div class="flex items-end justify-between gap-2 mt-auto pt-2">
+              <p v-if="finishedLabel(book)" class="text-[11px] text-stone-400 tabular-nums">
+                {{ finishedLabel(book) }}
+              </p>
+              <button
+                @click="$emit('remove', book)"
+                class="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-colors opacity-60 group-hover:opacity-100"
+                title="Remove book"
+                aria-label="Remove book"
+              >
+                <Trash2 :size="14" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="text-center mt-3">
-        <button
-          @click="$emit('remove-all')"
-          class="text-[11px] text-stone-400 hover:text-stone-600 transition-colors"
-        >
-          Remove a finished book…
-        </button>
       </div>
     </div>
   </div>
@@ -80,14 +82,14 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { ChevronDown, BookOpen, BookMarked, Star } from 'lucide-vue-next'
+import { ChevronDown, BookOpen, BookMarked, Star, Trash2 } from 'lucide-vue-next'
 import { nameForCode } from '../../lib/bookLanguages.js'
 
 const props = defineProps({
   books: { type: Array, default: () => [] },
 })
 
-defineEmits(['remove-all'])
+defineEmits(['remove'])
 
 // Six most-recent covers for the strip. Sorted order is preserved by the
 // caller (sortFinished in useShelves).

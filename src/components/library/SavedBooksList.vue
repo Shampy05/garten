@@ -150,7 +150,7 @@
       :icon="BookCheck"
       accent="stone"
     >
-      <FinishedShelf :books="filteredFinished" @remove-all="onRemoveFinished" />
+      <FinishedShelf :books="filteredFinished" @remove="$emit('remove', $event)" />
     </ShelfSection>
 
     <!-- No matches across the visible shelves -->
@@ -190,7 +190,7 @@ const props = defineProps({
   languageColors: { type: Object, default: () => ({}) },
 })
 
-const emit = defineEmits(['edit', 'remove', 'log', 'quick-log', 'mark-as-read', 'reorder', 'finished-remove'])
+const emit = defineEmits(['edit', 'remove', 'log', 'quick-log', 'mark-as-read', 'reorder'])
 
 const shelves = useShelves()
 
@@ -283,8 +283,5 @@ async function onReorder({ book, direction }) {
   // Pass the visible (language-filtered) order so a reorder swaps with the
   // neighbour the user actually sees, not a hidden other-language row.
   await shelves.reorderQueue(book.id, direction, filteredQueue.value.map((b) => b.id))
-}
-function onRemoveFinished(book) {
-  emit('finished-remove', book)
 }
 </script>

@@ -42,7 +42,6 @@
             @remove="confirmRemove"
             @log="openLogModal"
             @quick-log="handleQuickLog"
-            @finished-remove="confirmRemove"
           />
         </template>
       </div>
