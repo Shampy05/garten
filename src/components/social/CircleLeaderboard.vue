@@ -41,7 +41,10 @@
               {{ row.rank }}
             </div>
 
-            <!-- Avatar — tapping this opens the profile for friends -->
+            <!-- Avatar — tapping this opens the profile for friends. Pass
+                 :variant so the chosen bloom colour from the profile modal
+                 shows up here too (without it BloomAvatar falls back to the
+                 id-hashed default and the leaderboard flowers look generic). -->
             <button
               v-if="!row.isSelf"
               type="button"
@@ -49,9 +52,9 @@
               :title="`View ${row.display_name || row.username}'s profile`"
               @click="openProfile(row)"
             >
-              <BloomAvatar :seed="row.user_id" :size="36" :name="row.display_name || row.username" class="block" />
+              <BloomAvatar :seed="row.user_id" :size="36" :name="row.display_name || row.username" :variant="row.avatar_variant" class="block" />
             </button>
-            <BloomAvatar v-else :seed="row.user_id" :size="36" />
+            <BloomAvatar v-else :seed="row.user_id" :size="36" :variant="row.avatar_variant" />
 
             <!-- Name + streak — name also opens profile for friends -->
             <div class="min-w-0 flex-1">
