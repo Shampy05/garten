@@ -27,7 +27,7 @@
                   : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'"
               >
                 <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: lang.color }"></span>
-                {{ displayNameFor(lang) }}
+                {{ displayNameFor(lang.id) || lang.name }}
               </button>
             </div>
           </div>

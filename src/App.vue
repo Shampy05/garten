@@ -74,10 +74,6 @@
           <div class="flex items-center gap-3 group">
             <SproutIcon class="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 transition-transform duration-500 group-hover:rotate-[-4deg] group-hover:scale-105" />
             <div class="min-w-0">
-              <!-- Time-of-day greeting, when we can call the user by name.
-                   Sits above the title as a small personal line; falls back
-                   to nothing when the user hasn't personalised yet. -->
-              <p v-if="greeting" class="text-sm sm:text-base text-stone-500 leading-tight">{{ greeting }}</p>
               <h1 class="font-display text-3xl sm:text-4xl font-bold text-stone-900 mb-0.5 tracking-tight">Garten</h1>
               <!-- Garden name replaces the static tagline when set; the static
                    copy stays as a small caption so the brand voice is still
@@ -569,41 +565,9 @@ function saveGardenName(name) {
   if (social.profile.value) social.updateProfile({ garden_name: name || null })
 }
 
-// Header personalisation: time-of-day greeting + the user's chosen garden
-// name. The greeting only appears once we have something personal to call
-// the user by (display name, username, or email local-part). The garden
-// name falls back to the static brand copy when unset.
-function timeOfDay() {
-  const h = new Date().getHours()
-  if (h < 5) return 'Late night'
-  if (h < 12) return 'Good morning'
-  if (h < 17) return 'Good afternoon'
-  if (h < 22) return 'Good evening'
-  return 'Good night'
-}
-const firstName = computed(() => {
-  const dn = social.profile.value?.display_name
-  if (dn) {
-    const first = String(dn).trim().split(/\s+/)[0]
-    if (first) return first
-  }
-  const un = social.profile.value?.username
-  if (un) {
-    const s = String(un).trim()
-    if (s) return s.charAt(0).toUpperCase() + s.slice(1)
-  }
-  const email = user.value?.email
-  if (email) {
-    const local = email.split('@')[0]
-    if (local) return local
-  }
-  return ''
-})
-const greeting = computed(() => {
-  const name = firstName.value
-  if (!name) return ''
-  return `${timeOfDay()}, ${name}.`
-})
+// The user's chosen garden name, surfaced in the header subtitle and the
+// GardenerProfile modal. Falls back to the static "Where your language
+// learning grows." copy when unset (handled in the template).
 const gardenName = computed(() => (social.profile.value?.garden_name || '').trim())
 function signOutFromMenu() {
   userMenuOpen.value = false

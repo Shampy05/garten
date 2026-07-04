@@ -108,12 +108,12 @@
           >
             <div class="px-4 py-3 flex items-center gap-3" :style="{ backgroundColor: lang.color }">
               <div class="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center text-white font-bold text-base shadow-inner">
-                {{ displayNameFor(lang)[0].toUpperCase() }}
+                {{ (displayNameFor(lang.id) || lang.name)[0].toUpperCase() }}
               </div>
               <span
                 class="font-bold text-white drop-shadow-sm truncate"
                 :title="lang.nickname ? `${lang.nickname} (${lang.name})` : lang.name"
-              >{{ displayNameFor(lang) }}</span>
+              >{{ displayNameFor(lang.id) || lang.name }}</span>
               <button @click.stop="confirmDeleteLanguage(lang)"
                 class="ml-auto w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white/80 hover:text-white transition-colors flex-shrink-0"
                 title="Remove language"
