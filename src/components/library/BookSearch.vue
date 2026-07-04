@@ -7,7 +7,7 @@
           <label class="block text-xs font-medium text-stone-500 mb-1">Language</label>
           <select :value="selectedLanguageId" @change="onLanguageChange" class="gp-input">
             <option value="">All languages</option>
-            <option v-for="lang in languageOptions" :key="lang.id" :value="lang.id">{{ lang.name }}</option>
+            <option v-for="lang in languageOptions" :key="lang.id" :value="lang.id">{{ lang.displayName }}</option>
           </select>
         </div>
         <div class="flex-1">
@@ -314,6 +314,10 @@ const languageOptions = computed(() =>
   (props.languages || []).map((l) => ({
     id: l.id,
     name: l.name,
+    // Display label honours the user's nickname (Español over Spanish) while
+    // `name` stays canonical so the rest of the library (bookLanguages, the
+    // code lookup) keeps working unchanged.
+    displayName: (typeof l.nickname === 'string' && l.nickname.trim()) || l.name,
     code: codeForName(l.name) || null,
   }))
 )

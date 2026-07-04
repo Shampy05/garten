@@ -17,7 +17,7 @@
           <span class="text-xs text-stone-400">Active:</span>
           <span v-for="(lang, i) in activeLanguages" :key="lang.id" class="flex items-center gap-1">
             <span class="w-2.5 h-2.5 rounded-sm inline-block flex-shrink-0" :style="{ backgroundColor: lang.color }"></span>
-            <span class="text-xs text-stone-500">{{ lang.name }}</span>
+            <span class="text-xs text-stone-500">{{ nameFor(lang.id) }}</span>
             <span v-if="i < activeLanguages.length - 1" class="text-stone-300">·</span>
           </span>
         </div>

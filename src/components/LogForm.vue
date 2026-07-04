@@ -51,7 +51,7 @@
             :style="entry.languageId === lang.id ? { borderColor: lang.color, backgroundColor: lang.color + '12', color: lang.color } : {}"
           >
             <span class="w-3.5 h-3.5 rounded-full flex-shrink-0" :style="{ backgroundColor: lang.color }"></span>
-            {{ lang.name }}
+            {{ nameFor(lang.id) }}
           </button>
         </div>
       </div>
@@ -179,7 +179,7 @@ const props = defineProps({
 
 const emit = defineEmits(['add-entry'])
 
-const { languageFor } = useLanguageLookup(() => props.languages)
+const { nameFor, languageFor } = useLanguageLookup(() => props.languages)
 
 const step = ref(0)
 const today = new Date().toISOString().split('T')[0]

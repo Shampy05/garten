@@ -171,11 +171,12 @@ async function openFriendProfile(userId) {
   })()
   if (!base) return
   // Show immediately from the data we already have, then fold in the friend's
-  // opt-in bio + chosen bloom once the one-row read returns (RLS-guarded).
+  // opt-in bio + chosen bloom + garden name once the one-row read returns
+  // (RLS-guarded).
   friendProfile.value = { ...base }
   const extras = await social.fetchProfileExtras(userId)
   if (extras && friendProfile.value && friendProfile.value.friend_id === userId) {
-    friendProfile.value = { ...friendProfile.value, bio: extras.bio, avatar_variant: extras.avatar_variant }
+    friendProfile.value = { ...friendProfile.value, bio: extras.bio, avatar_variant: extras.avatar_variant, garden_name: extras.garden_name }
   }
 }
 

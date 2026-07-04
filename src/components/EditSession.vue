@@ -10,7 +10,7 @@
           <select v-model="form.languageId"
             class="gp-input"
           >
-            <option v-for="lang in languages" :key="lang.id" :value="lang.id">{{ lang.name }}</option>
+            <option v-for="lang in languages" :key="lang.id" :value="lang.id">{{ nameFor(lang.id) }}</option>
           </select>
         </div>
 
@@ -78,7 +78,7 @@ const props = defineProps({
 
 const emit = defineEmits(['save', 'close'])
 
-const { languageFor } = useLanguageLookup(() => props.languages)
+const { nameFor, languageFor } = useLanguageLookup(() => props.languages)
 
 const form = ref({ languageId: '', type: '', hours: 0, minutes: 0, date: '', notes: '' })
 

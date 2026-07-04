@@ -24,7 +24,7 @@
         :style="selectedLanguage === lang.id ? { backgroundColor: lang.color } : {}"
       >
         <span v-if="selectedLanguage !== lang.id" class="w-2 h-2 rounded-full" :style="{ backgroundColor: lang.color }"></span>
-        {{ lang.name }}
+        {{ nameFor(lang.id) }}
       </button>
     </div>
 
@@ -59,7 +59,7 @@ const props = defineProps({
 
 const emit = defineEmits(['filter-change'])
 
-const { languageFor } = useLanguageLookup(() => props.languages)
+const { nameFor, languageFor } = useLanguageLookup(() => props.languages)
 
 const selectedLanguage = ref(null)
 const selectedTypes = ref([])

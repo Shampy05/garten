@@ -21,6 +21,12 @@ export function shortLevel(languageName, hours, nativeLanguage = null) {
 // One summary bar per language: accumulated hours (prior credit + logged)
 // against the base proficiency target, with a level badge. Sorted by the most
 // tended first; languages with no hours at all drop off.
+//
+// The `targetHours` + `levelForHours` calls go through the canonical name
+// (lang.name) — proficiency math is data, not display, and it keys on the
+// canonical so a nickname change can never move a target hour. The returned
+// `name` is the display label (nickname or canonical) so the profile modal
+// shows what the user calls this language in their garden.
 export function languageHorizons(entries = [], languages = [], nativeLanguage = null) {
   const loggedByLang = {}
   for (const e of entries) {
@@ -32,9 +38,10 @@ export function languageHorizons(entries = [], languages = [], nativeLanguage = 
       const logged = (loggedByLang[lang.id] || 0) / 60
       const total = prior + logged
       const target = targetHours(lang.name, nativeLanguage)
+      const alias = typeof lang.nickname === 'string' ? lang.nickname.trim() : ''
       return {
         id: lang.id,
-        name: lang.name,
+        name: alias || lang.name,
         color: lang.color,
         hours: total,
         target,
@@ -95,6 +102,40 @@ export function currentReadingBook(savedBooks = []) {
     totalPages: tot,
     pct: tot > 0 ? Math.min(100, Math.round((cur / tot) * 100)) : 0,
   }
+}
+
+// The "nightstand" — a small strip of every book currently in progress, in
+// the same started-then-furthest-along order as `currentReadingBook`. Up to
+// `limit` (default 4); empty array when there's nothing being read. Returns
+// the same compact shape as currentReadingBook so the component can render
+// each cover identically.
+export function nightstandBooks(savedBooks = [], limit = 4) {
+  const reading = savedBooks.filter((b) => b.record && b.record.status === 'reading')
+  if (reading.length === 0) return []
+  const progress = (b) => {
+    const cur = Number(b.record.currentPage) || 0
+    const tot = Number(b.record.totalPages) || 0
+    return tot > 0 ? cur / tot : 0
+  }
+  const sorted = reading.slice().sort((a, b) => {
+    const byStart = String(b.record.startedAt || '').localeCompare(String(a.record.startedAt || ''))
+    if (byStart !== 0) return byStart
+    return progress(b) - progress(a)
+  })
+  return sorted.slice(0, limit).map((book) => {
+    const cur = Number(book.record.currentPage) || 0
+    const tot = Number(book.record.totalPages) || 0
+    return {
+      id: book.id,
+      title: book.title,
+      author: book.author,
+      coverUrl: book.coverUrl,
+      languageCode: book.languageCode,
+      currentPage: cur,
+      totalPages: tot,
+      pct: tot > 0 ? Math.min(100, Math.round((cur / tot) * 100)) : 0,
+    }
+  })
 }
 
 // A handful of earned "recent milestones" for the self profile — the proud,

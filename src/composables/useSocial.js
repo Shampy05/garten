@@ -459,14 +459,15 @@ export function useSocial() {
     updateProfile({ discoverable: !profile.value.discoverable })
   }
 
-  // Read a single gardener's opt-in personalization (bio + chosen bloom). RLS
-  // on `profiles` limits this to yourself and accepted friends, so it's safe to
-  // call when opening a friend's profile. One cheap row read, on demand only.
+  // Read a single gardener's opt-in personalization (bio + chosen bloom +
+  // garden name). RLS on `profiles` limits this to yourself and accepted
+  // friends, so it's safe to call when opening a friend's profile. One cheap
+  // row read, on demand only.
   async function fetchProfileExtras(profileId) {
     if (!profileId) return null
     const { data, error } = await supabase
       .from('profiles')
-      .select('bio, avatar_variant')
+      .select('bio, avatar_variant, garden_name')
       .eq('id', profileId)
       .maybeSingle()
     if (error) return null

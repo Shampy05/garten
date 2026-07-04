@@ -27,7 +27,7 @@
                   : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'"
               >
                 <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: lang.color }"></span>
-                {{ lang.name }}
+                {{ displayNameFor(lang) }}
               </button>
             </div>
           </div>
@@ -73,6 +73,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { X } from 'lucide-vue-next'
+import { useLanguageLookup } from '../../composables/useLanguageLookup.js'
 
 const props = defineProps({
   visible: { type: Boolean, required: true },
@@ -81,6 +82,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'save'])
+
+const { nameFor: displayNameFor } = useLanguageLookup(() => props.languages)
 
 const selectedLang = ref(props.languages[0] || null)
 const targetMinutes = ref(60)

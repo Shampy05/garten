@@ -235,7 +235,10 @@ const rows = computed(() => {
 
       return {
         id: lang.id,
-        name: lang.name,
+        // Display label honours the user's nickname; proficiency math above
+        // still keys on the canonical name so a nickname change can never
+        // move the target hour.
+        name: (typeof lang.nickname === 'string' && lang.nickname.trim()) || lang.name,
         color: lang.color,
         goal,
         ticks,

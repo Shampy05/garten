@@ -73,9 +73,19 @@
         <div class="flex items-start justify-between mb-4">
           <div class="flex items-center gap-3 group">
             <SproutIcon class="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 transition-transform duration-500 group-hover:rotate-[-4deg] group-hover:scale-105" />
-            <div>
+            <div class="min-w-0">
+              <!-- Time-of-day greeting, when we can call the user by name.
+                   Sits above the title as a small personal line; falls back
+                   to nothing when the user hasn't personalised yet. -->
+              <p v-if="greeting" class="text-sm sm:text-base text-stone-500 leading-tight">{{ greeting }}</p>
               <h1 class="font-display text-3xl sm:text-4xl font-bold text-stone-900 mb-0.5 tracking-tight">Garten</h1>
-              <p class="text-sm sm:text-base text-stone-500">Where your language learning grows.</p>
+              <!-- Garden name replaces the static tagline when set; the static
+                   copy stays as a small caption so the brand voice is still
+                   present. Editable from the GardenerProfile modal. -->
+              <p v-if="gardenName" class="text-sm sm:text-base text-stone-700 font-display leading-snug">
+                {{ gardenName }}
+              </p>
+              <p v-else class="text-sm sm:text-base text-stone-500">Where your language learning grows.</p>
             </div>
           </div>
           <!-- Account menu: identity + the chrome that used to crowd the header -->
@@ -431,6 +441,7 @@
       :self="selfProfileInput"
       @close="showProfile = false"
       @save-bio="saveBio"
+      @save-garden-name="saveGardenName"
       @save-variant="saveVariant"
       @go-to-friends="showProfile = false; navView = 'friends'"
     />
@@ -498,6 +509,7 @@ import Toast from './components/Toast.vue'
 import SocialView from './components/social/SocialView.vue'
 import LibraryView from './components/library/LibraryView.vue'
 import { useSocial } from './composables/useSocial.js'
+import { growthStage, stageRank } from './lib/avatar.js'
 
 const { user, loading: authLoading, signIn, signUp, signOut, resetPassword } = useAuth()
 provide('auth', { signIn, signUp, resetPassword })
@@ -553,6 +565,46 @@ function saveBio(bio) {
 function saveVariant(variant) {
   if (social.profile.value) social.updateProfile({ avatar_variant: variant })
 }
+function saveGardenName(name) {
+  if (social.profile.value) social.updateProfile({ garden_name: name || null })
+}
+
+// Header personalisation: time-of-day greeting + the user's chosen garden
+// name. The greeting only appears once we have something personal to call
+// the user by (display name, username, or email local-part). The garden
+// name falls back to the static brand copy when unset.
+function timeOfDay() {
+  const h = new Date().getHours()
+  if (h < 5) return 'Late night'
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  if (h < 22) return 'Good evening'
+  return 'Good night'
+}
+const firstName = computed(() => {
+  const dn = social.profile.value?.display_name
+  if (dn) {
+    const first = String(dn).trim().split(/\s+/)[0]
+    if (first) return first
+  }
+  const un = social.profile.value?.username
+  if (un) {
+    const s = String(un).trim()
+    if (s) return s.charAt(0).toUpperCase() + s.slice(1)
+  }
+  const email = user.value?.email
+  if (email) {
+    const local = email.split('@')[0]
+    if (local) return local
+  }
+  return ''
+})
+const greeting = computed(() => {
+  const name = firstName.value
+  if (!name) return ''
+  return `${timeOfDay()}, ${name}.`
+})
+const gardenName = computed(() => (social.profile.value?.garden_name || '').trim())
 function signOutFromMenu() {
   userMenuOpen.value = false
   signOut()
@@ -574,7 +626,7 @@ const analyticsTabs = [
   { key: 'horizon', label: 'Horizon' },
 ]
 
-const { data, loaded, loadError, weeklyGoal, nativeLanguage, activityGoals, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, updateLanguage: storageUpdateLanguage, saveGoal, saveActivityGoals, saveNativeLanguage, retryLoad } = useStorage()
+const { data, loaded, loadError, weeklyGoal, nativeLanguage, activityGoals, addEntry: storageAddEntry, addLanguage: storageAddLanguage, deleteLanguage: storageDeleteLanguage, deleteEntry: storageDeleteEntry, updateEntry: storageUpdateEntry, updateLanguage: storageUpdateLanguage, saveGoal, saveActivityGoals, saveNativeLanguage, markFirstBloom: storageMarkFirstBloom, retryLoad } = useStorage()
 
 const { nameFor, colorFor } = useLanguageLookup(() => data.value.languages)
 
@@ -781,7 +833,10 @@ const updateFilter = (filter) => {
 
 // Snapshot of the milestone-relevant aggregates, taken before and after a log
 // so we can detect a threshold the session just crossed. Logged hours per
-// language exclude prior-hours credit; the CEFR level uses prior+logged.
+// language exclude prior-hours credit; the CEFR level uses prior+logged. The
+// `stageRank` and `firstBloomAt` fields power the "your X just bloomed" one-
+// time celebration; `name` uses the lookup so the toast reads with whatever
+// nickname the user has set, not the canonical language name.
 function milestoneSnapshot() {
   const loggedByLang = {}
   for (const e of data.value.entries) {
@@ -791,7 +846,13 @@ function milestoneSnapshot() {
   for (const l of data.value.languages) {
     const logged = (loggedByLang[l.id] || 0) / 60
     const total = (Number(l.prior_hours) || 0) + logged
-    langs[l.id] = { name: l.name, hours: logged, level: levelForHours(l.name, total, nativeLanguage.value) }
+    langs[l.id] = {
+      name: nameFor(l.id),
+      hours: logged,
+      level: levelForHours(l.name, total, nativeLanguage.value),
+      stageRank: stageRank(growthStage(logged)),
+      firstBloomAt: l.first_bloom_at || null,
+    }
   }
   return {
     streak: currentStreak(data.value.entries.map((e) => e.date)),
@@ -802,10 +863,17 @@ function milestoneSnapshot() {
 
 // Logging a session is the one moment stats should feed back: snapshot around
 // the add, and if it pushed the user across a milestone, celebrate it quietly.
+// First-bloom wins over the other milestones — the moment a language visibly
+// grows on the avatar is the most memorable beat, so it gets the toast. The
+// corresponding `first_bloom_at` write goes through useStorage so the cache
+// stays in step with Supabase and the next add won't re-trigger the moment.
 const addEntry = async (entry) => {
   const before = milestoneSnapshot()
   await storageAddEntry(entry)
   const milestone = detectMilestone(before, milestoneSnapshot())
+  if (milestone?.kind === 'first_bloom' && milestone.langId) {
+    await storageMarkFirstBloom(milestone.langId)
+  }
   if (milestone) toast.show(milestone.message, 'celebrate', 6000)
 }
 const addLanguage = (language) => { storageAddLanguage(language) }

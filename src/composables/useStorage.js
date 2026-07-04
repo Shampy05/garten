@@ -239,6 +239,31 @@ export function useStorage() {
     nativeLanguage.value = value
   }
 
+  // One-time stamp: when a language first crosses into the `bloom` growth
+  // stage, the caller (App.vue's addEntry) calls this so the moment is
+  // captured. The `.is('first_bloom_at', null)` guard means two rapid adds
+  // can't both write — only the first one wins, and the rest are no-ops.
+  const markFirstBloom = async (langId) => {
+    if (!userId.value) return
+
+    const stamp = new Date().toISOString()
+    const { error } = await supabase
+      .from('languages')
+      .update({ first_bloom_at: stamp })
+      .eq('id', langId)
+      .eq('user_id', userId.value)
+      .is('first_bloom_at', null)
+    if (error) {
+      toast.error('Could not record your bloom.')
+      return
+    }
+    const idx = data.value.languages.findIndex((l) => l.id === langId)
+    if (idx !== -1) {
+      data.value.languages[idx] = { ...data.value.languages[idx], first_bloom_at: stamp }
+      setCache(userId.value, data.value)
+    }
+  }
+
   const retryLoad = () => {
     if (!userId.value) return
     loadData()
@@ -260,6 +285,7 @@ export function useStorage() {
     saveGoal,
     saveActivityGoals,
     saveNativeLanguage,
+    markFirstBloom,
     retryLoad
   }
 }

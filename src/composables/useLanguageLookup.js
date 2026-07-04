@@ -21,7 +21,12 @@ export function useLanguageLookup(languagesRef) {
 
   const nameFor = (id) => {
     const lang = map.value.get(id)
-    return lang ? lang.name : id
+    if (!lang) return id
+    // Nickname is purely cosmetic — the canonical `name` is the source of
+    // truth for ids, autocomplete, and the LanguageManager add flow. Empty /
+    // whitespace-only nicknames fall back to the canonical name.
+    const alias = typeof lang.nickname === 'string' ? lang.nickname.trim() : ''
+    return alias || lang.name
   }
 
   const colorFor = (id) => {

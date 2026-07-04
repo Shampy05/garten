@@ -53,6 +53,13 @@ export function growthStage(hours) {
   return 'seedling'
 }
 
+// Numeric rank for the growth stage, so callers can do "did we just cross
+// into bloom" by comparing ranks. `seedling` is 0, `bloom` is 2.
+export const STAGE_RANK = { seedling: 0, sprout: 1, bloom: 2, flourish: 3 }
+export function stageRank(stage) {
+  return STAGE_RANK[stage] ?? 0
+}
+
 export function avatarParams(seed) {
   const h = hashSeed(seed)
   return {

@@ -108,9 +108,12 @@
           >
             <div class="px-4 py-3 flex items-center gap-3" :style="{ backgroundColor: lang.color }">
               <div class="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center text-white font-bold text-base shadow-inner">
-                {{ lang.name[0].toUpperCase() }}
+                {{ displayNameFor(lang)[0].toUpperCase() }}
               </div>
-              <span class="font-bold text-white drop-shadow-sm">{{ lang.name }}</span>
+              <span
+                class="font-bold text-white drop-shadow-sm truncate"
+                :title="lang.nickname ? `${lang.nickname} (${lang.name})` : lang.name"
+              >{{ displayNameFor(lang) }}</span>
               <button @click.stop="confirmDeleteLanguage(lang)"
                 class="ml-auto w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white/80 hover:text-white transition-colors flex-shrink-0"
                 title="Remove language"
@@ -143,6 +146,24 @@
                     <Check v-if="c.toLowerCase() === lang.color?.toLowerCase()" class="w-4 h-4 text-white" :stroke-width="3.5" />
                   </button>
                 </div>
+              </div>
+
+              <div class="mt-3 pt-3 border-t border-dashed" :style="{ borderColor: lang.color + '20' }">
+                <div class="text-[10px] text-stone-400 mb-1.5 font-semibold uppercase tracking-widest">Nickname</div>
+                <div class="flex items-center gap-2">
+                  <input
+                    :value="lang.nickname || ''"
+                    @change="updateNickname(lang, $event.target.value)"
+                    :placeholder="`e.g. ${nicknamePlaceholder(lang)}`"
+                    maxlength="24"
+                    class="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-line bg-white text-stone-600 focus:outline-none focus:ring-2 focus:ring-garden-500/30"
+                  />
+                </div>
+                <p class="text-[10px] text-stone-300 mt-1.5 leading-relaxed">
+                  How this language shows in your garden — leaderboard, heatmap, sessions.
+                  Leave blank to keep the default name. The nickname is just a label;
+                  your data is always tied to the language itself.
+                </p>
               </div>
 
               <div class="mt-3 pt-3 border-t border-dashed" :style="{ borderColor: lang.color + '20' }">
@@ -224,6 +245,7 @@ import { PALETTE } from '../lib/color.js'
 import { LEVELS, hoursForLevel, levelForHours, NATIVE_LANGUAGES } from '../lib/proficiency.js'
 import { exportCSV, exportJSON } from '../lib/export.js'
 import { useLanguageForm } from '../composables/useLanguageForm.js'
+import { useLanguageLookup } from '../composables/useLanguageLookup.js'
 
 const props = defineProps({
   languages: {
@@ -264,6 +286,8 @@ const availableColors = (ownColor) =>
   )
 const showAddForm = ref(false)
 const { selectedLanguage, color, selectedTypes, autocompleteRef, onLanguageSelect, toggleType, getLanguageData, reset } = useLanguageForm(existingColors)
+// Display-name lookup for the seed packet cards (nickname ?? canonical).
+const { nameFor: displayNameFor } = useLanguageLookup(() => props.languages)
 
 const deleteTarget = ref(null)
 const showDeleteConfirm = ref(false)
@@ -275,6 +299,21 @@ function confirmDeleteLanguage(lang) {
 
 function updateColor(lang, newColor) {
   emit('update-language', { id: lang.id, color: newColor })
+}
+
+// Nickname is purely cosmetic: the id stays the join key, and an empty
+// string clears the field (the lookup falls back to the canonical name).
+function updateNickname(lang, raw) {
+  const trimmed = (raw || '').trim()
+  emit('update-language', { id: lang.id, nickname: trimmed || null })
+}
+
+function nicknamePlaceholder(lang) {
+  // A few friendly examples to seed the field. Picks a non-matching one
+  // each time so the user isn't always seeing the same hint.
+  const samples = ['Español', 'Deutsch', '日本語', 'le français', 'العربية', 'Português']
+  const idx = (lang.id?.charCodeAt(0) || 0) % samples.length
+  return samples[idx]
 }
 
 function updateStart(lang, levelKey) {

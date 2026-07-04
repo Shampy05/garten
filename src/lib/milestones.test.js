@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { detectMilestone } from './milestones.js'
+import { STAGE_RANK } from './avatar.js'
 
 const snap = (over = {}) => ({ streak: 0, weekReached: false, langs: {}, ...over })
 const lang = (name, hours, level) => ({ name, hours, level })
@@ -56,5 +57,58 @@ describe('detectMilestone', () => {
     // with logged hours below the lowest rung shouldn't fire.
     const after = snap({ langs: { es: lang('Spanish', 5, 'a1') } })
     expect(detectMilestone(snap(), after)).toBeNull()
+  })
+})
+
+describe('detectMilestone — first bloom', () => {
+  // Convenience: langs with both the level/hours the older tests care about
+  // and the new stageRank / firstBloomAt fields. Keeps each test focused on
+  // the bloom logic rather than repeating the level plumbing.
+  const fullLang = (over) => ({
+    name: 'Spanish', hours: 0, level: 'a1',
+    stageRank: STAGE_RANK.seedling, firstBloomAt: null,
+    ...over,
+  })
+
+  it('fires when a language crosses into bloom for the first time', () => {
+    const before = snap({ langs: { es: fullLang({ hours: 48, stageRank: STAGE_RANK.sprout }) } })
+    const after = snap({ langs: { es: fullLang({ hours: 52, stageRank: STAGE_RANK.bloom }) } })
+    const m = detectMilestone(before, after)
+    expect(m.kind).toBe('first_bloom')
+    expect(m.langId).toBe('es')
+    expect(m.message).toBe('Your Spanish just bloomed.')
+  })
+
+  it('does not re-fire once firstBloomAt is set, even if the rank re-enters bloom', () => {
+    // Imagine a test that resets the language to 0h and re-climbs: the gate
+    // is the persisted timestamp, not the current stage.
+    const before = snap({ langs: { es: fullLang({ hours: 0, stageRank: STAGE_RANK.seedling, firstBloomAt: '2026-07-01T00:00:00Z' }) } })
+    const after = snap({ langs: { es: fullLang({ hours: 60, stageRank: STAGE_RANK.bloom, firstBloomAt: '2026-07-01T00:00:00Z' }) } })
+    expect(detectMilestone(before, after).kind).not.toBe('first_bloom')
+  })
+
+  it('does not fire for a language that is already in bloom before the add', () => {
+    // A language that's already in bloom (and already marked) stays in bloom.
+    // No transition, so the function should report no milestone at all.
+    const before = snap({ langs: { es: fullLang({ hours: 60, stageRank: STAGE_RANK.bloom, firstBloomAt: '2026-07-01T00:00:00Z' }) } })
+    const after = snap({ langs: { es: fullLang({ hours: 70, stageRank: STAGE_RANK.bloom, firstBloomAt: '2026-07-01T00:00:00Z' }) } })
+    expect(detectMilestone(before, after)).toBeNull()
+  })
+
+  it('does not fire for a brand-new language (no real "before" to cross from)', () => {
+    // First session ever on a new language: stage rank jumps seedling→bloom
+    // but there's no before-row, so the diff can't tell us it just crossed.
+    // The caller will stamp firstBloomAt on the next crossing detection.
+    const after = snap({ langs: { es: fullLang({ hours: 80, stageRank: STAGE_RANK.bloom }) } })
+    expect(detectMilestone(snap(), after).kind).not.toBe('first_bloom')
+  })
+
+  it('first-bloom wins over a co-occurring level-up', () => {
+    // Crossing 50h typically also crosses a CEFR boundary (a2 → b1 for most
+    // languages). The visually striking moment — the avatar growing a
+    // flower — is the more memorable beat, so it leads.
+    const before = snap({ langs: { es: fullLang({ hours: 48, level: 'a2', stageRank: STAGE_RANK.sprout }) } })
+    const after = snap({ langs: { es: fullLang({ hours: 60, level: 'b1', stageRank: STAGE_RANK.bloom }) } })
+    expect(detectMilestone(before, after).kind).toBe('first_bloom')
   })
 })

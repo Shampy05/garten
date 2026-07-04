@@ -62,3 +62,51 @@ describe('useLanguageLookup', () => {
     expect(languageFor('spanish')).toBeNull()
   })
 })
+
+describe('useLanguageLookup — nickname fallback', () => {
+  it('returns the nickname when set, canonical otherwise', () => {
+    const languages = ref([
+      { id: 'spanish', name: 'Spanish', nickname: 'Español', color: '#ff0000', types: [] },
+      { id: 'german', name: 'German', color: '#00ff00', types: [] },
+      { id: 'japanese', name: 'Japanese', nickname: '   ', color: '#0000ff', types: [] },
+    ])
+    const { nameFor } = useLanguageLookup(languages)
+    expect(nameFor('spanish')).toBe('Español')
+    expect(nameFor('german')).toBe('German')
+    // Whitespace-only nickname falls back to the canonical name.
+    expect(nameFor('japanese')).toBe('Japanese')
+  })
+
+  it('reacts live to nickname changes (set, update, clear)', () => {
+    const languages = ref([
+      { id: 'spanish', name: 'Spanish', color: '#ff0000', types: [] },
+    ])
+    const { nameFor } = useLanguageLookup(languages)
+    expect(nameFor('spanish')).toBe('Spanish')
+    languages.value = [{ id: 'spanish', name: 'Spanish', nickname: 'Español', color: '#ff0000', types: [] }]
+    expect(nameFor('spanish')).toBe('Español')
+    languages.value = [{ id: 'spanish', name: 'Spanish', color: '#ff0000', types: [] }]
+    expect(nameFor('spanish')).toBe('Spanish')
+  })
+
+  it('still falls back to id for a missing language', () => {
+    const languages = ref([])
+    const { nameFor } = useLanguageLookup(languages)
+    expect(nameFor('whatever')).toBe('whatever')
+  })
+
+  it('does not let nicknames leak into data operations (lookup keys stay ids)', () => {
+    // Belt-and-braces: the lookup's `languageFor` returns the full record
+    // keyed by id, not by nickname. Callers must use `lang.id` for any data
+    // operation; `nameFor` is for display only.
+    const languages = ref([
+      { id: 'spanish', name: 'Spanish', nickname: 'Español', color: '#ff0000', types: [] },
+    ])
+    const { languageFor, nameFor } = useLanguageLookup(languages)
+    const lang = languageFor('spanish')
+    expect(lang.id).toBe('spanish')
+    expect(nameFor('spanish')).toBe('Español')
+    // Looking up by the nickname string returns null — names are display, ids are keys.
+    expect(languageFor('Español')).toBeNull()
+  })
+})

@@ -24,6 +24,45 @@
             </div>
           </div>
 
+          <!-- Friend's garden name: read-only personalisation the friend has set
+               on their profile. Rendered as a quiet line so the modal still
+               feels like their garden at a glance. -->
+          <p v-if="!isSelf && friendGardenName" class="mt-2 text-sm font-display text-stone-700">
+            {{ friendGardenName }}
+          </p>
+
+          <!-- Garden name (self with profile). The same pencil-to-edit pattern as
+               the bio, so the personalisation surfaces have a consistent feel. -->
+          <div v-if="isSelf && self.profile" class="mt-3">
+            <div v-if="!gardenNameEditing" class="flex items-start gap-2">
+              <p class="text-sm text-stone-600 flex-1" :class="{ 'text-stone-400 italic': !gardenName }">
+                <span v-if="gardenName" class="font-display text-base text-stone-800">{{ gardenName }}</span>
+                <span v-else>Name your garden</span>
+              </p>
+              <button @click="startGardenNameEdit" class="flex-shrink-0 text-stone-400 hover:text-garden-600 p-1 rounded-lg hover:bg-stone-50 transition-colors" aria-label="Edit garden name">
+                <Pencil :size="14" />
+              </button>
+            </div>
+            <div v-else>
+              <input
+                v-model="gardenNameDraft"
+                type="text"
+                maxlength="32"
+                placeholder="e.g. Cam's Plot of Peace"
+                class="gp-input text-sm w-full"
+              />
+              <div class="flex items-center justify-between mt-1.5">
+                <span class="text-[10px] text-stone-400 tabular-nums">{{ gardenNameDraft.length }}/32</span>
+                <div class="flex items-center gap-2">
+                  <button @click="gardenNameEditing = false" class="text-xs text-stone-400 hover:text-stone-600">Cancel</button>
+                  <button @click="saveGardenName" class="text-xs font-semibold text-garden-600 hover:text-garden-700 inline-flex items-center gap-1">
+                    <Check :size="13" /> Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Bio -->
           <div class="mt-4">
             <!-- Self, with a profile: editable -->
@@ -150,22 +189,34 @@
             <p v-else class="text-sm text-stone-400 italic">No active languages in the last 14 days.</p>
           </div>
 
-          <!-- Currently reading (self) -->
-          <div v-if="isSelf && currentBook" class="mt-5">
-            <h5 class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-2">Currently reading</h5>
-            <div class="flex items-center gap-3 rounded-xl bg-stone-50 p-3">
-              <div class="w-10 h-14 rounded bg-stone-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
-                <img v-if="currentBook.coverUrl" :src="currentBook.coverUrl" :alt="currentBook.title" class="w-full h-full object-cover" />
-                <BookOpen v-else :size="18" class="text-stone-400" />
-              </div>
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-stone-700 truncate">{{ currentBook.title }}</p>
-                <p v-if="currentBook.author" class="text-xs text-stone-400 truncate">{{ currentBook.author }}</p>
-                <div v-if="currentBook.totalPages" class="mt-1.5 flex items-center gap-2">
-                  <div class="flex-1 bg-stone-200 rounded-full h-1.5 overflow-hidden">
-                    <div class="h-1.5 rounded-full bg-garden-500 transition-all duration-700" :style="{ width: currentBook.pct + '%' }"></div>
-                  </div>
-                  <span class="text-[10px] text-stone-400 tabular-nums flex-shrink-0">{{ currentBook.pct }}%</span>
+          <!-- Nightstand (self). A small cover strip of every book currently
+               being read, replacing the single "currently reading" card. Each
+               cover gets a language-coloured dot in the corner + a thin
+               progress bar underneath so several in-progress books can sit
+               side by side without visual noise. -->
+          <div v-if="isSelf && nightstand.length" class="mt-5">
+            <h5 class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-2">On your nightstand</h5>
+            <div class="flex gap-2.5 overflow-x-auto -mx-1 px-1 pb-1">
+              <div
+                v-for="book in nightstand"
+                :key="book.id"
+                class="flex-shrink-0 w-16"
+                :title="`${book.title}${book.author ? ' — ' + book.author : ''}`"
+              >
+                <div class="relative w-16 h-24 rounded-lg overflow-hidden bg-stone-200 ring-1 ring-line">
+                  <img v-if="book.coverUrl" :src="book.coverUrl" :alt="book.title" class="w-full h-full object-cover" />
+                  <BookOpen v-else :size="18" class="text-stone-400 absolute inset-0 m-auto" />
+                  <span
+                    class="absolute top-1 right-1 w-2 h-2 rounded-full ring-2 ring-white"
+                    :style="{ backgroundColor: bookColor(book.languageCode) }"
+                    :aria-label="book.languageCode ? `${nameForCode(book.languageCode)} language` : ''"
+                  ></span>
+                </div>
+                <div v-if="book.pct" class="mt-1 h-1 bg-stone-200 rounded-full overflow-hidden">
+                  <div
+                    class="h-full rounded-full transition-all duration-700"
+                    :style="{ width: book.pct + '%', backgroundColor: bookColor(book.languageCode) }"
+                  ></div>
                 </div>
               </div>
             </div>
@@ -228,7 +279,8 @@ import BloomAvatar from './BloomAvatar.vue'
 import { useAuth } from '../composables/useAuth.js'
 import { useBooks } from '../composables/useBooks.js'
 import { BLOOMS } from '../lib/avatar.js'
-import { languageHorizons, currentReadingBook, selfMilestones } from '../lib/profileStats.js'
+import { languageHorizons, nightstandBooks, selfMilestones } from '../lib/profileStats.js'
+import { nameForCode } from '../lib/bookLanguages.js'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -239,7 +291,7 @@ const props = defineProps({
   friend: { type: Object, default: null },
 })
 
-const emit = defineEmits(['close', 'save-bio', 'save-variant', 'go-to-friends'])
+const emit = defineEmits(['close', 'save-bio', 'save-garden-name', 'save-variant', 'go-to-friends'])
 
 const isSelf = computed(() => props.mode === 'self')
 const blooms = BLOOMS
@@ -249,9 +301,9 @@ const blooms = BLOOMS
 const social = inject('social', null)
 const { userId } = useAuth()
 
-// Books power the "currently reading" card. useBooks is a module singleton with
-// its own cache, so touching it here lazy-loads at most once on first open and
-// shares state with the Library — it never double-fetches.
+// Books power the "nightstand" cover strip. useBooks is a module singleton
+// with its own cache, so touching it here lazy-loads at most once on first
+// open and shares state with the Library — it never double-fetches.
 const { savedBooks } = useBooks()
 
 // ── Identity ────────────────────────────────────────────────────────────────
@@ -286,8 +338,28 @@ function saveBio() {
   emit('save-bio', bioDraft.value.trim())
   bioEditing.value = false
 }
+
+// ── Garden name editing (self) ──────────────────────────────────────────────
+const gardenName = computed(() => (props.self?.profile?.garden_name || '').trim())
+const gardenNameEditing = ref(false)
+const gardenNameDraft = ref('')
+function startGardenNameEdit() {
+  gardenNameDraft.value = gardenName.value
+  gardenNameEditing.value = true
+}
+function saveGardenName() {
+  // Empty string clears the field — App.vue writes null in that case so the
+  // header falls back to the static "My Garden" copy.
+  emit('save-garden-name', gardenNameDraft.value.trim())
+  gardenNameEditing.value = false
+}
 // Reset the editor whenever the modal is reopened.
-watch(() => props.visible, (v) => { if (!v) bioEditing.value = false })
+watch(() => props.visible, (v) => {
+  if (!v) {
+    bioEditing.value = false
+    gardenNameEditing.value = false
+  }
+})
 
 function pickVariant(i) {
   emit('save-variant', avatarVariant.value === i ? null : i)
@@ -297,7 +369,7 @@ function pickVariant(i) {
 const horizons = computed(() =>
   isSelf.value ? languageHorizons(props.self?.entries || [], props.self?.languages || [], props.self?.nativeLanguage) : []
 )
-const currentBook = computed(() => (isSelf.value ? currentReadingBook(savedBooks.value) : null))
+const nightstand = computed(() => (isSelf.value ? nightstandBooks(savedBooks.value) : []))
 const milestones = computed(() =>
   isSelf.value
     ? selfMilestones({
@@ -332,6 +404,7 @@ const statTiles = computed(() => {
 
 // ── Friend derived views ────────────────────────────────────────────────────
 const friendLanguages = computed(() => props.friend?.active_languages || [])
+const friendGardenName = computed(() => (props.friend?.garden_name || '').trim())
 
 const topLanguageName = computed(() => {
   const bd = social?.circleBreakdown?.value?.[props.friend?.friend_id]
@@ -384,6 +457,19 @@ function describeCelebration(c) {
 const ICONS = { clock: Clock, flame: Flame, sprout: Sprout, book: BookOpen }
 function milestoneIcon(name) {
   return ICONS[name] || Sprout
+}
+
+// Map a book language code to the colour of the matching tracked Garten
+// language, so the nightstand dots match the rest of the UI. Falls back to
+// stone grey for books whose language isn't tracked (or whose code is
+// unrecognised by the curated bookLanguages set). Matches on the canonical
+// language name (the data key), not the display nickname.
+function bookColor(languageCode) {
+  if (!languageCode) return '#a8a29e'
+  const name = nameForCode(languageCode)
+  if (!name) return '#a8a29e'
+  const lang = (props.self?.languages || []).find((l) => l.name === name)
+  return lang?.color || '#a8a29e'
 }
 
 function close() {
