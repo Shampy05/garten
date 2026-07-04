@@ -11,9 +11,23 @@ vi.mock('../lib/supabase.js', () => ({
   supabase: { auth: { onAuthStateChange: () => ({ data: { subscription: {} } }) }, from: () => ({}) },
 }))
 
-import { recordToSnake } from './useBooks.js'
+import { recordToSnake, useBooks } from './useBooks.js'
 
 const base = { targetLanguage: 'fr', status: 'want_to_read' }
+
+describe('useBooks public contract', () => {
+  // Regression: useShelves destructures `{ savedBooks, persist, updateRecord }`
+  // from useBooks(). `persist` was defined internally but missing from the
+  // return, so writeSortIndex threw "persist is not a function" mid-reorder and
+  // every Up-next reorder aborted after one partial write. Pin the members any
+  // consumer relies on so a dropped export fails here, not in the browser.
+  it('exposes savedBooks, persist and updateRecord', () => {
+    const books = useBooks()
+    expect(books.savedBooks).toBeDefined()
+    expect(typeof books.persist).toBe('function')
+    expect(typeof books.updateRecord).toBe('function')
+  })
+})
 
 describe('recordToSnake', () => {
   it('omits added_to_queue_at entirely when the record has no value (never writes null)', () => {

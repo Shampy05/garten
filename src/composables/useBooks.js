@@ -468,6 +468,7 @@ export function useBooks() {
 
   return {
     savedBooks,
+    persist,
     loaded,
     loadError,
     findByExternalId,

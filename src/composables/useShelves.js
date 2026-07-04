@@ -129,7 +129,11 @@ export function useShelves() {
   // hidden other-language row (which would look like a no-op). Omit it and the
   // whole queue is treated as visible.
   function reorderQueue(bookId, direction, visibleIds = null) {
-    reorderTail = reorderTail.then(() => runReorder(bookId, direction, visibleIds)).catch(() => {})
+    // Log rather than silently swallow: a swallowed rejection here once hid a
+    // real crash (persist was undefined) and made reorders look like no-ops.
+    reorderTail = reorderTail
+      .then(() => runReorder(bookId, direction, visibleIds))
+      .catch((e) => console.error('reorderQueue failed', e))
     return reorderTail
   }
 
