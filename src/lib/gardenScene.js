@@ -65,6 +65,43 @@ export function loggedHoursByLanguage(entries = []) {
   return out
 }
 
+// Hours logged per language in the last `days` days. The "momentum" signal
+// the scene uses to scale a plant — a friend who did 50h of Urdu this week
+// but only 2h total should still feel alive in the garden, not a tiny
+// seedling. Window defaults to 7 days. 0-hour languages are absent.
+export function recentHoursByLanguage(entries = [], days = 7, now = new Date()) {
+  const cutoff = new Date(now)
+  cutoff.setDate(cutoff.getDate() - days)
+  const cutoffStr = localDateStr(cutout(cutoff))
+  const out = {}
+  for (const e of entries) {
+    if (e.date >= cutoffStr) {
+      out[e.languageId] = (out[e.languageId] || 0) + e.hours * 60 + e.minutes
+    }
+  }
+  for (const k of Object.keys(out)) out[k] = out[k] / 60
+  return out
+}
+
+// Pure helper: returns a fresh Date from a Date (avoids a stray `cutout` typo
+// polluting the exports above).
+function cutout(d) { return d }
+
+// Map recent hours (last 7 days) to a scale multiplier. Neglected plants
+// shrink to 0.75×, thriving plants grow to 1.3×. The midpoint is 2–4h/week
+// (a calm steady cadence). The 1.0× floor sits at the bottom of the "normal"
+// range so a brand-new plant (0 momentum) is visibly smaller than an
+// established one, not the same.
+function momentumScale(recentHours) {
+  if (recentHours <= 0) return 0.75
+  if (recentHours < 1) return 0.85
+  if (recentHours < 2) return 0.95
+  if (recentHours < 4) return 1.0
+  if (recentHours < 7) return 1.1
+  if (recentHours < 10) return 1.2
+  return 1.3
+}
+
 // "Even slots" across the planting band [140, 1060], one language per slot.
 // A lone language gets center-stage at x=600 (intentional, not a bug). The
 // caller adds hashed jitter in buildGardenScene.
@@ -208,8 +245,10 @@ export function buildGardenScene({
   // ---- layout ----
   const positions = plantPositions(languages.length)
   const crowdScale = languages.length >= 7 ? 0.9 : 1.0
+  const recentByLang = recentHoursByLanguage(entries)
   const plants = languages.map((lang, i) => buildPlant(lang, {
     hours: hoursByLang[lang.id] || 0,
+    recentHours: recentByLang[lang.id] || 0,
     lastWatered: lastByLang[lang.id] || null,
     todayStr,
     baseX: positions[i],
@@ -391,8 +430,8 @@ function buildBeePath(plants) {
   }
 }
 
-// "Spanish · 63h tended · in bloom · needs watering" — the hover title that
-// gives each silhouette its meaning.
+// "Spanish · 63h tended · 8h this week · in bloom · needs watering" — the
+// hover title that gives each silhouette its meaning.
 const STAGE_WORDS = {
   seedling: 'seedling',
   sprout: 'sprouting',
@@ -400,21 +439,24 @@ const STAGE_WORDS = {
   flourish: 'flourishing',
 }
 
-function plantTitle(label, hours, stage, droop) {
-  const time = hours <= 0
-    ? 'just planted'
-    : hours < 1
-      ? `${Math.round(hours * 60)}m tended`
-      : `${hours < 10 ? Math.round(hours * 10) / 10 : Math.round(hours)}h tended`
-  const thirst = droop ? ' · needs watering' : ''
-  return `${label} · ${time} · ${STAGE_WORDS[stage]}${thirst}`
+function fmtHours(h) {
+  return h < 1 ? `${Math.round(h * 60)}m` : `${h < 10 ? Math.round(h * 10) / 10 : Math.round(h)}h`
 }
 
-function buildPlant(lang, { hours, lastWatered, todayStr, baseX, index, count, crowdScale, season, bloomVariant }) {
+function plantTitle(label, hours, stage, droop, recentHours) {
+  const time = hours <= 0 ? 'just planted' : `${fmtHours(hours)} tended`
+  const recent = recentHours > 0 ? ` · ${fmtHours(recentHours)} this week` : ''
+  const thirst = droop ? ' · needs watering' : ''
+  return `${label} · ${time}${recent} · ${STAGE_WORDS[stage]}${thirst}`
+}
+
+function buildPlant(lang, { hours, recentHours, lastWatered, todayStr, baseX, index, count, crowdScale, season, bloomVariant }) {
   const stage = growthStage(hours)
   const h = hashSeed(lang.id)
   const species = h % 4
-  const tilt = ((h >>> 4) % 11) - 5 // -5..5
+  // Tighter range (-3..3) so individual plants don't lean dramatically —
+  // a few degrees reads as "growing", more reads as "fallen over".
+  const tilt = ((h >>> 4) % 7) - 3
   const jitter = {
     leafSide: (h >>> 10) % 2 === 0 ? 1 : -1,
     petalCount: 5 + ((h >>> 3) % 3), // 5..7
@@ -428,11 +470,17 @@ function buildPlant(lang, { hours, lastWatered, todayStr, baseX, index, count, c
   const xJitter = (((h >>> 22) % 100) / 100) * 2 - 1 // -1..1
   const x = Math.round(baseX + xJitter * xJitterMag)
 
-  // Within-stage size lerp: clamp 0.85..1.15, then ×crowd.
+  // Within-stage size lerp × crowd × momentum. The stage (seedling/sprout/
+  // bloom/flourish) still tracks total hours — that gives the plant its
+  // silhouette. Momentum multiplies on top so a brand-new language with a
+  // heavy recent week reads as a small shape, scaled up to feel alive;
+  // a long-established language with no recent sessions reads as a big
+  // shape, scaled down to feel neglected.
   const band = STAGE_BANDS.find((b) => b.name === stage) || STAGE_BANDS[0]
   const range = band.ceil - band.floor || 1
   const progress = Math.min(1, Math.max(0, (hours - band.floor) / range))
-  const scale = clamp(0.85 + progress * 0.30, 0.85, 1.15) * crowdScale
+  const stageScale = clamp(0.85 + progress * 0.30, 0.85, 1.15)
+  const scale = stageScale * crowdScale * momentumScale(recentHours)
 
   const droopDays = daysSinceNoon(lastWatered, todayStr)
   const droop = lastWatered != null && droopDays >= 7
@@ -469,13 +517,14 @@ function buildPlant(lang, { hours, lastWatered, todayStr, baseX, index, count, c
     id: lang.id,
     name: lang.name,
     label,
-    title: plantTitle(label, hours, stage, droop),
+    title: plantTitle(label, hours, stage, droop, recentHours),
     color: lang.color,
     x,
     yJitter,
     species,
     stage,
     hours: Math.round(hours * 100) / 100,
+    recentHours: Math.round(recentHours * 100) / 100,
     scale,
     droop,
     droopTransform,

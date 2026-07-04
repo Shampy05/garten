@@ -1,10 +1,9 @@
 <template>
-  <g @mouseenter="showTooltip = true" @mouseleave="showTooltip = false" style="cursor: help">
-    <!-- Custom SVG tooltip below — not the native <title>. The native
-         tooltip renders RTL text as mojibake ("rJrlm" instead of "اردو")
-         because the browser's tooltip subsystem doesn't use the page font
-         and mishandles bidirectional text. Painting our own <text> with
-         direction="auto" lets the SVG renderer handle RTL correctly. -->
+  <g @mouseenter="emit('hover', $event)" @mouseleave="emit('leave')" style="cursor: help">
+    <!-- The tooltip itself is rendered by GardenScene.vue as an HTML overlay
+         (Teleport to body). The SVG <text> path couldn't handle RTL script
+         (Arabic/Urdu rendered with missing characters), so we let the
+         browser's normal text pipeline render it. -->
 
     <g :transform="plantTransform">
     <!-- Soft ground shadow — a flat dark ellipse anchored at the stem
@@ -74,39 +73,11 @@
       fill="#3d5244"
       opacity="0.85"
     >{{ plant.label }}</text>
-
-    <!-- Custom tooltip — painted by the SVG renderer so RTL script renders
-         correctly. Pinned to a calm baseline below the name label, centered
-         on the plant. `pointer-events: none` so the tooltip never steals the
-         mouse from the plant and triggers a flicker. -->
-    <g
-      v-if="showTooltip"
-      :transform="`translate(${x} ${groundY + 42})`"
-      style="pointer-events: none"
-    >
-      <rect
-        :x="-tooltipWidth / 2"
-        y="-11"
-        :width="tooltipWidth"
-        height="22"
-        rx="6"
-        fill="rgba(45, 55, 45, 0.92)"
-      />
-      <text
-        x="0"
-        y="3.5"
-        text-anchor="middle"
-        direction="auto"
-        font-family="Inter, system-ui, sans-serif"
-        font-size="10.5"
-        fill="#f6f7f2"
-      >{{ plant.title }}</text>
-    </g>
   </g>
 </template>
 
 <script setup>
-import { computed, h, ref } from 'vue'
+import { computed, h } from 'vue'
 import { STAGE_GEOM, SPECIES, PRESENCE } from '../lib/gardenScene.js'
 import { BLOOMS } from '../lib/avatar.js'
 
@@ -116,16 +87,11 @@ const props = defineProps({
   bed: { type: Object, default: null },
 })
 
-// Custom SVG tooltip — toggled on hover, replaces the native <title> which
-// mangles RTL script. Width is sized to the title's length so the box
-// always hugs the text.
-const showTooltip = ref(false)
-const tooltipWidth = computed(() => {
-  const len = props.plant.title.length
-  // 6.5px per character (Latin avg) + padding; clamp so very short and
-  // very long titles both look right.
-  return Math.max(140, Math.min(300, len * 6.5 + 28))
-})
+// Hover events bubble up to GardenScene.vue, which renders a single shared
+// HTML tooltip overlay (Teleport to body). The native <title> and a custom
+// SVG <text> both mangle RTL script, so we let the browser's normal text
+// pipeline render it via HTML.
+const emit = defineEmits(['hover', 'leave'])
 
 // Stem-to-y for this plant's stage, before scale (the renderer multiplies the
 // silhouette vertically by plant.scale via a parent <g transform>).

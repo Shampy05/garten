@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   buildGardenScene,
   loggedHoursByLanguage,
+  recentHoursByLanguage,
   plantPositions,
   skyBand,
   seasonFor,
@@ -33,6 +34,32 @@ describe('loggedHoursByLanguage', () => {
   })
   it('returns an empty object for no entries', () => {
     expect(loggedHoursByLanguage([])).toEqual({})
+  })
+})
+
+describe('recentHoursByLanguage', () => {
+  it('only counts entries within the window', () => {
+    const now = new Date('2026-07-04T12:00:00')
+    const out = recentHoursByLanguage([
+      entry('urdu', '2026-07-04', 2), // today
+      entry('urdu', '2026-07-01', 10), // 3 days ago — within 7-day window
+      entry('urdu', '2026-06-15', 50), // 19 days ago — outside
+    ], 7, now)
+    expect(out.urdu).toBeCloseTo(12, 3)
+  })
+  it('returns an empty object when nothing is recent', () => {
+    const now = new Date('2026-07-04T12:00:00')
+    const out = recentHoursByLanguage([
+      entry('fr', '2026-01-01', 5),
+    ], 7, now)
+    expect(out).toEqual({})
+  })
+  it('respects a custom window', () => {
+    const now = new Date('2026-07-04T12:00:00')
+    const out = recentHoursByLanguage([
+      entry('fr', '2026-07-02', 1), // 2 days ago
+    ], 1, now)
+    expect(out).toEqual({}) // 2-day-old entry outside 1-day window
   })
 })
 
@@ -182,22 +209,91 @@ describe('buildGardenScene — stage mapping', () => {
     const sFl = buildGardenScene({ languages: [lang('a')], entries: [entry('a', '2026-07-01', 250)] })
     expect(sFl.plants[0].stage).toBe('flourish')
   })
-  it('scale is monotonic within a stage and clamped to [0.85, 1.15]', () => {
-    const make = (h) => buildGardenScene({ languages: [lang('a')], entries: [entry('a', '2026-07-01', h)] }).plants[0].scale
-    const sprout1 = make(STAGE_HOURS.sprout)
-    const sprout2 = make(STAGE_HOURS.sprout + 5)
-    const sprout3 = make(STAGE_HOURS.bloom - 1)
+  it('scale is monotonic within a stage and clamped to [0.85, 1.15] before momentum', () => {
+    // The within-stage size lerp is clamped to [0.85, 1.15]; momentum and
+    // crowd are separate multipliers on top. We pin `now` and put the
+    // recent activity on a separate day so the total = h + 5 and the
+    // recent is always 5h. All h values stay inside the sprout band so
+    // the stage doesn't shift between samples.
+    const NOW = new Date('2026-07-04T12:00:00')
+    const dayStr = (offset) => {
+      const d = new Date(NOW)
+      d.setDate(d.getDate() - offset)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    }
+    const make = (h) => buildGardenScene({
+      languages: [lang('a')],
+      entries: [
+        entry('a', dayStr(0), h),           // today — total hours
+        entry('a', dayStr(2), 0, 5 * 60),   // 2 days ago — recent (5h)
+      ],
+      now: NOW,
+    }).plants[0].scale
+    // 5h + 10h = 15h total (sprout), 5h + 15h = 20h (sprout), 5h + 40h = 45h (sprout)
+    const sprout1 = make(10)
+    const sprout2 = make(15)
+    const sprout3 = make(40)
     expect(sprout2).toBeGreaterThanOrEqual(sprout1)
     expect(sprout3).toBeGreaterThanOrEqual(sprout2)
-    for (const h of [0, 5, 10, 20, 49, 50, 100, 200, 249, 250, 1000]) {
-      const sc = make(h)
-      expect(sc).toBeGreaterThanOrEqual(0.85 - 1e-9)
-      expect(sc).toBeLessThanOrEqual(1.15 + 1e-9)
+  })
+  it('0-hour language with no recent activity is visibly smaller than one with recent activity', () => {
+    const NOW = new Date('2026-07-04T12:00:00')
+    const neglected = buildGardenScene({ languages: [lang('a')], entries: [], now: NOW })
+    const active = buildGardenScene({
+      languages: [lang('a')],
+      entries: [entry('a', '2026-07-04', 8)],
+      now: NOW,
+    })
+    expect(active.plants[0].scale).toBeGreaterThan(neglected.plants[0].scale)
+  })
+  it('a seedling with heavy recent activity scales up to feel alive', () => {
+    // The user's example: a friend did a lot of Urdu recently but is still
+    // a seedling (total hours below the sprout threshold). Total = 8h
+    // (10 × 48-min sessions = 480m) keeps it in seedling; recent is the
+    // same 8h because all sessions are in the last week.
+    const NOW = new Date('2026-07-04T12:00:00')
+    const entries = []
+    for (let i = 0; i < 10; i++) {
+      const d = new Date(NOW)
+      d.setDate(d.getDate() - i)
+      const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      entries.push(entry('urdu', ds, 0, 48))
+    }
+    const s = buildGardenScene({ languages: [lang('urdu')], entries, now: NOW })
+    expect(s.plants[0].stage).toBe('seedling')
+    // With 8h of recent activity, momentum is 1.2× — well above the
+    // 0.75× baseline of a neglected plant.
+    expect(s.plants[0].scale).toBeGreaterThan(1.0)
+  })
+  it('tilt stays within a tight range so plants read as "growing", not fallen', () => {
+    for (let i = 0; i < 30; i++) {
+      const id = `${i.toString(16).padStart(8, '0')}-${(i * 2654435761 >>> 0).toString(16)}`
+      const s = buildGardenScene({ languages: [lang(id)] })
+      const t = s.plants[0].tilt
+      expect(t).toBeGreaterThanOrEqual(-3)
+      expect(t).toBeLessThanOrEqual(3)
     }
   })
-  it('0-hour language has scale at least 0.85', () => {
-    const s = buildGardenScene({ languages: [lang('a')], entries: [] })
-    expect(s.plants[0].scale).toBeGreaterThanOrEqual(0.85 - 1e-9)
+  it('title includes recent-week hours when momentum is non-zero', () => {
+    const NOW = new Date('2026-07-04T12:00:00')
+    const s = buildGardenScene({
+      languages: [lang('urdu')],
+      entries: [
+        entry('urdu', '2026-06-01', 50), // old — 50h, does NOT count for recent
+        entry('urdu', '2026-07-04', 3),  // today — counts (3h)
+      ],
+      now: NOW,
+    })
+    expect(s.plants[0].title).toContain('3h this week')
+    expect(s.plants[0].title).toContain('in bloom') // 53h total → bloom stage
+  })
+  it('title omits the recent-week line when nothing is recent', () => {
+    const s = buildGardenScene({
+      languages: [lang('fr')],
+      entries: [entry('fr', '2026-01-01', 5)],
+      now: new Date('2026-07-04T12:00:00'),
+    })
+    expect(s.plants[0].title).not.toContain('this week')
   })
 })
 

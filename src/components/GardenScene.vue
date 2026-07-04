@@ -192,7 +192,13 @@
 
         <!-- Plants. No sway — the user found the oscillation distracting. -->
         <g v-for="(plant, i) in scene.plants" :key="plant.id">
-          <GardenPlant :plant="plant" :ground-y="scene.groundY" :bed="bedsFor(plant.id)[0] || null" />
+          <GardenPlant
+            :plant="plant"
+            :ground-y="scene.groundY"
+            :bed="bedsFor(plant.id)[0] || null"
+            @hover="onPlantHover(plant, $event)"
+            @leave="onPlantLeave"
+          />
         </g>
 
         <!-- Beds for plants without a bed (if pressed has no matching plant — shouldn't happen) -->
@@ -235,14 +241,14 @@
         <g v-if="scene.companion && scene.companion.kind === 'bee' && scene.beePath" :style="beeStyle">
           <g class="gs-bee-fly">
             <g class="gs-bob">
-              <CompanionGlyph kind="bee" :size="22" />
+              <CompanionGlyph kind="bee" :size="34" />
             </g>
           </g>
         </g>
         <g v-else-if="scene.companion" :transform="companionBaseTransform">
           <g :class="companionAnimClass">
             <g :class="scene.companion.pathKind === 'air' ? 'gs-bob' : ''">
-              <CompanionGlyph :kind="scene.companion.kind" :size="22" />
+              <CompanionGlyph :kind="scene.companion.kind" :size="34" />
             </g>
           </g>
         </g>
@@ -288,6 +294,18 @@
         </g>
       </svg>
     </div>
+
+    <!-- HTML tooltip overlay — Teleport to body so RTL script renders with
+         the page's normal text pipeline (SVG <text> mangles Urdu/Arabic).
+         One shared tooltip tracks the hovered plant, positioned just below
+         the cursor and centered horizontally. -->
+    <Teleport to="body">
+      <div
+        v-if="hoveredPlant"
+        class="fixed z-50 px-2.5 py-1.5 rounded-lg shadow-lg pointer-events-none text-xs font-medium whitespace-nowrap"
+        :style="hoveredStyle"
+      >{{ hoveredPlant.title }}</div>
+    </Teleport>
   </div>
 </template>
 
@@ -451,6 +469,37 @@ function orphanBedX(bed) {
 
 const svgEl = ref(null)
 defineExpose({ svgEl })
+
+// -- HTML tooltip overlay ----------------------------------------------------
+// One shared tooltip, rendered as a fixed-positioned <div> Teleported to
+// body. The SVG <text> path mangles RTL script (Arabic/Urdu lose characters),
+// so we let the browser's normal HTML text pipeline render it. The tooltip
+// follows the cursor so the user sees it wherever the plant sits.
+
+const hoveredPlant = ref(null)
+const hoveredX = ref(0)
+const hoveredY = ref(0)
+
+function onPlantHover(plant, event) {
+  hoveredPlant.value = plant
+  hoveredX.value = event.clientX
+  hoveredY.value = event.clientY
+}
+function onPlantLeave() {
+  hoveredPlant.value = null
+}
+
+const hoveredStyle = computed(() => ({
+  left: `${hoveredX.value}px`,
+  top: `${hoveredY.value + 16}px`,
+  transform: 'translateX(-50%)',
+  backgroundColor: 'rgba(45, 55, 45, 0.94)',
+  color: '#f6f7f2',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+  maxWidth: '320px',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+}))
 
 // -- portrait download --------------------------------------------------------
 
