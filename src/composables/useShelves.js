@@ -13,9 +13,9 @@ import { useAuth } from './useAuth.js'
 import { useBooks } from './useBooks.js'
 import { useToast } from './useToast.js'
 import { supabase } from '../lib/supabase.js'
-import { sortActive, sortQueue, sortFinished, nextSwapIndices } from '../lib/shelfSort.js'
+import { sortActive, sortQueue, sortFinished, nextSwapIndices, initSortIndices } from '../lib/shelfSort.js'
 
-export { sortActive, sortQueue, sortFinished, nextSwapIndices }
+export { sortActive, sortQueue, sortFinished, nextSwapIndices, initSortIndices }
 
 export const ACTIVE_CAP = 3
 
@@ -102,17 +102,38 @@ export function useShelves() {
   }
 
   // Move a queue book up (toward the top) or down (toward the bottom) by one
-  // position. Uses a sparse sort_index scheme so a single move only writes
-  // two rows; we never have to renumber the whole queue.
+  // position. After any save, the queue starts in a mixed state — some books
+  // have a manual sortIndex, others fall back to addedToQueueAt — and a swap
+  // on that mixed state would mint sortIndex for only the swapped pair,
+  // pushing them to the top (sortQueue puts all sorted rows before all null
+  // rows). The fix is to normalise the whole queue on first reorder: assign
+  // each book a sortIndex that mirrors its current visual position. Cost: N
+  // writes on the first reorder after a save. Subsequent reorders are the
+  // usual sparse 2-row swap.
   async function reorderQueue(bookId, direction) {
     const items = queue.value
     const idx = items.findIndex((b) => b.id === bookId)
     if (idx < 0) return
     const newIdx = direction === 'up' ? idx - 1 : idx + 1
     if (newIdx < 0 || newIdx >= items.length) return
-    const a = items[idx]
-    const b = items[newIdx]
-    const updates = nextSwapIndices(items, a.id, b.id, direction)
+
+    if (items.some((b) => b.record?.sortIndex == null)) {
+      const init = initSortIndices(items)
+      for (const [id, sort] of Object.entries(init)) {
+        await writeSortIndex(id, sort)
+      }
+    }
+
+    // Re-read after init so the swap runs against the freshly-assigned
+    // indices (the reactive `queue` reflects them now).
+    const refreshed = queue.value
+    const newIdxA = refreshed.findIndex((b) => b.id === bookId)
+    if (newIdxA < 0) return
+    const newIdxB = direction === 'up' ? newIdxA - 1 : newIdxA + 1
+    if (newIdxB < 0 || newIdxB >= refreshed.length) return
+    const a = refreshed[newIdxA]
+    const b = refreshed[newIdxB]
+    const updates = nextSwapIndices(refreshed, a.id, b.id)
     if (!updates) return
     for (const [id, sort] of Object.entries(updates)) {
       await writeSortIndex(id, sort)
