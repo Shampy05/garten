@@ -8,7 +8,7 @@
     <!-- Incoming -->
     <div v-if="incomingRequests.length" class="space-y-1.5">
       <div v-for="r in incomingRequests" :key="r.id" class="flex items-center gap-3 p-2 rounded-lg">
-        <BloomAvatar :seed="r.requester?.id" :size="32" :name="name(r.requester)" />
+        <BloomAvatar :seed="r.requester?.id" :size="32" :name="name(r.requester)" :variant="r.requester?.avatar_variant" />
         <div class="min-w-0 flex-1">
           <div class="text-sm font-medium text-stone-700 truncate">{{ name(r.requester) }}</div>
           <div class="text-xs text-stone-400 truncate">wants to grow together</div>
@@ -33,7 +33,7 @@
     <div v-if="outgoingRequests.length" class="mt-3 pt-3 border-t border-stone-100 space-y-1.5">
       <div class="text-[10px] text-stone-400 font-semibold uppercase tracking-widest mb-1">Sent</div>
       <div v-for="r in outgoingRequests" :key="r.id" class="flex items-center gap-3 p-2 rounded-lg">
-        <BloomAvatar :seed="r.addressee?.id" :size="32" :name="name(r.addressee)" />
+        <BloomAvatar :seed="r.addressee?.id" :size="32" :name="name(r.addressee)" :variant="r.addressee?.avatar_variant" />
         <div class="min-w-0 flex-1">
           <div class="text-sm font-medium text-stone-700 truncate">{{ name(r.addressee) }}</div>
           <div class="text-xs text-stone-400 truncate">pending…</div>

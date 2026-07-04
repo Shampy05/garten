@@ -69,8 +69,12 @@ export function useSocial() {
       .from('friendships')
       .select(
         'id, requester_id, addressee_id, status, created_at, ' +
-        'requester:profiles!friendships_requester_id_fkey(id, username, display_name), ' +
-        'addressee:profiles!friendships_addressee_id_fkey(id, username, display_name)'
+        // Pull avatar_variant on the embedded profile so the pending-requests
+        // inbox renders the requester's actual bloom colour instead of the
+        // id-hashed default. Without this the inbox and the friends list
+        // (which gets the variant from friends_overview) could disagree.
+        'requester:profiles!friendships_requester_id_fkey(id, username, display_name, avatar_variant), ' +
+        'addressee:profiles!friendships_addressee_id_fkey(id, username, display_name, avatar_variant)'
       )
       .eq('status', 'pending')
       .order('created_at', { ascending: false })

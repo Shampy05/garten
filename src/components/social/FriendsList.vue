@@ -15,7 +15,7 @@
         class="flex items-center gap-3 p-3 rounded-lg bg-stone-50 group cursor-pointer hover:bg-garden-50/60 transition-colors"
         @click="openFriend(f)"
       >
-        <BloomAvatar :seed="f.friend_id" :size="36" :name="f.display_name || f.username" />
+        <BloomAvatar :seed="f.friend_id" :size="36" :name="f.display_name || f.username" :variant="f.avatar_variant" />
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2">
             <span class="text-sm font-medium text-stone-700 truncate">{{ f.display_name || f.username }}</span>
