@@ -3,7 +3,10 @@
     <div v-if="visible" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="fixed inset-0 bg-stone-900/25 backdrop-blur-sm animate-fade-up" @click="$emit('close')"></div>
       <div class="relative min-h-full flex items-start sm:items-center justify-center p-4 sm:py-12" @click.self="$emit('close')">
-        <div class="relative gp-card shadow-hero w-full max-w-md p-5 sm:p-6 space-y-4 animate-grow-in">
+        <div
+          class="relative gp-card shadow-hero w-full max-w-md p-5 sm:p-6 space-y-4 animate-grow-in"
+          :class="isFinishing ? 'ring-1 ring-garden-200' : ''"
+        >
           <!-- Header: book + live progress side by side -->
           <div class="flex items-center gap-4 pb-4 border-b border-line">
             <ProgressRing
@@ -16,10 +19,16 @@
               :show-pages="false"
             />
             <div class="min-w-0 flex-1">
+              <p
+                v-if="isFinishing"
+                class="text-[10px] font-semibold text-garden-700 uppercase tracking-wider mb-0.5 inline-flex items-center gap-1"
+              >
+                <BookCheck :size="11" /> Finishing
+              </p>
               <h2 class="gp-title text-base text-stone-900 leading-snug line-clamp-2">{{ book?.title }}</h2>
               <p class="text-xs text-stone-500 mt-0.5 tabular-nums">
                 Page {{ currentPage }}<span class="text-stone-400">/{{ effectiveTotal || '?' }}</span>
-                <span v-if="pace > 0" class="text-stone-400"> · finish {{ finishLabel }}</span>
+                <span v-if="pace > 0 && !isFinishing" class="text-stone-400"> · finish {{ finishLabel }}</span>
               </p>
             </div>
           </div>
@@ -116,16 +125,8 @@
                 Minutes spent <span class="text-stone-400 font-normal">(optional)</span>
               </label>
               <input v-model.number="minutes" type="number" min="0" placeholder="e.g. 25" class="gp-input tabular-nums" />
+              <p class="text-[11px] text-stone-400 mt-1">If you log minutes, a Garten session is added automatically.</p>
             </div>
-
-            <!-- Optional: garden session toggle -->
-            <label
-              class="flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer transition-colors"
-              :class="logSession ? 'border-garden-200 bg-garden-50/50' : 'border-line bg-white hover:border-stone-300'"
-            >
-              <input v-model="logSession" type="checkbox" class="w-4 h-4 rounded border-stone-300 text-garden-600 focus:ring-garden-500" />
-              <span class="text-sm text-stone-700 select-none">Also log this as a reading session in my garden</span>
-            </label>
 
             <!-- Optional: notes -->
             <div>
@@ -148,7 +149,7 @@
               :disabled="!canSave || saving"
               class="gp-btn-primary flex-1 py-2.5 text-sm relative overflow-hidden"
             >
-              <span :class="saving ? 'opacity-0' : ''">{{ effectiveTotal ? 'Log progress' : 'Set pages' }}</span>
+              <span :class="saving ? 'opacity-0' : ''">{{ primaryLabel }}</span>
               <span v-if="saving" class="absolute inset-0 flex items-center justify-center">
                 <Loader2 :size="18" class="animate-spin" />
               </span>
@@ -162,7 +163,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Minus, Plus, Loader2, Wand2 } from 'lucide-vue-next'
+import { Minus, Plus, Loader2, Wand2, BookCheck } from 'lucide-vue-next'
 import { useBooks } from '../../composables/useBooks.js'
 import { detectPageCount } from '../../lib/bookSearch.js'
 import { weightedPace, predictedFinish, formatDate, pct } from '../../lib/readingProgress.js'
@@ -181,7 +182,6 @@ const { loadProgress, logProgress, updateTotalPages } = useBooks()
 const pagesRead = ref(10)
 const minutes = ref(null)
 const notes = ref('')
-const logSession = ref(true)
 const saving = ref(false)
 const editableTotalPages = ref(null)
 const sessions = ref([])
@@ -218,6 +218,21 @@ const quickChips = computed(() => {
   return [5, 10, 20, 30].filter((n) => n < r)
 })
 
+// The modal shifts into a "Finishing" state when the chosen page count would
+// land the user on the last page. The header grows a soft garden ring + an
+// "Finishing" eyebrow, and the primary CTA reads "Mark as read" instead of
+// "Log progress". The watch in LibraryView still owns the "Just finished"
+// toast — the modal just acknowledges the moment visually.
+const isFinishing = computed(() =>
+  effectiveTotal.value > 0 && previewPage.value >= effectiveTotal.value
+)
+
+const primaryLabel = computed(() => {
+  if (!effectiveTotal.value) return 'Set pages'
+  if (isFinishing.value) return 'Mark as read'
+  return 'Log progress'
+})
+
 const canSave = computed(() => {
   if (!props.book) return false
   if (!effectiveTotal.value) return false
@@ -238,7 +253,6 @@ watch(
       editableTotalPages.value = props.book.record?.totalPages || props.book.pageCount || null
       minutes.value = null
       notes.value = ''
-      logSession.value = true
       detecting.value = false
       detectMsg.value = ''
       detectFailed.value = false
@@ -304,7 +318,6 @@ async function save() {
     book: result.book,
     pagesRead: result.pagesRead,
     minutes: minutes.value,
-    logSession: logSession.value,
   })
 }
 </script>

@@ -14,18 +14,12 @@
       </div>
     </div>
 
-    <!-- One continuous surface: search on top, your library beneath. Typing a
-         query swaps the library for results; clearing it brings it back. -->
-    <div class="space-y-5">
-      <BookSearch
-        :saved-ids="savedIds"
-        :default-language-code="defaultLanguageCode"
-        :languages="languages"
-        @save="openSaveModal"
-        @active="searchActive = $event"
-      />
-
-      <template v-if="!searchActive">
+    <!-- One continuous surface: shelves (top), search (bottom). The search
+         surface is no longer a swap — typing into it shrinks the libraries
+         but never hides them, and the rec strip lives alongside results. -->
+    <div class="space-y-8">
+      <!-- Library: shelves -->
+      <div class="space-y-5">
         <div v-if="!loaded && !loadError" class="text-center py-10 text-stone-400">
           <BookOpen class="w-10 h-10 mx-auto mb-3 opacity-50 animate-breathe" />
           <p class="text-sm">Gathering your books…</p>
@@ -37,7 +31,7 @@
         <div v-else-if="savedBooks.length === 0" class="gp-card gp-pad text-center text-stone-400 py-10">
           <BookOpen class="w-10 h-10 mx-auto mb-3 opacity-50" />
           <p class="text-sm text-stone-500">Your library is empty.</p>
-          <p class="text-xs mt-1">Search above for a book in your target language to start tracking.</p>
+          <p class="text-xs mt-1">Find a book below to start tracking.</p>
         </div>
         <template v-else>
           <ReadingSummary :saved-books="savedBooks" />
@@ -47,9 +41,27 @@
             @edit="openEditModal"
             @remove="confirmRemove"
             @log="openLogModal"
+            @quick-log="handleQuickLog"
+            @finished-remove="confirmRemove"
           />
         </template>
-      </template>
+      </div>
+
+      <!-- Search: persistent surface, full width. -->
+      <div id="library-search" class="pt-2 border-t border-line space-y-4">
+        <div class="flex items-center gap-2">
+          <h3 class="gp-title text-sm uppercase tracking-wider text-stone-500">Find a new book</h3>
+          <span class="text-[11px] text-stone-400">Search Google Books and Open Library at once.</span>
+        </div>
+        <BookSearch
+          :saved-ids="savedIds"
+          :default-language-code="defaultLanguageCode"
+          :languages="languages"
+          :saved-books="savedBooks"
+          @save="openSaveModal"
+          @active="searchActive = $event"
+        />
+      </div>
     </div>
 
     <SaveBookModal
@@ -87,11 +99,13 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Library, BookOpen } from 'lucide-vue-next'
 import { useBooks } from '../../composables/useBooks.js'
 import { useStorage } from '../../composables/useStorage.js'
+import { useToast } from '../../composables/useToast.js'
 import { codeForName, nameForCode } from '../../lib/bookLanguages.js'
+import { bookJustFinished } from '../../lib/finishCelebration.js'
 import BookSearch from './BookSearch.vue'
 import SavedBooksList from './SavedBooksList.vue'
 import ReadingSummary from './ReadingSummary.vue'
@@ -106,8 +120,9 @@ const props = defineProps({
   languages: { type: Array, default: () => [] },
 })
 
-const { savedBooks, loaded, loadError, saveBook, updateRecord, removeBook, retryLoad } = useBooks()
+const { savedBooks, loaded, loadError, saveBook, updateRecord, removeBook, retryLoad, quickLog } = useBooks()
 const { addEntry, data: storageData } = useStorage()
+const toast = useToast()
 
 const searchActive = ref(false)
 
@@ -161,10 +176,10 @@ function openLogModal(book) {
   logTargetId.value = book.id
   showLogModal.value = true
 }
-async function handleLogged({ book, minutes, logSession }) {
+async function handleLogged({ book, minutes }) {
   showLogModal.value = false
   logTargetId.value = null
-  if (!logSession || !minutes || minutes <= 0) return
+  if (!minutes || minutes <= 0) return
   const lang = storageData.value.languages.find((l) => codeForName(l.name) === book.languageCode)
   if (!lang) return
   await addEntry({
@@ -176,6 +191,32 @@ async function handleLogged({ book, minutes, logSession }) {
     notes: `Reading: ${book.title}`,
   })
 }
+
+// Inline quick-log from the card. Same mutation as the modal's path, just
+// without minutes/notes — the status-flip watcher below still fires the
+// "Just finished" toast when a book hits 100%.
+async function handleQuickLog({ book, pages }) {
+  const result = await quickLog(book.id, pages)
+  if (result?.error) {
+    toast.error(result.error)
+  }
+}
+
+// Detect a single status flip from `reading` to `read` and surface a quiet
+// "Just finished" toast — the moment finishing a book becomes distinct from
+// any other log. Dedupe-by-book via the per-book `celebrated` set so the same
+// finish never toasts twice (e.g. on a hot reload or if savedBooks fires the
+// watcher with a stale snapshot).
+let prevSavedBooks = savedBooks.value.slice()
+const celebrated = new Set()
+watch(savedBooks, (curr) => {
+  const finished = bookJustFinished(prevSavedBooks, curr)
+  prevSavedBooks = curr.slice()
+  if (!finished) return
+  if (celebrated.has(finished.id)) return
+  celebrated.add(finished.id)
+  toast.show(`Finished “${finished.title}” — lovely work.`, 'celebrate', 6000)
+}, { deep: true })
 
 // Remove flow (FR11)
 const removeTarget = ref(null)

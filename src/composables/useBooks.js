@@ -63,6 +63,8 @@ function recordToSnake(record) {
     finished_at: record.finishedAt ?? null,
     current_page: record.currentPage ?? null,
     total_pages: record.totalPages ?? null,
+    sort_index: record.sortIndex ?? null,
+    added_to_queue_at: record.addedToQueueAt ?? null,
   }
 }
 
@@ -90,6 +92,8 @@ function joinToCamel(bookRow, recordRow) {
           finishedAt: recordRow.finished_at ?? null,
           currentPage: recordRow.current_page ?? null,
           totalPages: recordRow.total_pages ?? null,
+          sortIndex: recordRow.sort_index ?? null,
+          addedToQueueAt: recordRow.added_to_queue_at ?? null,
         }
       : null,
   }
@@ -329,6 +333,29 @@ export function useBooks() {
     }))
   }
 
+  // Inline-log wrapper used by the Reading-shelf quick-log bar. No minutes, no
+  // notes — those still live in the full LogPagesModal. Returns the same
+  // { book, pagesRead } / { error } shape as logProgress so callers can handle
+  // both paths uniformly.
+  const quickLog = async (bookId, pagesRead) => {
+    if (!userId.value) return { error: 'Not signed in' }
+    const book = savedBooks.value.find((b) => b.id === bookId)
+    if (!book) return { error: 'Book not found' }
+    const oldPage = book.record?.currentPage ?? 0
+    const total = book.record?.totalPages
+    if (!total || total <= 0) {
+      return { error: 'Set a total page count before logging progress.' }
+    }
+    const newPage = Math.min(total, oldPage + Math.max(1, Math.round(Number(pagesRead) || 0)))
+    return logProgress(bookId, {
+      pagesRead: newPage - oldPage,
+      fromPage: oldPage + 1,
+      toPage: newPage,
+      minutes: null,
+      notes: null,
+    })
+  }
+
   const logProgress = async (bookId, { pagesRead, fromPage, toPage, minutes, notes, languageColor }) => {
     if (!userId.value) return { error: 'Not signed in' }
 
@@ -440,6 +467,7 @@ export function useBooks() {
     retryLoad,
     loadProgress,
     logProgress,
+    quickLog,
     updateTotalPages,
     readingProgress,
     progressLoaded,

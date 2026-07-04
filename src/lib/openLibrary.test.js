@@ -19,6 +19,8 @@ describe('normalizeDoc', () => {
       description: 'Once when I was six years old…',
       languageCode: 'fr',
       pageCount: null,
+      isbn: null,
+      publishedDate: null,
     })
   })
 

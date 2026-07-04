@@ -21,6 +21,8 @@ describe('normalizeVolume', () => {
       description: 'A pilot stranded in the desert.',
       languageCode: 'fr',
       pageCount: null,
+      isbn: null,
+      publishedDate: null,
     })
   })
 
@@ -39,6 +41,8 @@ describe('normalizeVolume', () => {
       description: null,
       languageCode: 'es',
       pageCount: null,
+      isbn: null,
+      publishedDate: null,
     })
   })
 

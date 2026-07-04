@@ -16,8 +16,22 @@ function httpsify(url) {
   return url.replace(/^http:\/\//i, 'https://')
 }
 
+// ISBN-13 first, then ISBN-10. Used for the cross-source dedupe in
+// bookSearch.js — the same book from two sources ties on its ISBN.
+function extractIsbn(volume) {
+  const ids = volume?.volumeInfo?.industryIdentifiers
+  if (!Array.isArray(ids)) return null
+  const isbn13 = ids.find((i) => i?.type === 'ISBN_13')?.identifier
+  if (isbn13) return isbn13
+  const isbn10 = ids.find((i) => i?.type === 'ISBN_10')?.identifier
+  if (isbn10) return isbn10
+  return null
+}
+
 // Map a raw Google Books volume into the shape the app stores/displays. Every
-// field is optional on Google's side, so each access is guarded.
+// field is optional on Google's side, so each access is guarded. `source` is
+// stamped by the caller (the orchestrator), not by us, so the same normaliser
+// can run for both the page-1 fetch and any future search variants.
 export function normalizeVolume(v) {
   const info = v?.volumeInfo ?? {}
   const authors = Array.isArray(info.authors) ? info.authors : []
@@ -29,6 +43,8 @@ export function normalizeVolume(v) {
     description: info.description ?? null,
     languageCode: info.language ?? null,
     pageCount: info.pageCount ?? null,
+    isbn: extractIsbn(v),
+    publishedDate: info.publishedDate ?? null,
   }
 }
 
@@ -53,36 +69,49 @@ export function hasIsbn(volume) {
   return ids.some((i) => i?.type === 'ISBN_13' || i?.type === 'ISBN_10')
 }
 
-function buildUrl({ query, languageCode }) {
+function buildUrl({ query, languageCode, startIndex = 0, maxResults = 20 }) {
   const params = new URLSearchParams({
     q: query,
-    maxResults: '20',
+    maxResults: String(maxResults),
+    startIndex: String(startIndex),
     printType: 'books',
     // Drop incomplete records that have no usable metadata. industryIdentifiers
     // is requested so hasIsbn() can filter out scanned/public-domain documents.
-    fields: 'items(id,volumeInfo(title,authors,description,language,pageCount,industryIdentifiers,imageLinks/thumbnail,imageLinks/smallThumbnail))',
+    fields: 'items(id,volumeInfo(title,authors,description,language,pageCount,publishedDate,industryIdentifiers,imageLinks/thumbnail,imageLinks/smallThumbnail)),totalItems',
   })
   if (languageCode) params.set('langRestrict', languageCode)
   if (API_KEY) params.set('key', API_KEY)
   return `${ENDPOINT}?${params.toString()}`
 }
 
-// Search Google Books by free text (title or author — Google matches across
-// both, FR1). Returns normalised, language-filtered results. Throws on a
-// non-OK response (e.g. 429) so the orchestrator in bookSearch.js can fall
-// back to Open Library.
+// Page-1 convenience: keeps the old single-page shape so the rest of the app
+// (and tests) that only need one batch can stay terse.
 export async function searchGoogleBooks({ query, languageCode = null } = {}) {
-  const q = (query || '').trim()
-  if (!q) return []
+  const res = await searchGoogleBooksPage({ query, languageCode, page: 1, pageSize: 20 })
+  return res.books
+}
 
-  const res = await fetch(buildUrl({ query: q, languageCode }))
+// Paginated Google Books. Returns { books, hasMore } where hasMore is true if
+// Google still has more results beyond the current page. Throws on a non-OK
+// response (e.g. 429) so the orchestrator in bookSearch.js can either fall
+// back or merge with the other source.
+export async function searchGoogleBooksPage({ query, languageCode = null, page = 1, pageSize = 20 } = {}) {
+  const q = (query || '').trim()
+  if (!q) return { books: [], hasMore: false, totalItems: 0 }
+
+  const startIndex = (page - 1) * pageSize
+  const res = await fetch(buildUrl({ query: q, languageCode, startIndex, maxResults: pageSize }))
   if (!res.ok) {
     throw new Error(`Google Books request failed (${res.status})`)
   }
   const data = await res.json()
   const items = Array.isArray(data.items) ? data.items : []
+  const totalItems = typeof data.totalItems === 'number' ? data.totalItems : 0
+
   // ISBN gate first (raw volumes carry the identifiers), then normalise + the
-  // strict language filter.
+  // strict language filter. The orchestrator stamps the source after.
   const normalized = items.filter(hasIsbn).map(normalizeVolume).filter((b) => b.externalId)
-  return filterByLanguage(normalized, languageCode)
+  const filtered = filterByLanguage(normalized, languageCode)
+  const hasMore = startIndex + items.length < totalItems
+  return { books: filtered, hasMore, totalItems }
 }

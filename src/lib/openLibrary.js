@@ -37,6 +37,15 @@ export function hasIsbn(doc) {
   return Array.isArray(doc?.isbn) && doc.isbn.length > 0
 }
 
+// Prefer ISBN-13 (more specific), fall back to whatever the first ISBN is. Used
+// for the cross-source dedupe in bookSearch.js.
+function extractIsbn(doc) {
+  if (!Array.isArray(doc?.isbn)) return null
+  const isbn13 = doc.isbn.find((i) => typeof i === 'string' && i.length === 13)
+  if (isbn13) return isbn13
+  return doc.isbn[0] || null
+}
+
 function firstSentence(value) {
   if (Array.isArray(value)) return value[0] ?? null
   if (typeof value === 'string') return value
@@ -66,25 +75,37 @@ export function normalizeDoc(doc, requestedCode = null) {
     description: firstSentence(doc?.first_sentence),
     languageCode: languageCode ?? null,
     pageCount: doc?.number_of_pages_median ?? doc?.number_of_pages ?? null,
+    isbn: extractIsbn(doc),
+    publishedDate: doc?.first_publish_year ? String(doc.first_publish_year) : null,
   }
 }
 
-function buildUrl({ query, languageCode }) {
+function buildUrl({ query, languageCode, page = 1, pageSize = 20 }) {
   const params = new URLSearchParams({
     q: query,
-    limit: '20',
-    fields: 'key,title,author_name,cover_i,first_sentence,language,isbn,number_of_pages_median',
+    limit: String(pageSize),
+    page: String(page),
+    fields: 'key,title,author_name,cover_i,first_sentence,language,isbn,number_of_pages_median,first_publish_year',
   })
   const ol = languageCode ? ISO1_TO_OL[languageCode] : null
   if (ol) params.set('language', ol)
   return `${ENDPOINT}?${params.toString()}`
 }
 
+// Page-1 convenience: same single-page shape as the old API.
 export async function searchOpenLibrary({ query, languageCode = null } = {}) {
-  const q = (query || '').trim()
-  if (!q) return []
+  const res = await searchOpenLibraryPage({ query, languageCode, page: 1, pageSize: 20 })
+  return res.books
+}
 
-  const res = await fetch(buildUrl({ query: q, languageCode }))
+// Paginated Open Library. Returns { books, hasMore } where hasMore is true if
+// Open Library returned a full page (it caps results at 100/page and doesn't
+// expose a total count, so "has more" is best-effort).
+export async function searchOpenLibraryPage({ query, languageCode = null, page = 1, pageSize = 20 } = {}) {
+  const q = (query || '').trim()
+  if (!q) return { books: [], hasMore: false }
+
+  const res = await fetch(buildUrl({ query: q, languageCode, page, pageSize }))
   if (!res.ok) {
     throw new Error(`Open Library request failed (${res.status})`)
   }
@@ -92,5 +113,8 @@ export async function searchOpenLibrary({ query, languageCode = null } = {}) {
   const docs = Array.isArray(data.docs) ? data.docs : []
   // ISBN gate (mirrors googleBooks) → normalise → strict language filter.
   const normalized = docs.filter(hasIsbn).map((d) => normalizeDoc(d, languageCode)).filter((b) => b.externalId)
-  return filterByLanguage(normalized, languageCode)
+  const filtered = filterByLanguage(normalized, languageCode)
+  // OL doesn't expose a total count, so we infer "has more" from a full page.
+  const hasMore = docs.length >= pageSize
+  return { books: filtered, hasMore }
 }
