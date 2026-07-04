@@ -60,13 +60,13 @@
                 {{ book.record.rating.toFixed(1) }}
               </span>
             </div>
-            <div class="flex items-end justify-between gap-2 mt-auto pt-2">
+            <div class="flex items-end gap-2 mt-auto pt-2">
               <p v-if="finishedLabel(book)" class="text-[11px] text-stone-400 tabular-nums">
                 {{ finishedLabel(book) }}
               </p>
               <button
                 @click="$emit('remove', book)"
-                class="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-colors opacity-60 group-hover:opacity-100"
+                class="ml-auto p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-colors opacity-60 group-hover:opacity-100"
                 title="Remove book"
                 aria-label="Remove book"
               >
