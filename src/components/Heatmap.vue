@@ -170,6 +170,7 @@ import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { localDateStr, daysBetween, getMonthRange, getQuarterRange, getYearRange } from '../lib/date.js'
 import { toHexColor, glossyGradient, lightenColor, darkenColor } from '../lib/color.js'
 import { useLanguageLookup } from '../composables/useLanguageLookup.js'
+import { groupActivitiesByLanguageId } from '../lib/heatmap.js'
 
 const props = defineProps({
   entries: { type: Array, required: true },
@@ -301,13 +302,14 @@ const getColorAtIntensity = (hex, minutes) => {
 }
 
 const getLanguageActivities = (day) => {
-  const groups = {}
-  for (const a of day.activities) {
-    const lang = props.languages.find(l => l.name === a.language)
-    const id = lang ? lang.id : a.language
-    groups[id] = (groups[id] || 0) + a.minutes
-  }
-  return groups
+  // Group by language id, not by display name. The day.activities we
+  // receive are built via nameFor() above, so `a.language` is the
+  // nickname-or-canonical display label — comparing it against
+  // l.name (canonical) would miss every language the user has
+  // nicknamed, and the gradient / mosaic would fall back to the
+  // default green for those cells. The grouping helper lives in
+  // src/lib/heatmap.js with a regression test.
+  return groupActivitiesByLanguageId(day.activities, props.languages, nameFor)
 }
 
 // Build one continuous glossy gradient for a mixed-language day. Each
