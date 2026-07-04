@@ -454,9 +454,10 @@ function buildPlant(lang, { hours, recentHours, lastWatered, todayStr, baseX, in
   const stage = growthStage(hours)
   const h = hashSeed(lang.id)
   const species = h % 4
-  // Tighter range (-3..3) so individual plants don't lean dramatically —
-  // a few degrees reads as "growing", more reads as "fallen over".
-  const tilt = ((h >>> 4) % 7) - 3
+  // Plants are perfectly vertical. Per-species tilt was a nice idea but it
+  // made one language id out of many read as "broken" or "fallen over";
+  // removing it is calmer and the silhouette already varies plenty.
+  const tilt = 0
   const jitter = {
     leafSide: (h >>> 10) % 2 === 0 ? 1 : -1,
     petalCount: 5 + ((h >>> 3) % 3), // 5..7

@@ -297,14 +297,16 @@
 
     <!-- HTML tooltip overlay — Teleport to body so RTL script renders with
          the page's normal text pipeline (SVG <text> mangles Urdu/Arabic).
-         One shared tooltip tracks the hovered plant, positioned just below
-         the cursor and centered horizontally. -->
+         <bdi> isolates the text from its surrounding context so the
+         Unicode bidirectional algorithm renders the whole title
+         (mixed Arabic + Latin) in the order it was written, instead of
+         scrambling the Arabic characters against the Latin ones. -->
     <Teleport to="body">
       <div
         v-if="hoveredPlant"
         class="fixed z-50 px-2.5 py-1.5 rounded-lg shadow-lg pointer-events-none text-xs font-medium whitespace-nowrap"
         :style="hoveredStyle"
-      >{{ hoveredPlant.title }}</div>
+      ><bdi>{{ hoveredPlant.title }}</bdi></div>
     </Teleport>
   </div>
 </template>
@@ -495,10 +497,16 @@ const hoveredStyle = computed(() => ({
   transform: 'translateX(-50%)',
   backgroundColor: 'rgba(45, 55, 45, 0.94)',
   color: '#f6f7f2',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+  // Explicit Arabic fonts in the stack so the system falls back to a font
+  // with real Arabic glyphs (Geeza Pro / SF Arabic on macOS, Segoe UI
+  // Arabic on Windows, Noto Sans Arabic on Linux). Without these, the
+  // browser silently substitutes Latin glyphs for Arabic codepoints and
+  // the tooltip renders garbage.
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Geeza Pro", "SF Arabic", "Segoe UI Arabic", "Noto Sans Arabic", system-ui, sans-serif',
   maxWidth: '320px',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
+  unicodeBidi: 'plaintext',
 }))
 
 // -- portrait download --------------------------------------------------------

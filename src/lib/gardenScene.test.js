@@ -176,19 +176,18 @@ describe('buildGardenScene — determinism + dispersion', () => {
     })
     expect(a).toEqual(b)
   })
-  it('species and tilt disperse across 50 seeds', () => {
+  it('species disperses across 50 seeds', () => {
     // Use UUID-shaped ids — `lang-0`..`lang-49` share a 5-char prefix and
     // hash identically in the low bits. Real language ids are UUIDs.
+    // (Plants are now perfectly vertical; tilt dispersion is no longer
+    // a thing, so we only assert on species.)
     const seenSpecies = new Set()
-    const tilts = []
     for (let i = 0; i < 50; i++) {
       const id = `${i.toString(16).padStart(8, '0')}-${(i * 2654435761 >>> 0).toString(16)}`
       const s = buildGardenScene({ languages: [lang(id)] })
       seenSpecies.add(s.plants[0].species)
-      tilts.push(s.plants[0].tilt)
     }
     expect(seenSpecies.size).toBeGreaterThan(1)
-    expect(new Set(tilts).size).toBeGreaterThan(5)
   })
 })
 
@@ -265,13 +264,14 @@ describe('buildGardenScene — stage mapping', () => {
     // 0.75× baseline of a neglected plant.
     expect(s.plants[0].scale).toBeGreaterThan(1.0)
   })
-  it('tilt stays within a tight range so plants read as "growing", not fallen', () => {
+  it('plants are perfectly vertical — no tilt', () => {
+    // Per-species tilt was a nice idea but it made one language id out of
+    // many read as "broken" or "fallen over"; removing it is calmer and
+    // the silhouette already varies plenty via species + stage.
     for (let i = 0; i < 30; i++) {
       const id = `${i.toString(16).padStart(8, '0')}-${(i * 2654435761 >>> 0).toString(16)}`
       const s = buildGardenScene({ languages: [lang(id)] })
-      const t = s.plants[0].tilt
-      expect(t).toBeGreaterThanOrEqual(-3)
-      expect(t).toBeLessThanOrEqual(3)
+      expect(s.plants[0].tilt).toBe(0)
     }
   })
   it('title includes recent-week hours when momentum is non-zero', () => {
