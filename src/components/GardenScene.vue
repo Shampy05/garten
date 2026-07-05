@@ -253,6 +253,13 @@
           </g>
         </g>
 
+        <!-- Foreground fringe — third depth plane. Drawn after the
+             companion so the snail passes behind the blade peaks. -->
+        <path
+          :d="foregroundFringePath"
+          :fill="darkenColor(scene.season.grassTint, 0.25)"
+        />
+
         <!-- Fireflies (night + streak>=3) -->
         <g v-if="scene.fireflies.length > 0">
           <circle
@@ -383,6 +390,45 @@ const hillNearPath = computed(() => {
   const w = scene.value.viewBox.w
   const gy = scene.value.groundY
   return `M0 ${gy} C ${w * 0.2} ${gy - 12} ${w * 0.42} ${gy - 26} ${w * 0.66} ${gy - 10} S ${w * 0.88} ${gy - 20} ${w} ${gy - 14} L ${w} ${gy} Z`
+})
+
+// Foreground fringe — the third depth plane. A darker grass silhouette
+// along the bottom edge, with three taller blade+seed-head peaks (x ≈
+// 240 / 600 / 960) that reach up into the planting row. Drawn AFTER the
+// plants and companion in document order so the critter passes behind
+// them. The main body sits low (gy+15) so the stepping stones
+// (gy+1..gy+9) remain visible above it; only the blade peaks overlap
+// the planting row. Authored control points so the foreground reads as
+// the stage, not as another hashed actor.
+//
+// Each peak is three cubic curves: stem-up, seed-head bulge, stem-down.
+// The seed-head is a small horizontal bulge at the tip — the natural
+// silhouette of a grass seed-head in profile.
+const foregroundFringePath = computed(() => {
+  const w = scene.value.viewBox.w
+  const gy = scene.value.groundY
+  const h = scene.value.viewBox.h
+  return `M 0 ${h}
+          L 0 ${gy + 15}
+          Q 60 ${gy + 13} 120 ${gy + 15}
+          Q 180 ${gy + 16} 234 ${gy + 15}
+          C 237 ${gy + 6} 238 ${gy - 9} 239 ${gy - 13}
+          C 239 ${gy - 17} 244 ${gy - 17} 244 ${gy - 13}
+          C 245 ${gy - 9} 246 ${gy + 6} 246 ${gy + 15}
+          Q 320 ${gy + 17} 400 ${gy + 15}
+          Q 500 ${gy + 14} 594 ${gy + 15}
+          C 597 ${gy + 7} 598 ${gy - 7} 599 ${gy - 11}
+          C 599 ${gy - 15} 604 ${gy - 15} 604 ${gy - 11}
+          C 605 ${gy - 7} 606 ${gy + 7} 606 ${gy + 15}
+          Q 700 ${gy + 17} 800 ${gy + 15}
+          Q 900 ${gy + 14} 954 ${gy + 15}
+          C 957 ${gy + 6} 958 ${gy - 10} 959 ${gy - 14}
+          C 959 ${gy - 18} 964 ${gy - 18} 964 ${gy - 14}
+          C 965 ${gy - 10} 966 ${gy + 6} 966 ${gy + 15}
+          Q 1040 ${gy + 17} 1100 ${gy + 15}
+          Q 1160 ${gy + 14} 1200 ${gy + 15}
+          L 1200 ${h}
+          Z`
 })
 
 // One tuft = two short leaning blades rooted in the grass band.
