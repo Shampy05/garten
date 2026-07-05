@@ -74,3 +74,46 @@ export function pct(currentPage, totalPages) {
   if (!totalPages || totalPages <= 0) return 0
   return Math.min(100, Math.max(0, Math.round((currentPage / totalPages) * 100)))
 }
+
+/**
+ * Days since the most recent session date. 0 = today, null = no sessions.
+ */
+export function lastReadDaysAgo(sessions = []) {
+  let latest = null
+  for (const s of sessions) {
+    if (!s.date) continue
+    if (latest == null || s.date > latest) latest = s.date
+  }
+  if (latest == null) return null
+  const today = new Date(localDateKey() + 'T00:00:00')
+  const last = new Date(latest + 'T00:00:00')
+  return Math.max(0, Math.round((today - last) / MS_PER_DAY))
+}
+
+/**
+ * "~12 pages/day" | "~1 page/day" | "<1 page/day" | '' when pace <= 0.
+ */
+export function formatPace(pace) {
+  if (!pace || pace <= 0) return ''
+  const rounded = Math.round(pace)
+  if (rounded < 1) return '<1 page/day'
+  return `~${rounded} page${rounded === 1 ? '' : 's'}/day`
+}
+
+/**
+ * Everything the Reading-shelf spotlight card needs, derived from the
+ * bulk-loaded reading_progress rows (this book's only) + the book's record.
+ */
+export function bookPaceStats(sessions = [], record = null) {
+  const currentPage = Number(record?.currentPage) || 0
+  const totalPages = Number(record?.totalPages) || 0
+  const pace = weightedPace(sessions)
+  return {
+    pace, // float, 0 when no recent history
+    hasSessions: sessions.length > 0, // distinguishes "never" from "stale"
+    finishDate: predictedFinish(currentPage, totalPages, pace), // Date|null
+    pctRead: pct(currentPage, totalPages), // 0–100 int
+    pagesLeft: totalPages ? Math.max(0, totalPages - currentPage) : null,
+    lastReadDaysAgo: lastReadDaysAgo(sessions), // int|null
+  }
+}

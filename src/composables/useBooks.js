@@ -397,19 +397,43 @@ export function useBooks() {
     }
 
     const today = new Date().toISOString().slice(0, 10)
-    const { error: progressErr } = await supabase.from('reading_progress').insert({
-      user_id: userId.value,
-      book_id: bookId,
-      date: today,
-      pages_read: actualPagesRead,
-      from_page: fromPage ?? null,
-      to_page: toPage ?? null,
-      minutes: minutes ? Math.max(0, Math.round(Number(minutes))) : null,
-      notes: notes?.trim() || null,
-    })
+    const normalizedMinutes = minutes ? Math.max(0, Math.round(Number(minutes))) : null
+    const { data: progressRow, error: progressErr } = await supabase
+      .from('reading_progress')
+      .insert({
+        user_id: userId.value,
+        book_id: bookId,
+        date: today,
+        pages_read: actualPagesRead,
+        from_page: fromPage ?? null,
+        to_page: toPage ?? null,
+        minutes: normalizedMinutes,
+        notes: notes?.trim() || null,
+      })
+      .select('id, created_at')
+      .single()
     if (progressErr) {
       toast.error('Failed to log pages. Please try again.')
       return { error: progressErr.message }
+    }
+
+    // Keep the bulk-loaded history (spotlight pace tiles, Recent Sessions
+    // timeline) and its cache in step with the row that now exists in the DB.
+    // Gated on progressLoaded: appending after a failed bulk load would cache
+    // a partial dataset that loadAllProgress would later serve as complete.
+    if (progressLoaded.value) {
+      readingProgress.value = [
+        ...readingProgress.value,
+        {
+          id: progressRow.id,
+          bookId,
+          date: today,
+          pagesRead: actualPagesRead,
+          minutes: normalizedMinutes,
+          createdAt: progressRow.created_at,
+        },
+      ]
+      setCache(progressCacheKey(userId.value), readingProgress.value)
     }
 
     const isFinished = newPage >= totalPages

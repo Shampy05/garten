@@ -94,12 +94,14 @@
         <p class="text-sm text-stone-500 italic px-1 py-2">No books in Reading{{ languageFilter ? ' for this language' : '' }}.</p>
       </template>
       <template v-else>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <SavedBookCard
+        <div class="space-y-3">
+          <ReadingSpotlightCard
             v-for="book in filteredActive"
             :key="book.id"
             :book="book"
             :language-color="languageColors[book.languageCode]"
+            :sessions="sessionsByBook.get(book.id) || []"
+            :progress-loaded="progressLoaded"
             @edit="$emit('edit', $event)"
             @remove="$emit('remove', $event)"
             @log="$emit('log', $event)"
@@ -178,8 +180,9 @@
 import { ref, computed, watch } from 'vue'
 import { BookOpen, BookCheck, SlidersHorizontal, ListOrdered } from 'lucide-vue-next'
 import { useShelves } from '../../composables/useShelves.js'
+import { useBooks } from '../../composables/useBooks.js'
 import { nameForCode } from '../../lib/bookLanguages.js'
-import SavedBookCard from './SavedBookCard.vue'
+import ReadingSpotlightCard from './ReadingSpotlightCard.vue'
 import QueueCard from './QueueCard.vue'
 import FinishedShelf from './FinishedShelf.vue'
 import ShelfSection from './ShelfSection.vue'
@@ -193,6 +196,19 @@ const props = defineProps({
 const emit = defineEmits(['edit', 'remove', 'log', 'quick-log', 'mark-as-read', 'reorder', 'start-reread'])
 
 const shelves = useShelves()
+
+// Bulk-loaded reading history (module singleton — one query per session,
+// shared with App.vue's Recent Sessions). Grouped per book once here so each
+// spotlight card gets its own sessions without any per-card fetches.
+const { readingProgress, progressLoaded } = useBooks()
+const sessionsByBook = computed(() => {
+  const map = new Map()
+  for (const row of readingProgress.value) {
+    if (!map.has(row.bookId)) map.set(row.bookId, [])
+    map.get(row.bookId).push(row)
+  }
+  return map
+})
 
 const SHELF_OPTIONS = [
   { key: 'reading', label: 'Reading', icon: BookOpen },

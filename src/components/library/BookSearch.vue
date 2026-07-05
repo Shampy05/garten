@@ -282,6 +282,10 @@ const {
 const selectedLanguageId = ref('')
 const searchInput = ref(null)
 
+// Lets the Library header's "Find a book" button focus the query box after
+// scrolling here. preventScroll: the caller owns the scroll position.
+defineExpose({ focus: () => searchInput.value?.focus({ preventScroll: true }) })
+
 // "Active" means the user is in the middle of searching. We treat typing or
 // having a non-empty query as active; the rec strip only shows when not active.
 const isActive = computed(() => query.value.trim().length > 0)

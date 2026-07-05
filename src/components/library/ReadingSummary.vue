@@ -32,7 +32,7 @@ const props = defineProps({
 const rows = computed(() => summaryByLanguage(props.savedBooks))
 
 // read = full green, reading = orange, want = light stone — matches the badge
-// colours on SavedBookCard so the bar reads consistently.
+// colours used across the shelf cards so the bar reads consistently.
 const STATUS_META = [
   { key: 'read', label: 'Read', color: '#287a41' },
   { key: 'reading', label: 'Reading', color: '#ea7317' },

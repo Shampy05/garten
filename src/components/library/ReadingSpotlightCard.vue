@@ -1,18 +1,17 @@
 <template>
-  <div class="group gp-card gp-card-hover p-3 flex flex-col">
-    <div class="flex gap-3">
-      <div class="relative w-16 h-24 flex-shrink-0 rounded-md overflow-hidden bg-stone-100 border border-line flex items-center justify-center">
+  <div class="group gp-card gp-card-hover p-4 sm:p-5 flex flex-col">
+    <div class="flex gap-4">
+      <div class="relative w-24 h-36 sm:w-28 sm:h-40 flex-shrink-0 rounded-lg overflow-hidden bg-stone-100 border border-line flex items-center justify-center">
         <img v-if="book.coverUrl" :src="book.coverUrl" :alt="book.title" class="w-full h-full object-cover" loading="lazy" />
-        <BookOpen v-else :size="20" class="text-stone-300" />
+        <BookOpen v-else :size="28" class="text-stone-300" />
         <!-- Bookmark ribbon on the right edge: fills from top to bottom as you
              read, with a forked end at the current reading position. Lives
              inside the cover's overflow-hidden so the rounded corners clip
-             it cleanly. Replaces the old 1px bar — the V at the bottom is
-             the readable "where am I" cue, and the language color makes it
-             match the rest of the shelf. -->
+             it cleanly. The V at the bottom is the readable "where am I" cue,
+             and the language color makes it match the rest of the shelf. -->
         <div
-          v-if="isReading && hasTotalPages"
-          class="absolute top-0 right-0 w-2.5 pointer-events-none transition-all duration-500 ease-out"
+          v-if="hasTotalPages"
+          class="absolute top-0 right-0 w-3 pointer-events-none transition-all duration-500 ease-out"
           :style="{ height: progressPct + '%' }"
           :aria-label="`${Math.round(progressPct)} percent read`"
         >
@@ -27,32 +26,32 @@
       </div>
 
       <div class="flex flex-col min-w-0 flex-1">
-        <h4 class="text-sm font-semibold text-stone-800 leading-snug line-clamp-2">{{ book.title }}</h4>
+        <h4 class="text-base sm:text-lg font-semibold text-stone-800 leading-snug line-clamp-2">{{ book.title }}</h4>
         <p v-if="book.author" class="text-xs text-stone-500 truncate mt-0.5">{{ book.author }}</p>
 
-        <div class="flex flex-wrap items-center gap-1.5 mt-2">
+        <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
           <span class="text-[11px] font-medium text-garden-700 bg-garden-50 px-2 py-0.5 rounded-full">
             {{ nameForCode(book.languageCode) }}
           </span>
-          <span class="text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1" :class="statusClass">
-            <BookCheck v-if="isRead" :size="10" />
-            {{ STATUS_LABELS[book.record?.status] || 'Unknown' }}
-          </span>
         </div>
 
-        <p v-if="progressText" class="text-xs text-stone-500 mt-1.5 tabular-nums">
-          {{ progressText }}
+        <p v-if="hasTotalPages" class="text-xs text-stone-500 mt-2 tabular-nums">
+          Page {{ currentPage }} of {{ totalPages }} · {{ stats.pctRead }}%
         </p>
 
-        <div class="flex items-center gap-1 mt-auto pt-2">
+        <div v-else class="rounded-xl border border-orange-200 bg-orange-50/60 px-3 py-2 mt-2 flex flex-wrap items-center gap-2">
+          <p class="text-xs text-orange-800 flex-1 min-w-[10rem]">
+            How long is this book? Set the page count to track pace and progress.
+          </p>
           <button
-            v-if="canLog"
             @click="$emit('log', book)"
-            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-garden-700 bg-garden-50 border border-garden-200 hover:bg-garden-100 hover:border-garden-300 transition-colors active:scale-95"
+            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-orange-700 bg-white border border-orange-200 hover:border-orange-300 hover:bg-orange-50 transition-colors active:scale-95"
           >
-            <BookPlus :size="12" /> Log pages
+            Set page count
           </button>
-          <span class="flex-1"></span>
+        </div>
+
+        <div class="flex items-center justify-end gap-1 mt-auto pt-2">
           <button
             @click="$emit('edit', book)"
             class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-stone-500 bg-white border border-line hover:border-garden-400 hover:text-garden-700 hover:shadow-pill transition-all active:scale-95"
@@ -61,7 +60,6 @@
             <Pencil :size="12" />
           </button>
           <button
-            v-if="!isRead"
             @click="$emit('remove', book)"
             class="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-colors"
             title="Remove book"
@@ -72,9 +70,45 @@
       </div>
     </div>
 
-    <!-- Quick-log bar: only on actively-reading books with a known page count.
-         One tap = one log. The full modal is still one click away via "more". -->
-    <div v-if="isReading && hasTotalPages" class="mt-2.5 pt-2.5 border-t border-line">
+    <!-- Stat tiles span the full card width (not the content column) so the
+         finish date fits without truncating on narrow screens. -->
+    <template v-if="hasTotalPages">
+      <div class="grid grid-cols-3 gap-2 mt-3">
+        <div class="bg-stone-50 rounded-xl p-2.5 text-center">
+          <div class="text-base sm:text-lg font-display font-bold text-stone-800 tabular-nums">
+            {{ paceTileValue }}
+          </div>
+          <div class="text-[10px] text-stone-400 uppercase tracking-wide">pages / day</div>
+        </div>
+        <div class="bg-stone-50 rounded-xl p-2.5 text-center">
+          <div class="text-base sm:text-lg font-display font-bold text-stone-800 tabular-nums">
+            {{ finishLabel || '—' }}
+          </div>
+          <div class="text-[10px] text-stone-400 uppercase tracking-wide">est. finish</div>
+        </div>
+        <div class="bg-stone-50 rounded-xl p-2.5 text-center">
+          <div class="text-base sm:text-lg font-display font-bold text-stone-800 tabular-nums">
+            {{ stats.pagesLeft }}
+          </div>
+          <div class="text-[10px] text-stone-400 uppercase tracking-wide">pages left</div>
+        </div>
+      </div>
+
+      <template v-if="progressLoaded">
+        <p v-if="stats.pace <= 0 && !stats.hasSessions" class="text-xs text-stone-400 italic mt-1.5">
+          Log your first pages to see your pace.
+        </p>
+        <p v-else-if="stats.pace <= 0 && stats.hasSessions" class="text-xs text-stone-400 italic mt-1.5">
+          No recent sessions — log pages to refresh your pace.
+        </p>
+        <p v-else-if="stats.lastReadDaysAgo >= 2" class="text-[11px] text-stone-400 mt-1.5">
+          Last read {{ stats.lastReadDaysAgo }} days ago
+        </p>
+      </template>
+    </template>
+
+    <!-- Quick-log bar: one tap = one log. The full modal is one click away via "more". -->
+    <div v-if="hasTotalPages" class="mt-3 pt-3 border-t border-line">
       <div class="flex items-center gap-1.5 flex-wrap">
         <span class="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mr-1">Quick log</span>
         <button
@@ -113,26 +147,23 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { BookOpen, Pencil, Trash2, BookPlus, BookCheck } from 'lucide-vue-next'
+import { BookOpen, Pencil, Trash2 } from 'lucide-vue-next'
 import { nameForCode } from '../../lib/bookLanguages.js'
-import { STATUS_LABELS } from '../../lib/readingStats.js'
+import { bookPaceStats, formatPace } from '../../lib/readingProgress.js'
 
 const props = defineProps({
   book: { type: Object, required: true },
   languageColor: { type: String, default: null },
+  // This book's reading_progress rows, filtered from the bulk-loaded history
+  // by the parent — no per-card fetches.
+  sessions: { type: Array, default: () => [] },
+  // False when the bulk history fetch failed; pace copy hides silently.
+  progressLoaded: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['edit', 'remove', 'log', 'quick-log'])
 
 const submitting = ref(false)
-
-const isReading = computed(() => props.book.record?.status === 'reading')
-const isRead = computed(() => props.book.record?.status === 'read')
-
-const canLog = computed(() =>
-  props.book.record?.status === 'reading' ||
-  (props.book.record?.status === 'want_to_read' && props.book.record?.totalPages)
-)
 
 const hasTotalPages = computed(() => Number(props.book.record?.totalPages) > 0)
 
@@ -145,24 +176,21 @@ const progressPct = computed(() => {
   return Math.min(100, Math.round((currentPage.value / totalPages.value) * 100))
 })
 
-const progressText = computed(() => {
-  const r = props.book.record
-  if (!r?.totalPages) return null
-  const pagesLeft = Math.max(0, r.totalPages - (r.currentPage || 0))
-  if (r.status === 'read') return `${r.totalPages} pages · finished`
-  if (pagesLeft === 0) return `${r.totalPages} pages · finishing now`
-  return `Page ${r.currentPage || 0} of ${r.totalPages} · ${pagesLeft} left`
-})
+const stats = computed(() => bookPaceStats(props.sessions, props.book.record))
+const paceLabel = computed(() => formatPace(stats.value.pace))
+// Compact date (no weekday) — the full formatDate form gets truncated
+// inside a third-width tile on mobile.
+const finishLabel = computed(() =>
+  stats.value.finishDate
+    ? stats.value.finishDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+    : null
+)
 
-const statusClass = computed(() => {
-  switch (props.book.record?.status) {
-    case 'read':
-      return 'text-garden-700 bg-garden-100'
-    case 'reading':
-      return 'text-orange-700 bg-orange-50'
-    default:
-      return 'text-stone-600 bg-stone-100'
-  }
+// The tile shows only the number ("~14" / "<1"); the tile label carries the
+// unit. Em-dash when there is no pace to show.
+const paceTileValue = computed(() => {
+  if (!paceLabel.value) return '—'
+  return paceLabel.value.replace(/\s*pages?\/day$/, '')
 })
 
 // Quick-log chip set: 5/10/20/30, filtered to what's actually left in the

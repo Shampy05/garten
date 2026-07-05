@@ -7,10 +7,20 @@
         <div class="w-11 h-11 rounded-xl bg-gradient-to-b from-garden-500 to-garden-600 text-white flex items-center justify-center flex-shrink-0 shadow-pill">
           <Library :size="22" />
         </div>
-        <div>
+        <div class="flex-1 min-w-0">
           <h1 class="font-display text-2xl font-bold text-stone-900 tracking-tight">Reading Library</h1>
           <p class="text-sm text-stone-500">Find books in your target language and track your reading.</p>
         </div>
+        <!-- The search surface itself stays below the shelves; this anchors
+             the affordance at the top so finding a new book never means
+             scrolling past the whole library first. -->
+        <button
+          @click="jumpToSearch"
+          class="gp-btn-ghost px-3 py-2 text-sm inline-flex items-center gap-1.5 flex-shrink-0"
+        >
+          <Search :size="14" />
+          <span class="hidden sm:inline">Find a book</span>
+        </button>
       </div>
     </div>
 
@@ -53,6 +63,7 @@
           <span class="text-[11px] text-stone-400">Search Google Books and Open Library at once.</span>
         </div>
         <BookSearch
+          ref="bookSearchRef"
           :saved-ids="savedIds"
           :default-language-code="defaultLanguageCode"
           :languages="languages"
@@ -99,7 +110,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Library, BookOpen } from 'lucide-vue-next'
+import { Library, BookOpen, Search } from 'lucide-vue-next'
 import { useBooks } from '../../composables/useBooks.js'
 import { useStorage } from '../../composables/useStorage.js'
 import { useToast } from '../../composables/useToast.js'
@@ -124,6 +135,17 @@ const { addEntry, data: storageData } = useStorage()
 const toast = useToast()
 
 const searchActive = ref(false)
+
+// "Find a book" in the header: scroll to the search surface, then focus the
+// query box once the scroll has (mostly) settled.
+const bookSearchRef = ref(null)
+function jumpToSearch() {
+  const el = document.getElementById('library-search')
+  if (!el) return
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  el.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' })
+  setTimeout(() => bookSearchRef.value?.focus(), reduced ? 0 : 400)
+}
 
 const languageColorMap = computed(() => {
   const map = {}
