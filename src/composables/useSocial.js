@@ -109,6 +109,24 @@ export function useSocial() {
     }
   }
 
+  // Cross-pollination (bloom) events were once deduped per-day in the DB; the
+  // server-side constraint has since been widened to per-(actor, co_actor,
+  // language) so new blooms can't repeat, but rows from before that change
+  // are still in the feed. Collapse them client-side as a safety net — the
+  // feed is ordered by created_at desc, so the first bloom we see for a
+  // given tuple is the most recent and we drop the rest.
+  function dedupBlooms(events) {
+    const seen = new Set()
+    return events.filter((e) => {
+      if (e.kind === 'bloom' && e.co_actor_id) {
+        const key = `${e.actor_id}|${e.co_actor_id}|${e.language_name}`
+        if (seen.has(key)) return false
+        seen.add(key)
+      }
+      return true
+    })
+  }
+
   async function loadFeed() {
     if (!profile.value) return
     const { data, error } = await supabase
@@ -122,7 +140,7 @@ export function useSocial() {
       .order('created_at', { ascending: false })
       .limit(50)
     if (error) return
-    feed.value = (data || []).map(normalizeEvent)
+    feed.value = dedupBlooms((data || []).map(normalizeEvent))
   }
 
   async function loadFeedReactions() {
@@ -288,7 +306,7 @@ export function useSocial() {
           const item = normalizeEvent(payload.new)
           if (!['milestone', 'bloom', 'commitment_progress', 'new_language'].includes(item.kind)) return
           if (feed.value.some((e) => e.id === item.id)) return
-          feed.value = [item, ...feed.value].slice(0, 50)
+          feed.value = dedupBlooms([item, ...feed.value]).slice(0, 50)
         }
       )
       .subscribe()
