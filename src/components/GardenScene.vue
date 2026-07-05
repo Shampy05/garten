@@ -392,41 +392,54 @@ const hillNearPath = computed(() => {
   return `M0 ${gy} C ${w * 0.2} ${gy - 12} ${w * 0.42} ${gy - 26} ${w * 0.66} ${gy - 10} S ${w * 0.88} ${gy - 20} ${w} ${gy - 14} L ${w} ${gy} Z`
 })
 
-// Foreground fringe — the third depth plane. A darker grass silhouette
-// along the bottom edge, with three taller blade+seed-head peaks (x ≈
-// 240 / 600 / 960) that reach up into the planting row. Drawn AFTER the
-// plants and companion in document order so the critter passes behind
-// them. The main body sits low (gy+15) so the stepping stones
-// (gy+1..gy+9) remain visible above it; only the blade peaks overlap
-// the planting row. Authored control points so the foreground reads as
-// the stage, not as another hashed actor.
+// Foreground fringe — the third depth plane. A thin dark grass line
+// at the very bottom, with six taller blade+seed-head peaks rising
+// 55-65 units up into the planting row. Drawn AFTER the plants and
+// companion in document order so the critter passes behind them.
+//
+// The main body is just a 10-unit-tall band at the bottom (h-10 to h)
+// — a ground line, not a solid block. Plant labels sit at gy+20 (below
+// the plant feet), so a tall main body would cover them; this design
+// leaves the label area clear. The peaks are the dominant feature.
 //
 // Each peak is three cubic curves: stem-up, seed-head bulge, stem-down.
-// The seed-head is a small horizontal bulge at the tip — the natural
-// silhouette of a grass seed-head in profile.
+// Control points at the joints are collinear with the shared endpoint
+// (e.g. the stem-up ends with its last control directly below the tip,
+// and the seed-head starts with its first control directly above it) so
+// the tangent is continuous — no kink at the seed-head. Authored
+// control points so the foreground reads as the stage, not as another
+// hashed actor.
 const foregroundFringePath = computed(() => {
   const w = scene.value.viewBox.w
   const gy = scene.value.groundY
   const h = scene.value.viewBox.h
   return `M 0 ${h}
-          L 0 ${gy + 15}
-          Q 60 ${gy + 13} 120 ${gy + 15}
-          Q 180 ${gy + 16} 234 ${gy + 15}
-          C 237 ${gy + 6} 238 ${gy - 9} 239 ${gy - 13}
-          C 239 ${gy - 17} 244 ${gy - 17} 244 ${gy - 13}
-          C 245 ${gy - 9} 246 ${gy + 6} 246 ${gy + 15}
-          Q 320 ${gy + 17} 400 ${gy + 15}
-          Q 500 ${gy + 14} 594 ${gy + 15}
-          C 597 ${gy + 7} 598 ${gy - 7} 599 ${gy - 11}
-          C 599 ${gy - 15} 604 ${gy - 15} 604 ${gy - 11}
-          C 605 ${gy - 7} 606 ${gy + 7} 606 ${gy + 15}
-          Q 700 ${gy + 17} 800 ${gy + 15}
-          Q 900 ${gy + 14} 954 ${gy + 15}
-          C 957 ${gy + 6} 958 ${gy - 10} 959 ${gy - 14}
-          C 959 ${gy - 18} 964 ${gy - 18} 964 ${gy - 14}
-          C 965 ${gy - 10} 966 ${gy + 6} 966 ${gy + 15}
-          Q 1040 ${gy + 17} 1100 ${gy + 15}
-          Q 1160 ${gy + 14} 1200 ${gy + 15}
+          L 0 ${h - 10}
+          Q 80 ${h - 12} 154 ${h - 10}
+          C 157 ${h - 30} 159 260 159 ${gy - 12}
+          C 159 ${gy - 16} 164 ${gy - 16} 164 ${gy - 12}
+          C 164 260 165 ${h - 30} 166 ${h - 10}
+          Q 240 ${h - 8} 334 ${h - 10}
+          C 337 ${h - 30} 339 258 339 ${gy - 15}
+          C 339 ${gy - 19} 344 ${gy - 19} 344 ${gy - 15}
+          C 344 257 345 ${h - 30} 346 ${h - 10}
+          Q 420 ${h - 12} 514 ${h - 10}
+          C 517 ${h - 30} 519 262 519 ${gy - 10}
+          C 519 ${gy - 14} 524 ${gy - 14} 524 ${gy - 10}
+          C 524 262 525 ${h - 30} 526 ${h - 10}
+          Q 600 ${h - 8} 694 ${h - 10}
+          C 697 ${h - 30} 699 260 699 ${gy - 13}
+          C 699 ${gy - 17} 704 ${gy - 17} 704 ${gy - 13}
+          C 704 260 705 ${h - 30} 706 ${h - 10}
+          Q 780 ${h - 12} 874 ${h - 10}
+          C 877 ${h - 30} 879 264 879 ${gy - 9}
+          C 879 ${gy - 13} 884 ${gy - 13} 884 ${gy - 9}
+          C 884 264 885 ${h - 30} 886 ${h - 10}
+          Q 960 ${h - 8} 1054 ${h - 10}
+          C 1057 ${h - 30} 1059 259 1059 ${gy - 14}
+          C 1059 ${gy - 18} 1064 ${gy - 18} 1064 ${gy - 14}
+          C 1064 259 1065 ${h - 30} 1066 ${h - 10}
+          Q 1140 ${h - 12} 1200 ${h - 10}
           L 1200 ${h}
           Z`
 })
