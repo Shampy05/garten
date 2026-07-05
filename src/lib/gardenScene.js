@@ -279,6 +279,12 @@ export function buildGardenScene({
   const clouds = buildClouds(skyRaw.band)
   const tufts = buildTufts()
   const foregroundBlades = buildForegroundBlades()
+  const trees = buildTrees(seasonName)
+
+  // ---- garden props: watering can, fence, autumn mushrooms ----
+  const wateringCan = buildWateringCan(plants, lastByLang)
+  const fence = buildFence()
+  const mushrooms = buildMushrooms(seasonName, steppingStones)
 
   // ---- streak glow ----
   const fireflies = (streak >= 3 && skyRaw.band === 'night')
@@ -308,6 +314,10 @@ export function buildGardenScene({
     clouds,
     tufts,
     foregroundBlades,
+    trees,
+    wateringCan,
+    fence,
+    mushrooms,
   }
 }
 
@@ -400,6 +410,98 @@ function buildForegroundBlades() {
       x: slottedX(i, count, 40, span, h),
       len: 14 + (((h >>> 6) + i * 7) % 14), // 14..27
       lean: (((h >>> 13) + i * 5) % 9) - 4, // -4..4
+    }
+  })
+}
+
+// Distant silhouette trees on the far hill — 1 to 3 small round-canopy trees
+// confined to the margins outside the planting band ([140, 1060]), so they
+// fill the dead space between sky and planting row without ever standing in
+// for (or crowding) a language's own plant. Season-tinted: bare branches in
+// winter, warm ochre canopy in autumn, green otherwise.
+const TREE_TINT = {
+  spring: '#6cb87a',
+  summer: '#3f8a52',
+  autumn: '#c98a3e',
+  winter: '#8a8a7a',
+}
+function buildTrees(seasonName) {
+  const zones = [
+    { start: 14, span: 100 },
+    { start: 1086, span: 100 },
+  ]
+  const h0 = hashSeed('tree-count')
+  const count = 1 + (h0 % 3) // 1..3
+  // Zone comes from index, not a hash of 'tree-0'/'tree-1'/'tree-2' — those
+  // keys are too similar for hashSeed to disperse (the same clustering bug
+  // fixed elsewhere in this file), so multiple trees would land in the same
+  // margin. Alternating by index guarantees a left/right split whenever
+  // count > 1; the hash only supplies the in-zone x jitter and size.
+  const startZone = (h0 >>> 4) % zones.length
+  return Array.from({ length: count }, (_, i) => {
+    const h = hashSeed('tree-' + i)
+    const zone = zones[(startZone + i) % zones.length]
+    const x = Math.round(zone.start + ((h % 1000) / 1000) * zone.span)
+    const height = 16 + (((h >>> 9) + i * 7) % 12) // 16..27
+    const canopyR = 7 + (((h >>> 13) + i * 3) % 5) // 7..11
+    return {
+      x,
+      height,
+      canopyR,
+      bare: seasonName === 'winter',
+      color: TREE_TINT[seasonName] || TREE_TINT.summer,
+    }
+  })
+}
+
+// A watering can beside the most-recently-tended plant — the metaphor the
+// whole app runs on, made visible. Picks the language with the latest
+// lastWatered date (ISO strings, lexically comparable) and anchors the can
+// to that plant's x. Returns null when nothing has been logged yet.
+function buildWateringCan(plants, lastByLang) {
+  let bestId = null
+  let bestDate = null
+  for (const [langId, date] of Object.entries(lastByLang)) {
+    if (!date) continue
+    if (bestDate == null || date > bestDate) {
+      bestDate = date
+      bestId = langId
+    }
+  }
+  if (bestId == null) return null
+  const plant = plants.find((p) => p.id === bestId)
+  if (!plant) return null
+  const h = hashSeed('can-' + bestId)
+  const side = h % 2 === 0 ? 1 : -1
+  return { x: plant.x + side * 22 }
+}
+
+// A short run of fence pickets framing the far left/right edges of the band
+// — company for the garden sign, and a quiet visual bookend for the planting
+// row. Small and knee-high (rendered ~9 units tall, in line with the grass
+// tufts and stones), not a landmark in their own right.
+function buildFence() {
+  const spacing = 7
+  const pickets = []
+  for (let i = 0; i < 3; i++) pickets.push({ x: 10 + i * spacing, side: 'left' })
+  for (let i = 0; i < 3; i++) pickets.push({ x: 1190 - i * spacing, side: 'right' })
+  return pickets
+}
+
+// Mushrooms beside one hashed stepping stone, autumn only — a small seasonal
+// detail that gives returning users something new to notice without any new
+// data reads.
+function buildMushrooms(seasonName, stones) {
+  if (seasonName !== 'autumn' || !stones.length) return []
+  const pick = hashSeed('mushroom-stone')
+  const stone = stones[pick % stones.length]
+  const count = 1 + ((pick >>> 4) % 2) // 1..2
+  return Array.from({ length: count }, (_, i) => {
+    const h = hashSeed('mushroom-' + i)
+    return {
+      x: stone.x + (i === 0 ? -9 : 8) + ((h % 5) - 2),
+      y: stone.y + 2,
+      r: 2 + (h % 2),
     }
   })
 }

@@ -97,16 +97,24 @@
           />
         </g>
 
-        <!-- Clouds — hashed positions, slow drift -->
+        <!-- Clouds — hashed positions, slow drift. Opacity lives on the
+             outer <g> (not per-ellipse fill-opacity) so the overlapping
+             puffs composite as one flattened shape instead of re-blending
+             at every overlap — per-ellipse opacity left visible seams where
+             the lobes crossed, reading as separate translucent rings
+             instead of a single cloud. -->
         <g
           v-for="(c, i) in scene.clouds"
           :key="`cloud-${i}`"
           :transform="`translate(${c.x} ${c.y}) scale(${c.scale})`"
+          :opacity="c.opacity"
         >
           <g class="gs-cloud" :style="{ animationDuration: c.duration + 's', animationDelay: '-' + c.delay + 's' }">
-            <ellipse cx="0" cy="0" rx="34" ry="10" fill="#ffffff" :fill-opacity="c.opacity" />
-            <ellipse cx="-20" cy="4" rx="20" ry="7" fill="#ffffff" :fill-opacity="c.opacity" />
-            <ellipse cx="20" cy="4" rx="22" ry="8" fill="#ffffff" :fill-opacity="c.opacity" />
+            <ellipse cx="0" cy="-6" rx="22" ry="14" fill="#ffffff" />
+            <ellipse cx="-25" cy="4" rx="16" ry="10" fill="#ffffff" />
+            <ellipse cx="26" cy="3" rx="17" ry="10" fill="#ffffff" />
+            <ellipse cx="-9" cy="9" rx="14" ry="7" fill="#ffffff" />
+            <ellipse cx="12" cy="10" rx="15" ry="7" fill="#ffffff" />
           </g>
         </g>
 
@@ -123,6 +131,41 @@
         <!-- Rolling background hills — depth behind the planting row -->
         <path :d="hillFarPath" :fill="lightenColor(scene.season.grassTint, 0.25)" opacity="0.8" />
         <path :d="hillNearPath" :fill="darkenColor(scene.season.grassTint, 0.06)" opacity="0.55" />
+
+        <!-- Distant trees — confined to the margins outside the planting
+             band so they read as background depth, never a stand-in for a
+             language's own plant. Season-tinted; bare branches in winter. -->
+        <g v-for="(t, i) in scene.trees" :key="`tree-${i}`" :transform="`translate(${t.x}, ${scene.groundY})`" opacity="0.75">
+          <line x1="0" y1="0" x2="0" :y2="-(t.height * 0.45)" stroke="#6f5c44" :stroke-width="Math.max(1.4, t.canopyR * 0.18)" />
+          <template v-if="t.bare">
+            <line x1="0" :y1="-(t.height * 0.4)" :x2="-(t.canopyR * 0.7)" :y2="-(t.height * 0.75)" stroke="#6f5c44" stroke-width="1" />
+            <line x1="0" :y1="-(t.height * 0.4)" :x2="(t.canopyR * 0.7)" :y2="-(t.height * 0.75)" stroke="#6f5c44" stroke-width="1" />
+            <line x1="0" :y1="-(t.height * 0.55)" x2="0" :y2="-(t.height)" stroke="#6f5c44" stroke-width="1" />
+          </template>
+          <ellipse v-else cx="0" :cy="-(t.height * 0.75)" :rx="t.canopyR" :ry="t.canopyR * 0.85" :fill="t.color" />
+        </g>
+
+        <!-- Fence pickets — a quiet bookend framing the far left/right edges
+             of the planting row, company for the garden sign. Small and
+             knee-high, in line with the grass tufts, with a thin rail
+             connecting each run so it reads as a fence, not free-standing
+             posts. -->
+        <line
+          v-for="(r, i) in fenceRails"
+          :key="`fence-rail-${i}`"
+          :x1="r.x1" :x2="r.x2"
+          :y1="scene.groundY - 5" :y2="scene.groundY - 5"
+          stroke="#8a6a4a"
+          stroke-width="1.1"
+          opacity="0.8"
+        />
+        <path
+          v-for="(f, i) in scene.fence"
+          :key="`fence-${i}`"
+          :d="`M${f.x - 1} ${scene.groundY - 1} L${f.x - 1} ${scene.groundY - 8} L${f.x} ${scene.groundY - 10.5} L${f.x + 1} ${scene.groundY - 8} L${f.x + 1} ${scene.groundY - 1} Z`"
+          fill="#a98a68"
+          opacity="0.85"
+        />
 
         <!-- Ground: grass band with an undulating top edge + darker footer -->
         <rect x="0" :y="scene.groundY" :width="scene.viewBox.w" :height="scene.viewBox.h - scene.groundY" :fill="scene.season.grassTint" />
@@ -180,6 +223,12 @@
             opacity="0.06"
           />
         </g>
+        <!-- Mushrooms beside a stepping stone — autumn only -->
+        <g v-for="(m, i) in scene.mushrooms" :key="`mushroom-${i}`" :transform="`translate(${m.x}, ${scene.groundY + m.y})`">
+          <rect x="-0.7" y="-3" width="1.4" height="3" fill="#e8e2d4" />
+          <ellipse cx="0" cy="-3" :rx="m.r" :ry="m.r * 0.6" fill="#b5563f" />
+          <ellipse cx="0" cy="-3.3" :rx="m.r * 0.45" :ry="0.4" fill="#e8e2d4" opacity="0.6" />
+        </g>
         <!-- Winter frost line -->
         <path
           v-if="scene.season.frost"
@@ -199,6 +248,15 @@
             @hover="onPlantHover(plant, $event)"
             @leave="onPlantLeave"
           />
+        </g>
+
+        <!-- Watering can beside the most-recently-tended plant — the
+             metaphor the whole app runs on, made visible. -->
+        <g v-if="scene.wateringCan" :transform="`translate(${scene.wateringCan.x}, ${scene.groundY})`">
+          <ellipse cx="0" cy="0" rx="7" ry="2.2" fill="#00000018" />
+          <path d="M-6 0 L-6 -8 Q-6 -10 -4 -10 L4 -10 Q6 -10 6 -8 L6 -1 Q6 1 4 1 L-4 1 Q-6 1 -6 0 Z" fill="#7a8a94" stroke="#5c6a72" stroke-width="0.6" />
+          <path d="M6 -8 L11 -11 Q13 -12 12 -10 L8 -5" fill="none" stroke="#5c6a72" stroke-width="1.2" stroke-linecap="round" />
+          <path d="M-2 -10 Q0 -14 2 -10" fill="none" stroke="#5c6a72" stroke-width="1" />
         </g>
 
         <!-- Beds for plants without a bed (if pressed has no matching plant — shouldn't happen) -->
@@ -433,6 +491,17 @@ function tuftPath(t) {
   const gy = scene.value.groundY
   return bladeFan(t.x, gy + t.y, t.len, t.lean)
 }
+
+// One connecting rail per side of the fence, spanning between the
+// outermost pickets in that run.
+const fenceRails = computed(() => {
+  const left = scene.value.fence.filter((f) => f.side === 'left').map((f) => f.x)
+  const right = scene.value.fence.filter((f) => f.side === 'right').map((f) => f.x)
+  const rails = []
+  if (left.length > 1) rails.push({ x1: Math.min(...left), x2: Math.max(...left) })
+  if (right.length > 1) rails.push({ x1: Math.min(...right), x2: Math.max(...right) })
+  return rails
+})
 
 const frostPath = computed(() => {
   const w = scene.value.viewBox.w
