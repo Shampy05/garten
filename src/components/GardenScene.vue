@@ -146,10 +146,10 @@
           :key="`tuft-${i}`"
           :d="tuftPath(t)"
           :stroke="darkenColor(scene.season.grassTint, 0.28)"
-          stroke-width="1.1"
+          stroke-width="1.4"
           stroke-linecap="round"
           fill="none"
-          opacity="0.75"
+          opacity="0.8"
         />
         <!-- Stepping stones — small flat ellipses, one per waypoint.
              The dashed connecting line was removed: the stones alone read
@@ -253,11 +253,28 @@
           </g>
         </g>
 
-        <!-- Foreground fringe — third depth plane. Drawn after the
-             companion so the snail passes behind the blade peaks. -->
-        <path
-          :d="foregroundFringePath"
+        <!-- Foreground fringe — third depth plane. A thin ground-line band
+             plus hashed grass-tuft fans (same 3-blade shape as the ground
+             tufts, just bigger and rooted at the very bottom edge) so the
+             foreground reads as soft grass texture, not solid pillars or
+             stray lines. Drawn after the companion so the snail can
+             wander behind a tuft. -->
+        <rect
+          x="0"
+          :y="scene.viewBox.h - 8"
+          :width="scene.viewBox.w"
+          height="8"
           :fill="darkenColor(scene.season.grassTint, 0.25)"
+        />
+        <path
+          v-for="(b, i) in scene.foregroundBlades"
+          :key="`fringe-${i}`"
+          :d="fringeBladePath(b)"
+          :stroke="darkenColor(scene.season.grassTint, 0.32)"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          fill="none"
+          opacity="0.85"
         />
 
         <!-- Fireflies (night + streak>=3) -->
@@ -392,66 +409,29 @@ const hillNearPath = computed(() => {
   return `M0 ${gy} C ${w * 0.2} ${gy - 12} ${w * 0.42} ${gy - 26} ${w * 0.66} ${gy - 10} S ${w * 0.88} ${gy - 20} ${w} ${gy - 14} L ${w} ${gy} Z`
 })
 
-// Foreground fringe — the third depth plane. A thin dark grass line
-// at the very bottom, with six taller blade+seed-head peaks rising
-// 55-65 units up into the planting row. Drawn AFTER the plants and
-// companion in document order so the critter passes behind them.
-//
-// The main body is just a 10-unit-tall band at the bottom (h-10 to h)
-// — a ground line, not a solid block. Plant labels sit at gy+20 (below
-// the plant feet), so a tall main body would cover them; this design
-// leaves the label area clear. The peaks are the dominant feature.
-//
-// Each peak is three cubic curves: stem-up, seed-head bulge, stem-down.
-// Control points at the joints are collinear with the shared endpoint
-// (e.g. the stem-up ends with its last control directly below the tip,
-// and the seed-head starts with its first control directly above it) so
-// the tangent is continuous — no kink at the seed-head. Authored
-// control points so the foreground reads as the stage, not as another
-// hashed actor.
-const foregroundFringePath = computed(() => {
-  const w = scene.value.viewBox.w
-  const gy = scene.value.groundY
-  const h = scene.value.viewBox.h
-  return `M 0 ${h}
-          L 0 ${h - 10}
-          Q 80 ${h - 12} 154 ${h - 10}
-          C 157 ${h - 30} 159 260 159 ${gy - 12}
-          C 159 ${gy - 16} 164 ${gy - 16} 164 ${gy - 12}
-          C 164 260 165 ${h - 30} 166 ${h - 10}
-          Q 240 ${h - 8} 334 ${h - 10}
-          C 337 ${h - 30} 339 258 339 ${gy - 15}
-          C 339 ${gy - 19} 344 ${gy - 19} 344 ${gy - 15}
-          C 344 257 345 ${h - 30} 346 ${h - 10}
-          Q 420 ${h - 12} 514 ${h - 10}
-          C 517 ${h - 30} 519 262 519 ${gy - 10}
-          C 519 ${gy - 14} 524 ${gy - 14} 524 ${gy - 10}
-          C 524 262 525 ${h - 30} 526 ${h - 10}
-          Q 600 ${h - 8} 694 ${h - 10}
-          C 697 ${h - 30} 699 260 699 ${gy - 13}
-          C 699 ${gy - 17} 704 ${gy - 17} 704 ${gy - 13}
-          C 704 260 705 ${h - 30} 706 ${h - 10}
-          Q 780 ${h - 12} 874 ${h - 10}
-          C 877 ${h - 30} 879 264 879 ${gy - 9}
-          C 879 ${gy - 13} 884 ${gy - 13} 884 ${gy - 9}
-          C 884 264 885 ${h - 30} 886 ${h - 10}
-          Q 960 ${h - 8} 1054 ${h - 10}
-          C 1057 ${h - 30} 1059 259 1059 ${gy - 14}
-          C 1059 ${gy - 18} 1064 ${gy - 18} 1064 ${gy - 14}
-          C 1064 259 1065 ${h - 30} 1066 ${h - 10}
-          Q 1140 ${h - 12} 1200 ${h - 10}
-          L 1200 ${h}
-          Z`
-})
+// A tuft = three blades fanning from one root: a tall center blade plus two
+// shorter side blades angled outward. A single stroke reads as a bare
+// stick and a pair still reads thin; three fanned blades is what actually
+// reads as a small clump of grass.
+function bladeFan(x, y, len, lean) {
+  const spread = 5 + Math.abs(lean)
+  const lSide = len * 0.7
+  return `M${x - 2} ${y} q ${(lean - spread) * 0.6} ${-lSide * 0.7} ${lean - spread} ${-lSide}` +
+    ` M${x} ${y} q ${lean * 0.6} ${-len * 0.7} ${lean} ${-len}` +
+    ` M${x + 2} ${y} q ${(lean + spread) * 0.6} ${-lSide * 0.7} ${lean + spread} ${-lSide}`
+}
 
-// One tuft = two short leaning blades rooted in the grass band.
+// Foreground fringe tuft — the same fan shape as tuftPath, just rooted
+// near the very bottom edge instead of the ground band.
+function fringeBladePath(b) {
+  const h = scene.value.viewBox.h
+  return bladeFan(b.x, h - 6, b.len, b.lean)
+}
+
+// One ground tuft = a blade fan rooted in the grass band.
 function tuftPath(t) {
   const gy = scene.value.groundY
-  const x = t.x
-  const y = gy + t.y
-  const l = t.len
-  const lean = t.lean
-  return `M${x} ${y} q ${lean} ${-l * 0.7} ${lean * 1.6} ${-l} M${x + 2.5} ${y} q ${-lean * 0.5} ${-l * 0.6} ${-lean * 1.2} ${-l * 0.85}`
+  return bladeFan(t.x, gy + t.y, t.len, t.lean)
 }
 
 const frostPath = computed(() => {

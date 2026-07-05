@@ -131,39 +131,62 @@ const budCenter = computed(() => {
 
 function speciesBud() { return true }
 
-// The species-bound "seedling" silhouette — a tiny hint of the species to
-// come. Each renders a different shape so a row of fresh plantings doesn't
-// look like the same icon repeated. Drawn at the stem base.
+// The "seedling" silhouette — a row of freshly-planted 0-hour languages
+// previously all drew the same tiny sprig in a shared season green, so they
+// read as identical empty mounds rather than distinct plantings-to-be.
+// Keyed on p.seedVariant (hashed, independent of species) instead: three
+// cosmetics, one of which puts the language's own colour on the mound
+// itself so a 0-hour language has an identity before its first sprout.
 const seedlingSilhouette = computed(() => {
   const p = props.plant
   const x = props.plant.x
   const gy = props.groundY
   return () => {
     const leafSide = p.jitter.leafSide
-    switch (p.species) {
-      case 0: // flower — two cotyledons
+    switch (p.seedVariant) {
+      case 0: { // a marker stick flagged with a small pennant — a flag
+        // shape (not a round tag), so it doesn't read as a ball on a stick
+        // at this small scale.
+        const topX = x + 3 * leafSide
+        const topY = gy - 10
         return h('g', null, [
-          h('line', { x1: x, y1: gy, x2: x, y2: gy - 6, stroke: p.colors.stem, 'stroke-width': 1.4, 'stroke-linecap': 'round' }),
-          h('ellipse', { cx: x + 2.6, cy: gy - 5.5, rx: 3, ry: 1.6, transform: `rotate(${-32 * leafSide} ${x + 2.6} ${gy - 5.5})`, fill: p.colors.leaf }),
-          h('ellipse', { cx: x - 2.6, cy: gy - 5.5, rx: 3, ry: 1.6, transform: `rotate(${32 * leafSide} ${x - 2.6} ${gy - 5.5})`, fill: p.colors.leaf }),
+          h('line', { x1: x + 2 * leafSide, y1: gy + 1, x2: topX, y2: topY, stroke: '#a98a68', 'stroke-width': 1.3, 'stroke-linecap': 'round' }),
+          h('path', {
+            d: `M${topX} ${topY - 1.5} L${topX + 6 * leafSide} ${topY} L${topX} ${topY + 2.5} Z`,
+            fill: p.color, stroke: darkenHex(p.color, 0.25), 'stroke-width': 0.5,
+          }),
         ])
-      case 1: // bush — low mound with a single nub
+      }
+      case 1: { // a seed embedded in a soil crack. An earlier version drew a
+        // soil-toned "flap" meant to cover just the seed's top half, but it
+        // was wider and taller than the seed itself, so it eclipsed the
+        // whole thing and read as a separate disc floating above the mound
+        // (a hat/UFO shape) instead of a seed peeking through a gap. Simpler
+        // and correct: the seed alone, small enough to sit low in the
+        // mound's own silhouette, with a crack line above it for context.
         return h('g', null, [
-          h('ellipse', { cx: x, cy: gy - 1.5, rx: 6, ry: 1.8, fill: p.colors.leaf }),
-          h('ellipse', { cx: x + 2 * leafSide, cy: gy - 4, rx: 2.4, ry: 1.4, transform: `rotate(${-20 * leafSide} ${x + 2 * leafSide} ${gy - 4})`, fill: p.colors.leafHi }),
+          h('path', { d: `M${x - 4} ${gy - 1} q 4 -1.6 8 0`, stroke: '#00000030', 'stroke-width': 0.8, fill: 'none' }),
+          h('ellipse', { cx: x, cy: gy - 0.2, rx: 1.8, ry: 2.2, fill: p.color }),
+          h('ellipse', { cx: x, cy: gy - 0.2, rx: 1.8, ry: 2.2, fill: 'none', stroke: darkenHex(p.color, 0.3), 'stroke-width': 0.4 }),
         ])
-      case 2: // bell — a hooked sprout
+      }
+      default: { // first roots — a forked hair below the surface plus a
+        // barely-emerged shoot tipped in the language colour. Replaces an
+        // earlier "wider mound" ellipse that was drawn on top of the
+        // shared base mound at a bigger radius and the same pale tone, so
+        // it just flattened the mound into one oversized flat disc
+        // instead of reading as bigger.
+        const tipX = x + 2.5 * leafSide
+        const tipY = gy - 5
         return h('g', null, [
-          h('path', { d: `M${x} ${gy} q ${3 * leafSide} -3 ${5 * leafSide} -2`, fill: 'none', stroke: p.colors.stem, 'stroke-width': 1.4, 'stroke-linecap': 'round' }),
-          h('ellipse', { cx: x + 5 * leafSide, cy: gy - 3, rx: 1.6, ry: 1, transform: `rotate(${-25 * leafSide} ${x + 5 * leafSide} ${gy - 3})`, fill: p.colors.leaf }),
+          h('path', { d: `M${x - 3} ${gy + 0.5} q 3 -1.3 6 0`, stroke: '#00000025', 'stroke-width': 0.7, fill: 'none' }),
+          h('path', { d: `M${x} ${gy + 1} q -3 2 -4 4.5`, stroke: '#c9bfa8', 'stroke-width': 0.8, fill: 'none', 'stroke-linecap': 'round' }),
+          h('path', { d: `M${x} ${gy + 1} q 3 2 4 4.5`, stroke: '#c9bfa8', 'stroke-width': 0.8, fill: 'none', 'stroke-linecap': 'round' }),
+          h('path', { d: `M${x} ${gy} q ${1.5 * leafSide} -3 ${tipX - x} ${tipY - gy}`, stroke: p.colors.stem, 'stroke-width': 1.1, fill: 'none', 'stroke-linecap': 'round' }),
+          h('circle', { cx: tipX, cy: tipY, r: 1.3, fill: p.color }),
         ])
-      case 3: // spike — two narrow grass blades
-        return h('g', null, [
-          h('ellipse', { cx: x - 1.4, cy: gy - 3, rx: 0.6, ry: 4, transform: `rotate(${-12 * leafSide} ${x - 1.4} ${gy - 3})`, fill: p.colors.leaf }),
-          h('ellipse', { cx: x + 1.4, cy: gy - 3, rx: 0.6, ry: 4, transform: `rotate(${12 * leafSide} ${x + 1.4} ${gy - 3})`, fill: p.colors.leafHi }),
-        ])
+      }
     }
-    return null
   }
 })
 

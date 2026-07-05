@@ -278,6 +278,7 @@ export function buildGardenScene({
   const celestial = celestialFor(hour)
   const clouds = buildClouds(skyRaw.band)
   const tufts = buildTufts()
+  const foregroundBlades = buildForegroundBlades()
 
   // ---- streak glow ----
   const fireflies = (streak >= 3 && skyRaw.band === 'night')
@@ -306,23 +307,42 @@ export function buildGardenScene({
     celestial,
     clouds,
     tufts,
+    foregroundBlades,
   }
 }
 
 // -- internal helpers ---------------------------------------------------------
 
+// Even-slot scatter helper — guards every hashed-per-index element below
+// (tufts, fringe, clouds, particles) against hashSeed's weak diffusion for
+// keys sharing a long prefix that differ only in a trailing digit (e.g.
+// 'tuft-0' vs 'tuft-1' hash to within ~1 of each other). Position comes
+// from the slot index — always spread — and the hash only supplies a
+// bounded in-slot jitter, so the result can't collapse into a cluster
+// regardless of how poorly the hash disperses for a given key family.
+// `i * salt` is mixed into every hash-derived field below it too (size,
+// lean, delay...), for the same reason: shifted/masked hash bits alone
+// repeat when the source hashes are this close together.
+function slottedX(i, count, startX, span, h, jitterFrac = 0.4) {
+  const slot = span / count
+  const jitterMag = slot * jitterFrac
+  const jitter = ((h % 1000) / 1000) * 2 * jitterMag - jitterMag
+  return Math.round(startX + slot * (i + 0.5) + jitter)
+}
+
 function buildParticles(seasonName) {
   if (seasonName !== 'spring' && seasonName !== 'autumn') return []
   const kind = seasonName === 'spring' ? 'blossom' : 'leaf'
   const n = 5 + (hashSeed('particles-' + seasonName) % 4) // 5..8
+  const span = 1140
   return Array.from({ length: n }, (_, i) => {
     const h = hashSeed('drift-' + seasonName + '-' + i)
     return {
-      x: 30 + (h % 1140),
-      y: 20 + ((h >>> 6) % 80),
-      delay: ((h >>> 14) % 6000) / 1000,
-      duration: 9 + ((h >>> 20) % 6), // 9..14s
-      size: 2 + ((h >>> 4) % 3), // 2..4
+      x: slottedX(i, n, 30, span, h, 0.5),
+      y: 20 + (((h >>> 6) + i * 17) % 80),
+      delay: (((h >>> 14) + i * 733) % 6000) / 1000,
+      duration: 9 + (((h >>> 20) + i * 3) % 6), // 9..14s
+      size: 2 + (((h >>> 4) + i * 2) % 3), // 2..4
       kind,
     }
   })
@@ -332,29 +352,54 @@ function buildParticles(seasonName) {
 // wispy (scale 0.5) to billowy (1.4) so the sky feels layered. Deterministic
 // given the sky band (opacity drops at night so they read as dim shapes).
 function buildClouds(band) {
-  return Array.from({ length: 5 }, (_, i) => {
+  const count = 5
+  const span = 920
+  return Array.from({ length: count }, (_, i) => {
     const h = hashSeed('cloud-' + i)
     return {
-      x: 40 + (h % 920),
-      y: 28 + ((h >>> 7) % 100), // 28..128 — more vertical spread
-      scale: 0.5 + ((h >>> 13) % 8) * 0.125, // 0.5..1.375
-      duration: 70 + ((h >>> 17) % 80), // 70..149s
-      delay: (h >>> 9) % 40,
+      x: slottedX(i, count, 40, span, h, 0.5),
+      y: 28 + (((h >>> 7) + i * 23) % 100), // 28..128 — more vertical spread
+      scale: 0.5 + (((h >>> 13) + i * 3) % 8) * 0.125, // 0.5..1.375
+      duration: 70 + (((h >>> 17) + i * 11) % 80), // 70..149s
+      delay: ((h >>> 9) + i * 7) % 40,
       opacity: band === 'night' ? 0.1 : 0.5,
     }
   })
 }
 
 // Grass tufts scattered across the ground band so it reads as a garden bed,
-// not a flat colour strip. Positions/lean hashed, never random.
+// not a flat colour strip. Each tuft is a 3-blade fan (see fringeBladePath
+// in GardenScene.vue) — bigger and fuller than the original 2-blade hairline,
+// which read as sparse specks rather than grass.
 function buildTufts() {
-  return Array.from({ length: 16 }, (_, i) => {
+  const count = 20
+  const span = 1152
+  return Array.from({ length: count }, (_, i) => {
     const h = hashSeed('tuft-' + i)
     return {
-      x: 24 + (h % 1152),
-      y: 8 + ((h >>> 8) % 24), // offset below groundY
-      len: 6 + ((h >>> 5) % 5), // 6..10
-      lean: ((h >>> 12) % 7) - 3, // -3..3
+      x: slottedX(i, count, 24, span, h),
+      y: 6 + (((h >>> 8) + i * 13) % 22), // offset below groundY
+      len: 8 + (((h >>> 5) + i * 5) % 8), // 8..15
+      lean: (((h >>> 12) + i * 5) % 9) - 4, // -4..4
+    }
+  })
+}
+
+// Foreground fringe — small grass-tuft fans rooted near the very bottom
+// edge, the same 3-blade shape buildTufts uses for the ground texture, just
+// larger for the "closer to the viewer" foreground plane. Two earlier
+// attempts overshot this: filled bulge peaks reached far enough to blot
+// out plant labels, and single thin strokes read as bare sticks rather
+// than grass.
+function buildForegroundBlades() {
+  const count = 12
+  const span = 1120
+  return Array.from({ length: count }, (_, i) => {
+    const h = hashSeed('fringe-blade-' + i)
+    return {
+      x: slottedX(i, count, 40, span, h),
+      len: 14 + (((h >>> 6) + i * 7) % 14), // 14..27
+      lean: (((h >>> 13) + i * 5) % 9) - 4, // -4..4
     }
   })
 }
@@ -454,6 +499,12 @@ function buildPlant(lang, { hours, recentHours, lastWatered, todayStr, baseX, in
   const stage = growthStage(hours)
   const h = hashSeed(lang.id)
   const species = h % 4
+  // Which seedling-stage cosmetic (see GardenPlant.vue's seedlingSilhouette):
+  // a seed-packet marker on a stick, a seed peeking through the soil in the
+  // language's own colour, or a wider mound with a first root-tip. A row of
+  // 0-hour languages previously all rendered the same near-invisible sprig
+  // in a shared season green — no language identity until first sprout.
+  const seedVariant = (h >>> 17) % 3
   // Plants are perfectly vertical. Per-species tilt was a nice idea but it
   // made one language id out of many read as "broken" or "fallen over";
   // removing it is calmer and the silhouette already varies plenty.
@@ -523,6 +574,7 @@ function buildPlant(lang, { hours, recentHours, lastWatered, todayStr, baseX, in
     x,
     yJitter,
     species,
+    seedVariant,
     stage,
     hours: Math.round(hours * 100) / 100,
     recentHours: Math.round(recentHours * 100) / 100,
