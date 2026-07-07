@@ -104,6 +104,25 @@ describe('normalizeDefinitions', () => {
     const out = normalizeDefinitions({ L: [{ definitions: ['just a string'] }] })
     expect(out[0].definition).toBe('just a string')
   })
+
+  it('strips mw:WikiLink HTML that the REST endpoint embeds in JSON definitions', () => {
+    // Wiktionary's REST endpoint returns pre-rendered HTML inside the
+    // `definition` string for entries like 'Umgang' — that's the parser
+    // rendering [[dealings]] as <a> markup. We strip it so the user sees
+    // clean prose.
+    const json = {
+      German: [
+        {
+          partOfSpeech: 'Noun',
+          definitions: [
+            { definition: '<a rel="mw:WikiLink" href="/wiki/dealings" title="dealings">dealings</a>, (social) <a rel="mw:WikiLink" href="/wiki/intercourse" title="intercourse">intercourse</a>' },
+          ],
+        },
+      ],
+    }
+    const out = normalizeDefinitions(json)
+    expect(out[0].definition).toBe('dealings , (social) intercourse')
+  })
 })
 
 describe('firstDefinition / allDefinitions', () => {
@@ -229,6 +248,35 @@ describe('lookupWord', () => {
       'to go',
     ])
     expect(out.error).toBeNull()
+  })
+
+  it('strips embedded mw:WikiLink HTML from REST definitions end-to-end', async () => {
+    // Regression for the Umgang bug — the REST JSON's definition field
+    // contains rendered HTML anchors; the user must never see those.
+    const json = {
+      German: [
+        {
+          partOfSpeech: 'Noun',
+          definitions: [
+            { definition: '<a rel="mw:WikiLink" href="/wiki/dealings" title="dealings">dealings</a>, (social) <a rel="mw:WikiLink" href="/wiki/intercourse" title="intercourse">intercourse</a>' },
+            { definition: '<a rel="mw:WikiLink" href="/wiki/acquaintance" title="acquaintance">acquaintances</a>' },
+          ],
+        },
+      ],
+    }
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      headers: { get: (k) => (k.toLowerCase() === 'content-type' ? 'application/json' : null) },
+      json: async () => json,
+      text: async () => JSON.stringify(json),
+    })
+    const out = await lookupWord('Umgang', { languageCode: 'de', fetch: globalThis.fetch })
+    expect(out.ok).toBe(true)
+    expect(out.definitions).toEqual([
+      'dealings , (social) intercourse',
+      'acquaintances',
+    ])
   })
 
   it('falls back to the action API when REST returns 404', async () => {

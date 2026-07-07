@@ -110,6 +110,12 @@ export function actionApiUrl(term, languageCode = null) {
 //   { <langName>: [ { partOfSpeech, definitions: [{definition, ...}] } ] }
 // where <langName> is "German", "French", etc. — one key per language the
 // entry belongs to.
+//
+// The REST endpoint's `definition` strings sometimes contain pre-rendered
+// HTML (`<a rel="mw:WikiLink" ...>dealings</a>`) — that's the parser
+// rendering [[link|display]] as `<a>` markup. We strip the HTML so the
+// caller gets clean prose; the markup adds no information a learner
+// wants to see.
 export function normalizeDefinitions(json) {
   if (!json || typeof json !== 'object') return []
   const out = []
@@ -120,8 +126,10 @@ export function normalizeDefinitions(json) {
       const defs = Array.isArray(sense?.definitions) ? sense.definitions : []
       for (const d of defs) {
         const text = typeof d === 'string' ? d : d?.definition
-        if (typeof text === 'string' && text.trim()) {
-          out.push({ language, partOfSpeech: pos, definition: text.trim() })
+        if (typeof text !== 'string') continue
+        const cleaned = stripWikiMarkup(text)
+        if (cleaned) {
+          out.push({ language, partOfSpeech: pos, definition: cleaned })
         }
       }
     }
