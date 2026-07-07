@@ -329,12 +329,12 @@ function openMineWords(book) {
   showMineModal.value = true
 }
 function onMinePlanted({ book, count }) {
+  // The modal owns the success/error toasts (it knows the per-token counts
+  // and any DB error message). This handler is here for any parent-side
+  // bookkeeping we may add later (e.g. analytics) and intentionally does
+  // not toast to avoid the duplicate-notification issue.
   if (!count) return
-  toast.show(
-    `Planted ${count} ${count === 1 ? 'word' : 'words'} from “${book?.title || ''}”.`,
-    'success',
-    4000,
-  )
+  void book
 }
 
 // Remove flow (FR11)

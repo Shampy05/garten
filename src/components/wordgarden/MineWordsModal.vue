@@ -7,8 +7,9 @@
           <!-- Header -->
           <div class="flex items-center justify-between pb-3 border-b border-line">
             <h2 class="gp-title text-base text-stone-900 inline-flex items-center gap-2">
-              <Sparkles :size="16" class="text-garden-600" />
-              Mine words
+              <Sparkles v-if="!defineStep" :size="16" class="text-garden-600" />
+              <BookMarked v-else :size="16" class="text-garden-600" />
+              {{ defineStep ? 'Add meanings' : 'Mine words' }}
             </h2>
             <button
               @click="$emit('close')"
@@ -29,91 +30,148 @@
             </span>
           </div>
 
-          <!-- Language-not-tracked notice -->
-          <p v-if="!targetLanguageId" class="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-            <span class="font-medium">{{ languageCodeLabel }}</span> isn't in your garden yet — add it as a tracked language first to plant words here.
-          </p>
+          <!-- ─── Step 1: Pick words from the passage ──────────────────────── -->
+          <template v-if="!defineStep">
+            <!-- Language-not-tracked notice -->
+            <p v-if="!targetLanguageId" class="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+              <span class="font-medium">{{ languageCodeLabel }}</span> isn't in your garden yet — add it as a tracked language first to plant words here.
+            </p>
 
-          <!-- Passage input — prefilled with the book's description; the user
-               can also paste their own paragraph from the page they just read. -->
-          <div v-else class="mt-3">
-            <label class="block text-xs font-medium text-stone-500 mb-1">Passage</label>
-            <textarea
-              v-model="passage"
-              class="gp-input min-h-[120px] resize-y font-mono text-sm leading-relaxed"
-              placeholder="Paste a paragraph from the page you just read — or edit the book's description below."
-            ></textarea>
-            <p class="text-[11px] text-stone-400 mt-1">Candidates appear as you type. Select what's worth growing.</p>
-          </div>
+            <!-- Passage input — prefilled with the book's description; the user
+                 can also paste their own paragraph from the page they just read. -->
+            <div v-else class="mt-3">
+              <label class="block text-xs font-medium text-stone-500 mb-1">Passage</label>
+              <textarea
+                v-model="passage"
+                class="gp-input min-h-[120px] resize-y font-mono text-sm leading-relaxed"
+                placeholder="Paste a paragraph from the page you just read — or edit the book's description below."
+              ></textarea>
+              <p class="text-[11px] text-stone-400 mt-1">Candidates appear as you type. Select what's worth growing.</p>
+            </div>
 
-          <!-- Candidates -->
-          <div v-if="targetLanguageId && passage.trim()" class="mt-4 space-y-3">
-            <div v-if="candidates.length || skipped.planted.length">
-              <div v-if="candidates.length" class="text-[10px] font-semibold text-stone-500 uppercase tracking-wider mb-1.5">
-                {{ candidates.length }} new {{ candidates.length === 1 ? 'candidate' : 'candidates' }}
-              </div>
-              <div class="flex flex-wrap gap-1.5">
+            <!-- Candidates -->
+            <div v-if="targetLanguageId && passage.trim()" class="mt-4 space-y-3">
+              <div v-if="candidates.length || skipped.planted.length">
+                <div v-if="candidates.length" class="text-[10px] font-semibold text-stone-500 uppercase tracking-wider mb-1.5">
+                  {{ candidates.length }} new {{ candidates.length === 1 ? 'candidate' : 'candidates' }}
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                  <button
+                    v-for="tok in candidates"
+                    :key="tok"
+                    type="button"
+                    @click="toggle(tok)"
+                    class="px-2.5 py-1 rounded-full text-xs font-medium transition-all inline-flex items-center gap-1"
+                    :class="selected.has(tok)
+                      ? 'bg-garden-600 text-white shadow-pill'
+                      : 'bg-white border border-line text-stone-700 hover:border-garden-200 hover:bg-garden-50'"
+                  >
+                    <Check v-if="selected.has(tok)" :size="11" />
+                    {{ tok }}
+                  </button>
+                </div>
+
                 <button
-                  v-for="tok in candidates"
-                  :key="tok"
                   type="button"
-                  @click="toggle(tok)"
-                  class="px-2.5 py-1 rounded-full text-xs font-medium transition-all inline-flex items-center gap-1"
-                  :class="selected.has(tok)
-                    ? 'bg-garden-600 text-white shadow-pill'
-                    : 'bg-white border border-line text-stone-700 hover:border-garden-200 hover:bg-garden-50'"
+                  @click="selectAll"
+                  class="mt-2 text-[11px] text-stone-400 hover:text-stone-600 transition-colors"
                 >
-                  <Check v-if="selected.has(tok)" :size="11" />
-                  {{ tok }}
+                  {{ selected.size === candidates.length ? 'Clear all' : `Select all (${candidates.length})` }}
                 </button>
               </div>
 
+              <div v-else class="text-sm text-stone-500 italic px-1">
+                No new words found — paste a longer passage or one with less common vocabulary.
+              </div>
+
+              <div v-if="skipped.planted.length" class="pt-2 border-t border-line">
+                <div class="text-[10px] font-semibold text-stone-500 uppercase tracking-wider mb-1.5">
+                  Already planted · {{ skipped.planted.length }}
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                  <span
+                    v-for="tok in skipped.planted"
+                    :key="`p-${tok}`"
+                    class="px-2.5 py-1 rounded-full text-xs font-medium bg-stone-100 text-stone-400 inline-flex items-center gap-1"
+                  >
+                    <Check :size="11" />
+                    {{ tok }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step-1 footer -->
+            <div class="flex items-center gap-2 pt-4 mt-4 border-t border-line">
+              <span class="text-xs text-stone-400 flex-1">
+                <span v-if="selected.size">{{ selected.size }} selected</span>
+                <span v-else>Tap chips to select.</span>
+              </span>
+              <button @click="$emit('close')" class="gp-btn-ghost px-4 py-2 text-sm">Done</button>
               <button
-                type="button"
-                @click="selectAll"
-                class="mt-2 text-[11px] text-stone-400 hover:text-stone-600 transition-colors"
+                @click="plantSelected"
+                :disabled="!selected.size || !targetLanguageId || planting"
+                class="gp-btn-primary px-5 py-2 text-sm inline-flex items-center gap-1.5"
               >
-                {{ selected.size === candidates.length ? 'Clear all' : `Select all (${candidates.length})` }}
+                <Sprout :size="14" />
+                Plant {{ selected.size || '' }}
               </button>
             </div>
+          </template>
 
-            <div v-else class="text-sm text-stone-500 italic px-1">
-              No new words found — paste a longer passage or one with less common vocabulary.
-            </div>
+          <!-- ─── Step 2: Define meanings (right away) ─────────────────────── -->
+          <template v-else>
+            <p class="mt-3 text-xs text-stone-500">
+              <span class="font-medium text-stone-700">{{ plantedTerms.length }} new {{ plantedTerms.length === 1 ? 'word' : 'words' }}</span> planted.
+              Add meanings now so they're ready for the watering round —
+              skip and you can fill them in from the Word Garden later.
+            </p>
 
-            <div v-if="skipped.planted.length" class="pt-2 border-t border-line">
-              <div class="text-[10px] font-semibold text-stone-500 uppercase tracking-wider mb-1.5">
-                Already planted · {{ skipped.planted.length }}
-              </div>
-              <div class="flex flex-wrap gap-1.5">
-                <span
-                  v-for="tok in skipped.planted"
-                  :key="`p-${tok}`"
-                  class="px-2.5 py-1 rounded-full text-xs font-medium bg-stone-100 text-stone-400 inline-flex items-center gap-1"
-                >
-                  <Check :size="11" />
-                  {{ tok }}
+            <div class="mt-3 space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+              <div
+                v-for="row in plantedTerms"
+                :key="row.id"
+                class="flex items-center gap-2"
+              >
+                <span class="flex-1 min-w-0 text-sm font-medium text-stone-800 truncate" :title="row.term">
+                  {{ row.term }}
                 </span>
+                <input
+                  v-model="row.meaning"
+                  type="text"
+                  class="gp-input flex-1 min-w-0 text-sm"
+                  placeholder="meaning"
+                  @keydown.enter.prevent="saveMeanings"
+                />
               </div>
             </div>
-          </div>
 
-          <!-- Footer -->
-          <div class="flex items-center gap-2 pt-4 mt-4 border-t border-line">
-            <span class="text-xs text-stone-400 flex-1">
-              <span v-if="selected.size">{{ selected.size }} selected · meaning filled in later</span>
-              <span v-else>Tap chips to select.</span>
-            </span>
-            <button @click="$emit('close')" class="gp-btn-ghost px-4 py-2 text-sm">Done</button>
-            <button
-              @click="plantSelected"
-              :disabled="!selected.size || !targetLanguageId || planting"
-              class="gp-btn-primary px-5 py-2 text-sm inline-flex items-center gap-1.5"
-            >
-              <Sprout :size="14" />
-              Plant {{ selected.size || '' }}
-            </button>
-          </div>
+            <p v-if="filledCount > 0" class="text-[11px] text-stone-400 mt-2">
+              {{ filledCount }} of {{ plantedTerms.length }} ready to save.
+            </p>
+
+            <div class="flex items-center gap-2 pt-4 mt-4 border-t border-line">
+              <span class="text-xs text-stone-400 flex-1">
+                <span v-if="saving">Saving…</span>
+                <span v-else>Fill what you know — leave the rest blank.</span>
+              </span>
+              <button
+                @click="skipMeanings"
+                :disabled="saving"
+                class="gp-btn-ghost px-4 py-2 text-sm"
+              >
+                Skip
+              </button>
+              <button
+                @click="saveMeanings"
+                :disabled="saving || !filledCount"
+                class="gp-btn-primary px-5 py-2 text-sm inline-flex items-center gap-1.5"
+              >
+                <Save :size="14" />
+                Save {{ filledCount || '' }}
+              </button>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -122,7 +180,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { X, Sprout, Sparkles, Check } from 'lucide-vue-next'
+import { X, Sprout, Sparkles, Check, BookMarked, Save } from 'lucide-vue-next'
 import { useVocab } from '../../composables/useVocab.js'
 import { useToast } from '../../composables/useToast.js'
 import { useAuth } from '../../composables/useAuth.js'
@@ -147,6 +205,12 @@ const { userId } = useAuth()
 const passage = ref('')
 const selected = ref(new Set())
 const planting = ref(false)
+// Step 2 state — populated when the previous plant succeeded. Each row is
+// { id, term, meaning }; meanings default to empty (the word was planted
+// with no meaning) and the user fills what they know.
+const defineStep = ref(false)
+const plantedTerms = ref([])
+const saving = ref(false)
 
 // Resolve the book's language code to the matching tracked language id and
 // metadata. A book saved while a language was tracked keeps its `languageCode`
@@ -171,7 +235,7 @@ const languageCodeLabel = computed(() => (props.book?.languageCode ? nameForCode
 // of words the gardener already tends (cross-language dupes show as new,
 // which is correct: planting "chat" in French AND English is genuinely two
 // different words).
-const plantedTerms = computed(() => {
+const plantedTermsLower = computed(() => {
   const id = targetLanguageId.value
   if (!id) return []
   return vocab.words.value
@@ -181,13 +245,15 @@ const plantedTerms = computed(() => {
 
 const mined = computed(() =>
   mineCandidates(passage.value, {
-    plantedTerms: plantedTerms.value,
+    plantedTerms: plantedTermsLower.value,
     languageCode: props.book?.languageCode || null,
   })
 )
 
 const candidates = computed(() => mined.value.candidates)
 const skipped = computed(() => mined.value.skipped)
+
+const filledCount = computed(() => plantedTerms.value.filter((r) => r.meaning.trim()).length)
 
 // Prefill the textarea from the book's description each time the modal opens.
 watch(
@@ -196,6 +262,8 @@ watch(
     if (vis) {
       passage.value = props.book?.description || ''
       selected.value = new Set()
+      defineStep.value = false
+      plantedTerms.value = []
     }
   },
   { immediate: true }
@@ -224,6 +292,7 @@ async function plantSelected() {
   let successCount = 0
   let duplicateCount = 0
   let firstError = null
+  const justPlanted = []
   for (const tok of toPlant) {
     const result = await vocab.addWord({
       term: tok,
@@ -231,9 +300,14 @@ async function plantSelected() {
       languageId: targetLanguageId.value,
       sourceBookId: book?.id || null,
     })
-    if (result?.word) successCount += 1
-    else if (result?.duplicate) duplicateCount += 1
-    else if (result?.error && !firstError) firstError = result.error
+    if (result?.word) {
+      successCount += 1
+      justPlanted.push({ id: result.word.id, term: result.word.term, meaning: '' })
+    } else if (result?.duplicate) {
+      duplicateCount += 1
+    } else if (result?.error && !firstError) {
+      firstError = result.error
+    }
   }
   // Emit a celebration event so friends see "<you> planted N new words from
   // <title>" in the Garden Circle feed — one signal per batch, never one per
@@ -257,7 +331,8 @@ async function plantSelected() {
   // Three distinct terminal states: nothing planted (every insert failed —
   // usually a missing migration; lead with the real DB error so the user
   // can see the cause instead of a generic "0 words"); some planted
-  // (success toast); only duplicates (gentle note).
+  // (success toast, then offer to define meanings right now); only
+  // duplicates (gentle note).
   if (successCount === 0 && duplicateCount === 0 && firstError) {
     toast.error(`Couldn't plant any words — ${firstError}`, 7000)
   } else if (successCount === 0 && duplicateCount > 0) {
@@ -269,9 +344,40 @@ async function plantSelected() {
       4000,
     )
   }
-  // Clear selection so the batch is gone — already-planted chips now appear
-  // below in the muted list and the new-candidate list reflows.
+
+  // Clear the pick list. If anything planted, transition to the
+  // "define meanings now" step so the user can fill the new rows in
+  // place rather than coming back later.
   selected.value = new Set()
   planting.value = false
+  if (justPlanted.length) {
+    plantedTerms.value = justPlanted
+    defineStep.value = true
+  }
+}
+
+async function saveMeanings() {
+  if (saving.value) return
+  const rows = plantedTerms.value.filter((r) => r.meaning.trim())
+  if (!rows.length) {
+    skipMeanings()
+    return
+  }
+  saving.value = true
+  for (const row of rows) {
+    await vocab.updateWord(row.id, { meaning: row.meaning.trim() })
+  }
+  saving.value = false
+  const n = rows.length
+  toast.show(
+    `Saved ${n} ${n === 1 ? 'meaning' : 'meanings'}.`,
+    'success',
+    3000,
+  )
+  emit('close')
+}
+
+function skipMeanings() {
+  emit('close')
 }
 </script>
