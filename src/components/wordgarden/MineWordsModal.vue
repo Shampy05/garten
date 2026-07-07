@@ -133,7 +133,7 @@
                 :key="row.id"
                 class="flex items-center gap-2"
               >
-                <span class="flex-1 min-w-0 text-sm font-medium text-stone-800 truncate" :title="row.term">
+                <span class="flex-shrink-0 min-w-[6rem] max-w-[8rem] text-sm font-medium text-stone-800 truncate" :title="row.term">
                   {{ row.term }}
                 </span>
                 <input
@@ -143,6 +143,48 @@
                   placeholder="meaning"
                   @keydown.enter.prevent="saveMeanings"
                 />
+                <button
+                  type="button"
+                  @click="lookupOne(row)"
+                  :disabled="row.loading"
+                  :title="row.definitionError ? row.definitionError : 'Look up meaning in Wiktionary'"
+                  class="flex-shrink-0 p-1.5 rounded-lg text-stone-400 hover:text-garden-700 hover:bg-garden-50 border border-transparent hover:border-garden-100 transition-colors disabled:opacity-50"
+                  :aria-label="`Look up meaning of ${row.term}`"
+                >
+                  <Loader2 v-if="row.loading" :size="14" class="animate-spin" />
+                  <Search v-else :size="14" />
+                </button>
+                <button
+                  v-if="row.definitions && row.definitions.length > 1"
+                  type="button"
+                  @click="showAlternatives = showAlternatives === row.id ? null : row.id"
+                  class="flex-shrink-0 p-1.5 rounded-lg text-stone-400 hover:text-garden-700 hover:bg-garden-50 border border-transparent hover:border-garden-100 transition-colors"
+                  :aria-label="`Show ${row.definitions.length - 1} more meanings`"
+                >
+                  <ChevronDown :size="14" class="transition-transform" :class="showAlternatives === row.id ? 'rotate-180' : ''" />
+                </button>
+              </div>
+
+              <!-- Alternatives for the expanded row -->
+              <div
+                v-for="row in plantedTerms"
+                :key="`alt-${row.id}`"
+              >
+                <div
+                  v-if="showAlternatives === row.id && row.definitions && row.definitions.length > 1"
+                  class="ml-[6.5rem] -mt-1 mb-1 flex flex-wrap gap-1.5 animate-fade-up"
+                >
+                  <button
+                    v-for="(alt, i) in row.definitions"
+                    :key="`alt-${row.id}-${i}`"
+                    type="button"
+                    @click="pickAlternative(row, alt)"
+                    :class="row.meaning === alt ? 'bg-garden-600 text-white' : 'bg-white border border-line text-stone-600 hover:border-garden-200 hover:bg-garden-50'"
+                    class="px-2 py-1 rounded-full text-[11px] font-medium transition-colors"
+                  >
+                    {{ alt }}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -180,13 +222,14 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { X, Sprout, Sparkles, Check, BookMarked, Save } from 'lucide-vue-next'
+import { X, Sprout, Sparkles, Check, BookMarked, Save, Search, ChevronDown, Loader2 } from 'lucide-vue-next'
 import { useVocab } from '../../composables/useVocab.js'
 import { useToast } from '../../composables/useToast.js'
 import { useAuth } from '../../composables/useAuth.js'
 import { supabase } from '../../lib/supabase.js'
 import { codeForName, nameForCode } from '../../lib/bookLanguages.js'
 import { mineCandidates } from '../../lib/vocabMining.js'
+import { lookupWord } from '../../lib/dictLookup.js'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -206,11 +249,12 @@ const passage = ref('')
 const selected = ref(new Set())
 const planting = ref(false)
 // Step 2 state — populated when the previous plant succeeded. Each row is
-// { id, term, meaning }; meanings default to empty (the word was planted
-// with no meaning) and the user fills what they know.
+// { id, term, meaning, loading, definitions, definitionError } where the
+// lookup fields are populated on demand by the magnifier button.
 const defineStep = ref(false)
 const plantedTerms = ref([])
 const saving = ref(false)
+const showAlternatives = ref(null) // row.id, or null
 
 // Resolve the book's language code to the matching tracked language id and
 // metadata. A book saved while a language was tracked keeps its `languageCode`
@@ -264,6 +308,7 @@ watch(
       selected.value = new Set()
       defineStep.value = false
       plantedTerms.value = []
+      showAlternatives.value = null
     }
   },
   { immediate: true }
@@ -302,7 +347,7 @@ async function plantSelected() {
     })
     if (result?.word) {
       successCount += 1
-      justPlanted.push({ id: result.word.id, term: result.word.term, meaning: '' })
+      justPlanted.push({ id: result.word.id, term: result.word.term, meaning: '', loading: false, definitions: [], definitionError: null })
     } else if (result?.duplicate) {
       duplicateCount += 1
     } else if (result?.error && !firstError) {
@@ -354,6 +399,30 @@ async function plantSelected() {
     plantedTerms.value = justPlanted
     defineStep.value = true
   }
+}
+
+// Fetch one definition from Wiktionary and put the first hit into the
+// meaning field. If multiple senses come back, surface a chevron that
+// opens a list of alternatives; the user picks one by clicking.
+async function lookupOne(row) {
+  if (row.loading) return
+  row.loading = true
+  row.definitionError = null
+  const res = await lookupWord(row.term)
+  row.loading = false
+  if (res.ok) {
+    row.definitions = res.definitions
+    if (showAlternatives.value === row.id) showAlternatives.value = null
+    row.meaning = res.definitions[0]
+  } else {
+    row.definitions = []
+    row.definitionError = res.error || 'No result'
+  }
+}
+
+function pickAlternative(row, alt) {
+  row.meaning = alt
+  showAlternatives.value = null
 }
 
 async function saveMeanings() {
