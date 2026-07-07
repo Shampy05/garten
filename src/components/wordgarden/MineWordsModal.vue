@@ -179,13 +179,26 @@
                     :key="`alt-${row.id}-${i}`"
                     type="button"
                     @click="pickAlternative(row, alt)"
-                    :class="row.meaning === alt ? 'bg-garden-600 text-white' : 'bg-white border border-line text-stone-600 hover:border-garden-200 hover:bg-garden-50'"
+                    :class="row.definition === alt ? 'bg-garden-600 text-white' : 'bg-white border border-line text-stone-600 hover:border-garden-200 hover:bg-garden-50'"
                     class="px-2 py-1 rounded-full text-[11px] font-medium transition-colors"
                   >
                     {{ alt }}
                   </button>
                 </div>
               </div>
+
+              <!-- Wiktionary reference line. Shows the raw gloss the
+                   dictionary returned — distinct from the user's own
+                   'meaning' gloss above. Quiet italic so it reads as
+                   supporting context, not a duplicate field. Only shows
+                   after a lookup has produced at least one definition. -->
+              <p
+                v-if="row.definition && showAlternatives !== row.id"
+                class="ml-[6.5rem] -mt-0.5 mb-1 text-[11px] italic text-stone-400 line-clamp-1"
+                :title="row.definition"
+              >
+                <span class="text-stone-300 not-italic">def ·</span> {{ row.definition }}
+              </p>
             </div>
 
             <p v-if="filledCount > 0" class="text-[11px] text-stone-400 mt-2">
@@ -347,7 +360,7 @@ async function plantSelected() {
     })
     if (result?.word) {
       successCount += 1
-      justPlanted.push({ id: result.word.id, term: result.word.term, meaning: '', loading: false, definitions: [], definitionError: null })
+      justPlanted.push({ id: result.word.id, term: result.word.term, meaning: '', definition: '', loading: false, definitions: [], definitionError: null })
     } else if (result?.duplicate) {
       duplicateCount += 1
     } else if (result?.error && !firstError) {
@@ -401,9 +414,14 @@ async function plantSelected() {
   }
 }
 
-// Fetch one definition from Wiktionary and put the first hit into the
-// meaning field. If multiple senses come back, surface a chevron that
-// opens a list of alternatives; the user picks one by clicking.
+// Fetch one definition from Wiktionary. The first sense goes into
+// `row.definition` (the raw reference gloss, shown as italic context
+// below the input) and also seeds `row.meaning` (the user's own gloss,
+// editable). The two diverge when the user types over `meaning`; on a
+// re-lookup the meaning input is *not* clobbered if the user has
+// already edited it, so a follow-up lookup only refreshes the reference
+// line. If multiple senses come back, surface a chevron to switch
+// between them.
 async function lookupOne(row) {
   if (row.loading) return
   row.loading = true
@@ -413,15 +431,26 @@ async function lookupOne(row) {
   if (res.ok) {
     row.definitions = res.definitions
     if (showAlternatives.value === row.id) showAlternatives.value = null
-    row.meaning = res.definitions[0]
+    row.definition = res.definitions[0]
+    if (!row.meaning || row.meaning.trim() === '') {
+      row.meaning = res.definitions[0]
+    }
   } else {
     row.definitions = []
+    row.definition = ''
     row.definitionError = res.error || 'No result'
   }
 }
 
 function pickAlternative(row, alt) {
-  row.meaning = alt
+  // Switching the active sense updates the reference line and seeds the
+  // user's gloss if it's still empty. If the user has typed their own
+  // meaning, we leave it alone — picking a different sense is a
+  // reference, not a meaning replacement.
+  row.definition = alt
+  if (!row.meaning || row.meaning.trim() === '') {
+    row.meaning = alt
+  }
   showAlternatives.value = null
 }
 
