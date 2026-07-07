@@ -11,7 +11,7 @@
               Watering round
             </h2>
             <div class="flex items-center gap-3">
-              <span v-if="!finished" class="text-xs text-stone-400 tabular-nums">{{ completed }} of {{ total }}</span>
+              <span v-if="current" class="text-xs text-stone-400 tabular-nums">{{ completed }} of {{ total }}</span>
               <button
                 @click="$emit('close')"
                 class="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors"
@@ -22,8 +22,34 @@
             </div>
           </div>
 
+          <!-- Per-language filter chips — only when 2+ languages have due words.
+               Mirrors WordList.vue's chip pattern; switching filters resets the
+               active queue but preserves the cross-session total graded count. -->
+          <div v-if="languagesDue.length > 1" class="flex flex-wrap items-center justify-center gap-1.5 pt-3">
+            <button
+              type="button"
+              @click="applyFilter(null)"
+              class="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+              :class="languageFilter === null ? 'bg-stone-800 text-white shadow-pill' : 'bg-white border border-line text-stone-600 hover:border-stone-300'"
+            >
+              All
+            </button>
+            <button
+              v-for="lang in languagesDue"
+              :key="lang.id"
+              type="button"
+              @click="applyFilter(lang.id)"
+              class="px-2.5 py-1 rounded-full text-xs font-medium transition-all inline-flex items-center gap-1.5"
+              :class="languageFilter === lang.id ? 'bg-garden-600 text-white shadow-pill' : 'bg-white border border-line text-stone-600 hover:border-stone-300'"
+            >
+              <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: lang.color || '#a8a29e' }"></span>
+              {{ lang.name }}
+              <span class="tabular-nums opacity-70">{{ lang.count }}</span>
+            </button>
+          </div>
+
           <!-- Active card -->
-          <div v-if="!finished && current" class="py-8 text-center space-y-5">
+          <div v-if="current" class="py-8 text-center space-y-5">
             <div class="flex items-center justify-center gap-2">
               <span
                 class="inline-flex items-center gap-1.5 text-[11px] font-medium text-stone-600 bg-stone-100 px-2 py-0.5 rounded-full"
@@ -41,7 +67,8 @@
             </div>
             <template v-else>
               <div class="space-y-1 animate-fade-up">
-                <p class="text-lg text-stone-700">{{ current.meaning }}</p>
+                <p v-if="current.meaning" class="text-lg text-stone-700">{{ current.meaning }}</p>
+                <p v-else class="text-sm italic text-stone-400">No meaning yet — add one in your Word Garden to water this properly.</p>
                 <p v-if="current.note" class="text-xs text-stone-400 italic px-4">{{ current.note }}</p>
               </div>
 
@@ -71,8 +98,14 @@
             </template>
           </div>
 
-          <!-- Nothing due (opened with an empty queue) -->
-          <div v-else-if="!finished" class="py-10 text-center text-stone-500 text-sm">
+          <!-- Selected language has no remaining due words (mid-session filter switch). -->
+          <div v-else-if="filterBlocked" class="py-10 text-center text-stone-500 text-sm space-y-3">
+            <p>No <span class="font-medium text-stone-700">{{ activeFilterName }}</span> words are due right now — they're all watered.</p>
+            <button @click="applyFilter(null)" class="gp-btn-ghost px-4 py-1.5 text-sm">Review all</button>
+          </div>
+
+          <!-- Session opened with an empty due queue. -->
+          <div v-else-if="!allDue.length" class="py-10 text-center text-stone-500 text-sm">
             Nothing is due right now — your words are all watered.
           </div>
 
@@ -106,17 +139,44 @@ const vocab = useVocab()
 
 // Snapshot the due queue at open — new words planted mid-session don't barge
 // into an ongoing round. "Again" re-enqueues at the back (its dueDate stays
-// today), so a shaky word repeats until it earns a Good.
+// today), so a shaky word repeats until it earns a Good. The user can narrow
+// the round to one language via the chip bar; switching filters re-slices the
+// snapshot to that language, preserving already-graded words as done so the
+// user never re-waters the same word within a single round.
+const allDue = ref([])
+const languagesDue = ref([])
+const languageFilter = ref(null)
 const queue = ref([])
-const total = ref(0)
-const completed = ref(0)
+const total = ref(0)        // scope of the active filter (snapshot count)
+const completed = ref(0)    // graded good/easy within the active filter
+const totalCompleted = ref(0) // graded across the whole session
 const revealed = ref(false)
 const grades = ref([])
+const gradedIds = new Set() // good/easy across session — closure-scoped, not reactive
 
 onMounted(() => {
-  queue.value = dueWords(vocab.words.value, localDateStr(new Date()))
-  total.value = queue.value.length
+  const due = dueWords(vocab.words.value, localDateStr(new Date()))
+  allDue.value = due
+  const countsByLang = new Map()
+  for (const w of due) countsByLang.set(w.languageId, (countsByLang.get(w.languageId) || 0) + 1)
+  const langById = new Map(props.languages.map((l) => [l.id, l]))
+  languagesDue.value = [...countsByLang.entries()]
+    .map(([id, count]) => {
+      const lang = langById.get(id)
+      return { id, name: lang?.name || id, color: lang?.color || null, count }
+    })
+    .sort((a, b) => a.name.localeCompare(b.name))
+  applyFilter(null)
 })
+
+function applyFilter(langId) {
+  languageFilter.value = langId
+  const base = langId ? allDue.value.filter((w) => w.languageId === langId) : allDue.value.slice()
+  queue.value = base.filter((w) => !gradedIds.has(w.id))
+  total.value = queue.value.length
+  completed.value = 0
+  revealed.value = false
+}
 
 // Re-resolve against the live store: after an "again", the queued reference
 // is stale (updateWord swapped the object), and the interval labels should
@@ -126,7 +186,8 @@ const current = computed(() => {
   if (!queued) return null
   return vocab.words.value.find((w) => w.id === queued.id) || queued
 })
-const finished = computed(() => total.value > 0 && queue.value.length === 0)
+const filterBlocked = computed(() => !current.value && languageFilter.value !== null)
+const activeFilterName = computed(() => languagesDue.value.find((l) => l.id === languageFilter.value)?.name || '')
 
 const langById = computed(() => new Map(props.languages.map((l) => [l.id, l])))
 function languageName(word) {
@@ -156,16 +217,21 @@ async function grade(g) {
   } else {
     queue.value = queue.value.slice(1)
     completed.value += 1
+    gradedIds.add(word.id)
+    totalCompleted.value += 1
   }
   await vocab.gradeWord(word.id, g)
 }
 
 const summaryLine = computed(() => {
   const s = sessionSummary(grades.value)
-  const words = total.value === 1 ? 'word' : 'words'
-  if (s.again > 0) {
-    return `${total.value} ${words} watered — ${s.again} needed a second look, and that's how they grow.`
+  const words = totalCompleted.value === 1 ? 'word' : 'words'
+  if (totalCompleted.value === 0) {
+    return 'Nothing needed watering today — your words are all tended.'
   }
-  return `${total.value} ${words} watered — every one moved closer to bloom.`
+  if (s.again > 0) {
+    return `${totalCompleted.value} ${words} watered — ${s.again} needed a second look, and that's how they grow.`
+  }
+  return `${totalCompleted.value} ${words} watered — every one moved closer to bloom.`
 })
 </script>

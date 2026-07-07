@@ -2,10 +2,11 @@ import { describe, it, expect } from 'vitest'
 import {
   moreByAuthorSeed,
   becauseFinishedSeed,
-  shortReadsSeed,
   laggingLanguage,
   buildDiscoverSeeds,
   filterRowBooks,
+  topContentWords,
+  moreLikeThisSeed,
   MAX_ROWS,
   ROW_SIZE,
   SHORT_READ_MAX_PAGES,
@@ -14,13 +15,15 @@ import {
 
 const TODAY = '2026-07-07'
 
-function finished(id, { author = 'Anna Author', languageCode = 'fr', rating = null, finishedAt = '2026-06-01', title = `Book ${id}` } = {}) {
+function finished(id, opts = {}) {
+  const { author = 'Anna Author', languageCode = 'fr', rating = null, finishedAt = '2026-06-01', title = `Book ${id}`, description = '' } = opts
   return {
     id,
     externalId: `ext-${id}`,
     title,
     author,
     languageCode,
+    description,
     record: { status: 'read', rating, finishedAt },
   }
 }
@@ -103,9 +106,13 @@ describe('becauseFinishedSeed', () => {
 })
 
 describe('laggingLanguage', () => {
-  it('needs at least two languages in the curated reading set', () => {
-    expect(laggingLanguage([], [FRENCH], TODAY)).toBeNull()
-    expect(laggingLanguage([], [FRENCH, { id: 'klingon', name: 'Klingon' }], TODAY)).toBeNull()
+  it('needs at least one language in the curated reading set', () => {
+    expect(laggingLanguage([], [], TODAY)).toBeNull()
+    expect(laggingLanguage([], [{ id: 'klingon', name: 'Klingon' }], TODAY)).toBeNull()
+  })
+
+  it('returns the single codable language when only one is tracked', () => {
+    expect(laggingLanguage([], [FRENCH], TODAY)?.code).toBe('fr')
   })
 
   it('picks the language with the least recent study time', () => {
@@ -122,35 +129,33 @@ describe('laggingLanguage', () => {
   })
 })
 
-describe('shortReadsSeed', () => {
-  it('builds a short-reads row for the lagging language', () => {
-    const entries = [entry('french', '2026-07-01', 120)]
-    const seed = shortReadsSeed(entries, [FRENCH, SPANISH], [], TODAY)
-    expect(seed.kind).toBe('short_reads')
-    expect(seed.languageCode).toBe('es')
-    expect(seed.title).toBe('Short reads in Spanish')
-    expect(seed.postFilter).toEqual({ maxPages: SHORT_READ_MAX_PAGES, sort: 'shortest' })
-  })
-
-  it('returns null for a single-language gardener', () => {
-    expect(shortReadsSeed([], [FRENCH], [], TODAY)).toBeNull()
-  })
-})
-
 describe('buildDiscoverSeeds', () => {
-  it('drops inapplicable rows and never exceeds MAX_ROWS', () => {
+  it('returns an empty lineup when there is no library yet', () => {
     expect(buildDiscoverSeeds({ today: TODAY })).toEqual([])
-    const full = buildDiscoverSeeds({
+  })
+
+  it('shows loved + finished + more-like-this in order and never exceeds MAX_ROWS', () => {
+    const seeds = buildDiscoverSeeds({
       savedBooks: [
-        finished('a', { rating: 5, author: 'Loved Author', finishedAt: '2026-06-20' }),
-        finished('b', { author: 'Other Author', finishedAt: '2026-06-10' }),
+        finished('a', {
+          rating: 5,
+          author: 'Loved Author',
+          finishedAt: '2026-06-20',
+          description:
+            'A sweeping family story about memory, war, and the long shadow of the past across generations of one household in a small town.',
+        }),
+        finished('b', {
+          author: 'Other Author',
+          finishedAt: '2026-06-10',
+          description:
+            'A mystery in which a young detective must untangle family secrets to find the missing person before time runs out.',
+        }),
       ],
-      entries: [entry('french', '2026-07-01', 120)],
       languages: [FRENCH, SPANISH],
       today: TODAY,
     })
-    expect(full.length).toBe(MAX_ROWS)
-    expect(full.map((s) => s.kind)).toEqual(['more_by_author', 'because_finished', 'short_reads'])
+    expect(seeds.length).toBe(3)
+    expect(seeds.map((s) => s.kind)).toEqual(['more_by_author', 'because_finished', 'more_like_this'])
   })
 
   it('keeps the finished row from repeating the loved row’s author', () => {
@@ -159,6 +164,120 @@ describe('buildDiscoverSeeds', () => {
       today: TODAY,
     })
     expect(seeds.map((s) => s.kind)).toEqual(['more_by_author'])
+  })
+
+  it('falls back to just the finished row when no loved book qualifies', () => {
+    const seeds = buildDiscoverSeeds({
+      savedBooks: [finished('a', { rating: 3, author: 'Casual Author', finishedAt: '2026-06-20' })],
+      today: TODAY,
+    })
+    expect(seeds.map((s) => s.kind)).toEqual(['because_finished'])
+  })
+
+  it('MAX_ROWS is 3 — loved, finished, and more-like-this', () => {
+    expect(MAX_ROWS).toBe(3)
+  })
+})
+
+describe('topContentWords', () => {
+  it('returns the most frequent content words in the order they appear', () => {
+    const passage =
+      'A mystery about a mystery writer who writes a mystery in a mystery town. ' +
+      'Family, memory, and war echo through the chapters and the chapters echo the chapters.'
+    const out = topContentWords(passage, { count: 4, languageCode: 'en' })
+    // Frequencies: mystery=4, chapters=3, echo=2, then a cluster of 1s
+    // (writer, writes, town, family, memory, war) — ties break by
+    // first-occurrence, so writer wins the 4th slot.
+    expect(out[0]).toBe('mystery')
+    expect(out).toEqual(['mystery', 'chapters', 'echo', 'writer'])
+    // Stopword-free: no 'the', 'and', 'about', 'a'.
+    expect(topContentWords(passage, { languageCode: 'en' })).not.toContain('the')
+  })
+
+  it('uses English stopwords when languageCode is "en"', () => {
+    const out = topContentWords('the cat sat on the mat the cat', { languageCode: 'en' })
+    // Frequencies: cat=2, mat=1, sat=1. Ties break by first occurrence:
+    // sat (pos 4) before mat (pos 6).
+    expect(out).toEqual(['cat', 'sat', 'mat'])
+  })
+
+  it('falls back to no stopword filtering for unsupported languages', () => {
+    // Esperanto isn't in stopwords.js; the words "kaj", "la" would slip
+    // through. The output reflects that honest gap.
+    const out = topContentWords('kaj la hundo kaj la kato en la ĝardeno', { languageCode: 'eo' })
+    expect(out.length).toBeGreaterThan(0)
+  })
+
+  it('returns [] for empty or whitespace-only input', () => {
+    expect(topContentWords('')).toEqual([])
+    expect(topContentWords('   ')).toEqual([])
+  })
+
+  it('respects the count option', () => {
+    const out = topContentWords('alpha beta alpha gamma beta alpha delta', { count: 2 })
+    expect(out).toEqual(['alpha', 'beta'])
+  })
+})
+
+describe('moreLikeThisSeed', () => {
+  const richDescription =
+    'A sweeping family story about memory, war, and the long shadow of the past ' +
+    'across generations of one household in a small town by the river.'
+
+  it('returns null when there are no finished books with descriptions', () => {
+    expect(moreLikeThisSeed([finished('a')], [FRENCH], TODAY)).toBeNull()
+  })
+
+  it('skips books whose language the user is no longer watering', () => {
+    // English isn't tracked here, so an English finish with a great
+    // description is ignored. Tracked codes: fr (FRENCH) only.
+    const books = [
+      finished('a', {
+        languageCode: 'en',
+        finishedAt: '2026-06-20',
+        description: richDescription,
+      }),
+    ]
+    expect(moreLikeThisSeed(books, [FRENCH], TODAY)).toBeNull()
+  })
+
+  it('seeds from the most recently finished tracked-language book', () => {
+    const books = [
+      finished('older', {
+        languageCode: 'fr',
+        finishedAt: '2026-06-01',
+        description: richDescription,
+      }),
+      finished('newer', {
+        languageCode: 'fr',
+        finishedAt: '2026-06-20',
+        title: 'The Newer Book',
+        description: richDescription,
+      }),
+    ]
+    const seed = moreLikeThisSeed(books, [FRENCH], TODAY)
+    expect(seed.kind).toBe('more_like_this')
+    expect(seed.title).toBe('Books like The Newer Book')
+    expect(seed.languageCode).toBe('fr')
+    expect(seed.query.split(' ').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('keeps the seed language on the book (does not inject English)', () => {
+    const seed = moreLikeThisSeed(
+      [finished('a', { languageCode: 'de', finishedAt: '2026-06-20', description: richDescription })],
+      [{ id: 'de', name: 'German' }],
+      TODAY,
+    )
+    expect(seed.languageCode).toBe('de')
+  })
+
+  it('skips books whose description is too short to carry theme signal', () => {
+    const seed = moreLikeThisSeed(
+      [finished('a', { languageCode: 'fr', finishedAt: '2026-06-20', description: 'short' })],
+      [FRENCH],
+      TODAY,
+    )
+    expect(seed).toBeNull()
   })
 })
 

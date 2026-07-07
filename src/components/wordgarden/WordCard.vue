@@ -8,7 +8,15 @@
       <div class="flex-1 min-w-0">
         <div class="flex items-baseline gap-2 flex-wrap">
           <span class="text-sm font-semibold text-stone-800">{{ word.term }}</span>
-          <span class="text-sm text-stone-500 min-w-0">{{ word.meaning }}</span>
+          <span v-if="word.meaning" class="text-sm text-stone-500 min-w-0">{{ word.meaning }}</span>
+          <button
+            v-else
+            @click="startEdit"
+            class="text-sm italic text-stone-400 hover:text-garden-700 transition-colors"
+            title="Add a meaning"
+          >
+            add a meaning
+          </button>
         </div>
         <p v-if="word.note" class="text-xs text-stone-400 mt-0.5 line-clamp-2">{{ word.note }}</p>
         <p v-if="sourceTitle" class="text-[11px] text-stone-400 mt-0.5 italic">from {{ sourceTitle }}</p>
@@ -45,11 +53,14 @@
         <input v-model="draft.term" type="text" class="gp-input text-sm" placeholder="Word or phrase" />
         <input v-model="draft.meaning" type="text" class="gp-input text-sm" placeholder="Meaning" />
       </div>
+      <div v-if="!draft.meaning.trim()" class="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1">
+        Adding a meaning helps the watering round stick.
+      </div>
       <input v-model="draft.note" type="text" class="gp-input text-sm" placeholder="Context or example (optional)" />
       <div class="flex items-center gap-2">
         <button
           @click="saveEdit"
-          :disabled="!draft.term.trim() || !draft.meaning.trim()"
+          :disabled="!draft.term.trim()"
           class="gp-btn-primary px-3 py-1.5 text-xs"
         >
           Save
@@ -96,7 +107,7 @@ function saveEdit() {
     id: props.word.id,
     updates: {
       term: draft.value.term.trim(),
-      meaning: draft.value.meaning.trim(),
+      meaning: draft.value.meaning.trim() || null,
       note: draft.value.note.trim() || null,
     },
   })

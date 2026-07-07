@@ -83,8 +83,8 @@ onBeforeUnmount(discover.cleanup)
 
 // Load once data is ready, and again when the seed lineup can have changed:
 // the library gains/loses a book OR a book flips to finished (which doesn't
-// change the length) — fingerprint both. Deliberately not a deep watch:
-// page-progress logs shouldn't refetch rows.
+// change the length). Deliberately not a deep watch: page-progress logs
+// shouldn't refetch rows.
 watch(
   () => `${props.ready}:${props.savedBooks.length}:${props.savedBooks.filter((b) => b.record?.status === 'read').length}`,
   reload,

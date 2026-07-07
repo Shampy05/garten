@@ -121,11 +121,17 @@ export function useVocab() {
   // Plant a new word. Case-insensitive duplicate check within the language —
   // a duplicate returns { duplicate: true, existing } so the form can show a
   // gentle note instead of inserting a second copy.
+  //
+  // `meaning` is optional — mining from a passage (`MineWordsModal`) plants
+  // batches with empty meanings the gardener fills in later, so we accept
+  // null/empty as a "to-define" placeholder. Hand capture (`WordCaptureForm`)
+  // still validates presence at the form level so manual plants keep their
+  // meaning before pressing "Plant".
   const addWord = async ({ term, meaning, languageId, note = null, sourceBookId = null }) => {
     if (!userId.value) return { error: 'Not signed in' }
     const cleanTerm = (term || '').trim()
     const cleanMeaning = (meaning || '').trim()
-    if (!cleanTerm || !cleanMeaning || !languageId) return { error: 'Missing fields' }
+    if (!cleanTerm || !languageId) return { error: 'Missing fields' }
 
     const existing = words.value.find(
       (w) => w.languageId === languageId && w.term.trim().toLowerCase() === cleanTerm.toLowerCase()
@@ -136,7 +142,7 @@ export function useVocab() {
       id: crypto.randomUUID(),
       languageId,
       term: cleanTerm,
-      meaning: cleanMeaning,
+      meaning: cleanMeaning || null,
       note: (note || '').trim() || null,
       sourceBookId,
       stage: 0,

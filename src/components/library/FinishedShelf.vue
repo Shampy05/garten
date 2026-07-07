@@ -65,8 +65,17 @@
                 {{ finishedLabel(book) }}
               </p>
               <button
+                @click="$emit('mine-words', book)"
+                class="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-garden-700 bg-garden-50 border border-garden-200 hover:bg-garden-100 hover:border-garden-300 transition-colors active:scale-95"
+                title="Mine words from this book"
+                aria-label="Mine words"
+              >
+                <Sparkles :size="12" />
+                Mine words
+              </button>
+              <button
                 @click="$emit('start-reread', book)"
-                class="ml-auto p-1.5 rounded-lg text-stone-400 hover:text-garden-700 hover:bg-garden-50 border border-transparent hover:border-garden-100 transition-colors opacity-60 group-hover:opacity-100"
+                class="p-1.5 rounded-lg text-stone-400 hover:text-garden-700 hover:bg-garden-50 border border-transparent hover:border-garden-100 transition-colors opacity-60 group-hover:opacity-100"
                 title="Read again"
                 aria-label="Read again"
               >
@@ -90,14 +99,14 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { ChevronDown, BookOpen, BookMarked, Star, Trash2, RotateCcw } from 'lucide-vue-next'
+import { ChevronDown, BookOpen, BookMarked, Star, Trash2, RotateCcw, Sparkles } from 'lucide-vue-next'
 import { nameForCode } from '../../lib/bookLanguages.js'
 
 const props = defineProps({
   books: { type: Array, default: () => [] },
 })
 
-defineEmits(['remove', 'start-reread'])
+defineEmits(['remove', 'start-reread', 'mine-words'])
 
 // Six most-recent covers for the strip. Sorted order is preserved by the
 // caller (sortFinished in useShelves).

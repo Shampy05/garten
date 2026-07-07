@@ -14,6 +14,7 @@
 import { localDateStr } from './date.js'
 import { codeForName } from './bookLanguages.js'
 import { sortBooks } from './bookSearch.js'
+import { stopwordsFor } from './stopwords.js'
 
 export const MAX_ROWS = 3
 export const ROW_SIZE = 6
@@ -21,8 +22,19 @@ export const SHORT_READ_MAX_PAGES = 250
 export const LAGGING_WINDOW_DAYS = 28
 export const RATING_FLOOR = 4
 
+// How many top content words from a finished book description we use as the
+// "more like this" search seed. 2 is the minimum for any signal at all; 3
+// keeps the query focused; 4+ drifts toward the noisy literary terms
+// (love/family/world) that Google's index returns the same 50 results for.
+const MORE_LIKE_THIS_SEED_WORDS = 3
+
+// Minimum description length (chars) before we mine it for content words —
+// shorter descriptions are usually Google/Open Library boilerplate that
+// doesn't carry usable theme signal.
+const MORE_LIKE_THIS_MIN_DESC_CHARS = 80
+
 function normAuthor(s) {
-  return (s || '').toLowerCase().trim()
+  return (s || '').trim().toLowerCase()
 }
 
 function daysSinceEpoch(today) {
@@ -92,15 +104,17 @@ export function becauseFinishedSeed(savedBooks = [], excludeAuthor = null) {
   return null
 }
 
-// The tracked language that's had the least study time lately. Requires at
-// least two languages with a book code — with one language there's nothing to
-// lag behind. Ties break toward the language with the fewest saved books
-// (thinnest shelf needs the most help), then by name for determinism.
+// The tracked language that's had the least study time lately. Returns null
+// only when there are zero codable tracked languages — with a single tracked
+// language it returns that language (it's the lagging one by default). Ties
+// break by name for determinism. (Was previously used by the now-removed
+// Short Reads row, but kept exported for any future recommendation signal
+// that needs the same lag calculation.)
 export function laggingLanguage(entries = [], languages = [], today = localDateStr(new Date()), { windowDays = LAGGING_WINDOW_DAYS } = {}) {
   const codable = languages
     .map((l) => ({ id: l.id, name: l.name, code: codeForName(l.name) }))
     .filter((l) => l.code)
-  if (codable.length < 2) return null
+  if (!codable.length) return null
 
   const cutoff = new Date(today + 'T12:00:00')
   cutoff.setDate(cutoff.getDate() - windowDays)
@@ -117,28 +131,104 @@ export function laggingLanguage(entries = [], languages = [], today = localDateS
   return rows[0]
 }
 
-export function shortReadsSeed(entries = [], languages = [], savedBooks = [], today = localDateStr(new Date())) {
-  const lagging = laggingLanguage(entries, languages, today)
-  if (!lagging) return null
-  return {
-    kind: 'short_reads',
-    key: `short:${lagging.code}`,
-    title: `Short reads in ${lagging.name}`,
-    reason: `${lagging.name} has been quiet lately — something small to restart it.`,
-    query: 'subject:fiction',
-    languageCode: lagging.code,
-    postFilter: { maxPages: SHORT_READ_MAX_PAGES, sort: 'shortest' },
+// Top content words from a passage: tokenize, drop stopwords (per language)
+// and very short / very long tokens, then return the highest-frequency
+// `count` words in the order the reader met them (so two equally-frequent
+// words break by first-occurrence — determinism > no determinism).
+//
+// Pure: takes a passage string + optional languageCode. Falls back to no
+// stopword filtering for languages stopwords.js doesn't cover (see that
+// file's docstring for the rationale).
+export function topContentWords(passage, { count = MORE_LIKE_THIS_SEED_WORDS, languageCode = null } = {}) {
+  const text = String(passage || '')
+  if (!text) return []
+  const stop = stopwordsFor(languageCode)
+  // Mirror vocabMining.js's \p{L} token set — but be stricter (max 24 chars
+  // for theme words) and drop any token that's not a plausible noun. We
+  // don't reuse mineCandidates directly because we want the *order* by
+  // frequency, not first-occurrence.
+  const counts = new Map()
+  const firstSeen = new Map()
+  let i = 0
+  for (const m of text.toLowerCase().matchAll(/[\p{L}\p{M}']+/gu)) {
+    const tok = m[0]
+    if (tok.length < 3 || tok.length > 24) continue
+    if (stop && stop.has(tok)) continue
+    if (/\d/.test(tok)) continue
+    counts.set(tok, (counts.get(tok) || 0) + 1)
+    if (!firstSeen.has(tok)) firstSeen.set(tok, i++)
   }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || firstSeen.get(a[0]) - firstSeen.get(b[0]))
+    .slice(0, count)
+    .map(([tok]) => tok)
+}
+
+// "Books like <title>" — seeded from the most recently finished book that
+// has a usable description AND a language the user is currently watering
+// (tracked). The query is a 2–3-word string built from the book's
+// description, run through Google/Open Library filtered to the book's
+// language — so a German "Reunion" finished book yields other German
+// books that share the same content words, not English translations.
+//
+// Honest framing in the UI: "Sharing themes with <title> by <author>." —
+// this is a content-similarity pull, not a personalised recommender; the
+// book APIs do not expose a real "for you" endpoint, so we make the best
+// of the description's strongest nouns and let the user decide whether
+// the hits resonate.
+export function moreLikeThisSeed(savedBooks = [], languages = [], today = localDateStr(new Date())) {
+  // Most recently finished book first; only those with a description long
+  // enough to carry theme signal, and only those whose language is one the
+  // user is currently tracking.
+  const trackedCodes = new Set(
+    languages
+      .map((l) => codeForName(l.name))
+      .filter(Boolean)
+  )
+
+  const candidates = savedBooks
+    .filter((b) =>
+      b.record?.status === 'read' &&
+      b.record?.finishedAt &&
+      typeof b.description === 'string' &&
+      b.description.trim().length >= MORE_LIKE_THIS_MIN_DESC_CHARS &&
+      b.languageCode &&
+      trackedCodes.has(b.languageCode)
+    )
+    .sort((a, b) => String(b.record.finishedAt).localeCompare(String(a.record.finishedAt)))
+
+  for (const book of candidates) {
+    const seeds = topContentWords(book.description, {
+      count: MORE_LIKE_THIS_SEED_WORDS,
+      languageCode: book.languageCode,
+    })
+    if (seeds.length < 2) continue
+    return {
+      kind: 'more_like_this',
+      key: `more_like_this:${book.id || book.externalId}:${today}`,
+      title: `Books like ${book.title}`,
+      reason: `Sharing themes with ${book.title} by ${book.author || 'this author'}.`,
+      query: seeds.join(' '),
+      languageCode: book.languageCode,
+    }
+  }
+  return null
 }
 
 // The row lineup, in display order. Nulls (signals that don't apply yet)
 // simply drop out — a brand-new library produces zero rows and the section
 // renders nothing.
+//
+// Order: loved author, just-finished author, books-like-latest — three
+// high-signal rows that all read from the user's own library. The
+// "More like this" row is a content-similarity pull from the most
+// recently finished book; the book APIs don't expose a true "for you"
+// endpoint, so we make the best of the description's strongest nouns.
 export function buildDiscoverSeeds({ savedBooks = [], entries = [], languages = [], today = localDateStr(new Date()) } = {}) {
   const loved = moreByAuthorSeed(savedBooks, today)
   const finished = becauseFinishedSeed(savedBooks, loved ? loved.query : null)
-  const short = shortReadsSeed(entries, languages, savedBooks, today)
-  return [loved, finished, short].filter(Boolean).slice(0, MAX_ROWS)
+  const moreLike = moreLikeThisSeed(savedBooks, languages, today)
+  return [loved, finished, moreLike].filter(Boolean).slice(0, MAX_ROWS)
 }
 
 // Render-time shaping of a row's raw fetched books: drop what's already in

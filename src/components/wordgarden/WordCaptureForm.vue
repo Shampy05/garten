@@ -32,7 +32,7 @@
     <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
       <div class="sm:w-44 flex-shrink-0">
         <label class="block text-xs font-medium text-stone-500 mb-1">Language</label>
-        <select v-model="languageId" class="gp-input">
+        <select v-model="languageId" class="gp-input" @change="onLanguageChange">
           <option v-for="lang in languages" :key="lang.id" :value="lang.id">{{ lang.name }}</option>
         </select>
       </div>
@@ -83,9 +83,12 @@ const props = defineProps({
   // the source book.
   presetLanguageId: { type: String, default: null },
   sourceBookId: { type: String, default: null },
+  // v-model: the active language filter the parent owns. The form's select
+  // becomes the user-facing way to change the list filter as well.
+  languageFilter: { type: String, default: null },
 })
 
-const emit = defineEmits(['added'])
+const emit = defineEmits(['added', 'update:languageFilter'])
 
 const vocab = useVocab()
 
@@ -100,9 +103,12 @@ const termInput = ref(null)
 
 const canSubmit = computed(() => term.value.trim() && meaning.value.trim() && languageId.value)
 
-// Default language: the preset (capture-from-reading), else the single
-// tracked language, else the most recently studied one.
+// Default language: the parent's filter, the preset (capture-from-reading),
+// else the single tracked language, else the most recently studied one.
 function defaultLanguageId() {
+  if (props.languageFilter && props.languages.find((l) => l.id === props.languageFilter)) {
+    return props.languageFilter
+  }
   if (props.presetLanguageId) return props.presetLanguageId
   if (props.languages.length === 1) return props.languages[0].id
   let latest = null
@@ -114,14 +120,31 @@ function defaultLanguageId() {
 }
 
 watch(
-  () => [props.languages.length, props.presetLanguageId],
+  () => [props.languages.length, props.presetLanguageId, props.languageFilter],
   () => {
+    // If the parent pushed an explicit filter, mirror it onto the form
+    // (round-trip with the chip bar). Otherwise, just guard against a stale
+    // or missing selection (e.g. the active language was removed).
+    if (props.languageFilter && props.languages.find((l) => l.id === props.languageFilter)) {
+      languageId.value = props.languageFilter
+      return
+    }
     if (!languageId.value || !props.languages.find((l) => l.id === languageId.value)) {
       languageId.value = defaultLanguageId()
     }
   },
   { immediate: true }
 )
+
+function onLanguageChange() {
+  emit('update:languageFilter', languageId.value)
+}
+
+// Mirror every change to languageId (init, user pick, parent push) up to the
+// parent's filter so the form and the list stay locked together.
+watch(languageId, (id) => {
+  if (id != null) emit('update:languageFilter', id)
+})
 
 async function submit() {
   if (!canSubmit.value || submitting.value) return

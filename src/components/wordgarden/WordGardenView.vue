@@ -3,27 +3,29 @@
     <!-- Header -->
     <div class="gp-card gp-pad mb-6 relative overflow-hidden">
       <div class="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-garden-50/80 to-transparent"></div>
-      <div class="relative flex items-center gap-3 flex-wrap">
-        <div class="w-11 h-11 rounded-xl bg-gradient-to-b from-garden-500 to-garden-600 text-white flex items-center justify-center flex-shrink-0 shadow-pill">
-          <Leaf :size="22" />
-        </div>
-        <div class="flex-1 min-w-0">
-          <h1 class="font-display text-2xl font-bold text-stone-900 tracking-tight">Word Garden</h1>
-          <p class="text-sm text-stone-500">
-            Plant the words you meet — short reviews keep them growing.
-            <span v-if="words.length" class="text-stone-400">{{ words.length }} {{ words.length === 1 ? 'word' : 'words' }} planted.</span>
-          </p>
+      <div class="relative flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-xl bg-gradient-to-b from-garden-500 to-garden-600 text-white flex items-center justify-center flex-shrink-0 shadow-pill">
+            <Leaf :size="22" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <h1 class="font-display text-2xl font-bold text-stone-900 tracking-tight">Word Garden</h1>
+            <p class="text-sm text-stone-500">
+              Plant the words you meet — short reviews keep them growing.
+              <span v-if="words.length" class="text-stone-400">{{ words.length }} {{ words.length === 1 ? 'word' : 'words' }} planted.</span>
+            </p>
+          </div>
         </div>
         <button
           v-if="dueCount > 0"
           @click="showReview = true"
-          class="gp-btn-primary px-4 py-2 text-sm inline-flex items-center gap-1.5 flex-shrink-0"
+          class="gp-btn-primary px-4 py-2 text-sm inline-flex items-center gap-1.5 flex-shrink-0 sm:ml-auto"
         >
           <Droplets :size="14" />
           Review · {{ dueCount }} due
         </button>
-        <span v-else-if="words.length" class="text-xs text-stone-400 flex-shrink-0">
-          All watered — nothing due today.
+        <span v-else-if="words.length" class="text-xs text-stone-400 flex-shrink-0 sm:ml-auto">
+          All watered<span class="hidden sm:inline"> — nothing due today.</span>
         </span>
       </div>
     </div>
@@ -36,7 +38,25 @@
       </div>
 
       <template v-else>
-        <WordCaptureForm :languages="languages" :entries="entries" />
+        <WordCaptureForm
+          :languages="languages"
+          :entries="entries"
+          :language-filter="languageFilter"
+          @update:language-filter="languageFilter = $event"
+        />
+
+        <!-- The Language select above and the list below share the same filter.
+             Show a one-line hint near the form so the link is obvious. -->
+        <p v-if="languageFilter && filterName" class="text-[11px] text-stone-500 -mt-1">
+          Showing <span class="font-medium text-stone-700">{{ filterName }}</span> words.
+          <button
+            type="button"
+            @click="languageFilter = null"
+            class="ml-1 underline-offset-2 hover:underline"
+          >
+            Show all
+          </button>
+        </p>
 
         <div v-if="!loaded && !loadError" class="text-center py-10 text-stone-400">
           <Leaf class="w-10 h-10 mx-auto mb-3 opacity-50 animate-breathe" />
@@ -55,6 +75,8 @@
           :words="words"
           :languages="languages"
           :source-titles="sourceTitles"
+          :language-filter="languageFilter"
+          @update:language-filter="languageFilter = $event"
           @update="onUpdate"
           @remove="confirmRemove"
         />
@@ -105,6 +127,15 @@ const sourceTitles = computed(() => {
 })
 
 const showReview = ref(false)
+
+// Active language filter shared by the Plant-a-word form and the word list —
+// the form's Language select and the list's chip bar are two views onto the
+// same state, so picking one updates the other.
+const languageFilter = ref(null)
+const filterName = computed(() => {
+  if (!languageFilter.value) return ''
+  return props.languages.find((l) => l.id === languageFilter.value)?.name || languageFilter.value
+})
 
 function onUpdate({ id, updates }) {
   updateWord(id, updates)
