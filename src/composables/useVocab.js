@@ -31,6 +31,9 @@ function wordToSnake(word) {
     term: word.term,
     meaning: word.meaning,
     note: word.note || null,
+    gender: word.gender || null,
+    word_type: word.wordType || null,
+    tags: Array.isArray(word.tags) ? word.tags : [],
     source_book_id: word.sourceBookId ?? null,
     stage: word.stage ?? 0,
     due_date: word.dueDate,
@@ -47,6 +50,9 @@ function rowToCamel(row) {
     term: row.term,
     meaning: row.meaning,
     note: row.note ?? null,
+    gender: row.gender ?? null,
+    wordType: row.word_type ?? null,
+    tags: Array.isArray(row.tags) ? row.tags : [],
     sourceBookId: row.source_book_id ?? null,
     stage: row.stage ?? 0,
     dueDate: row.due_date,
@@ -127,7 +133,7 @@ export function useVocab() {
   // null/empty as a "to-define" placeholder. Hand capture (`WordCaptureForm`)
   // still validates presence at the form level so manual plants keep their
   // meaning before pressing "Plant".
-  const addWord = async ({ term, meaning, languageId, note = null, sourceBookId = null }) => {
+  const addWord = async ({ term, meaning, languageId, note = null, sourceBookId = null, gender = null, wordType = null, tags = [] }) => {
     if (!userId.value) return { error: 'Not signed in' }
     const cleanTerm = (term || '').trim()
     const cleanMeaning = (meaning || '').trim()
@@ -144,6 +150,9 @@ export function useVocab() {
       term: cleanTerm,
       meaning: cleanMeaning || null,
       note: (note || '').trim() || null,
+      gender: gender || null,
+      wordType: wordType || null,
+      tags: Array.isArray(tags) ? tags : [],
       sourceBookId,
       stage: 0,
       dueDate: localDateStr(new Date()),

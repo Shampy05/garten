@@ -91,6 +91,7 @@
           @update="onUpdate"
           @remove="confirmRemove"
           @bulk-remove="onBulkRemove"
+          @review-tag="startScopedReview"
         />
       </template>
     </div>
@@ -166,9 +167,19 @@ const sourceTitles = computed(() => {
 
 const showReview = ref(false)
 // When non-empty, the open ReviewSession is scoped to these specific word
-// ids (a "review the agains" follow-up from the previous round's summary).
-// Empty = the regular "all due words" round.
+// ids (a "review the agains" follow-up from the previous round's summary,
+// or a themed "review this tag" round from WordList). Empty = the regular
+// "all due words" round.
 const forceReviewIds = ref([])
+
+// A themed review — WordList's "Review N in {tag}" button hands us the
+// already-due, already-scoped word ids directly (language + tag filter
+// both baked in), so this is just a thin trigger, same shape as onReviewWeak.
+function startScopedReview(wordIds) {
+  if (!Array.isArray(wordIds) || !wordIds.length) return
+  forceReviewIds.value = wordIds
+  showReview.value = true
+}
 
 // Two-step mine-from-book flow. The header "Mine from book" button opens
 // the BookPickerModal; selecting a book opens MineWordsModal scoped to

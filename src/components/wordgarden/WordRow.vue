@@ -42,10 +42,12 @@
       :word="word"
       :language-color="languageColor"
       :language-code="languageCode"
+      :language-name="languageName"
       :source-title="sourceTitle"
       :hide-actions="selectMode"
       @update="$emit('update', $event)"
       @remove="$emit('remove', $event)"
+      @filter-tag="$emit('filter-tag', $event)"
     />
   </div>
 </template>
@@ -61,10 +63,11 @@ const props = defineProps({
   selected: { type: Boolean, default: false },
   languageColor: { type: String, default: null },
   languageCode: { type: String, default: null },
+  languageName: { type: String, default: null },
   sourceTitle: { type: String, default: null },
 })
 
-const emit = defineEmits(['update', 'remove', 'toggle', 'enter-select'])
+const emit = defineEmits(['update', 'remove', 'toggle', 'enter-select', 'filter-tag'])
 
 // Long-press detection: 500ms with no significant movement enters select
 // mode for this card (and selects it). On touch + mouse + pen, the

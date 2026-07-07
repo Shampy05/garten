@@ -17,9 +17,32 @@
           >
             add a meaning
           </button>
+          <span
+            v-if="word.wordType"
+            class="text-[10px] font-medium text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded-full"
+          >
+            {{ WORD_TYPE_LABELS[word.wordType] || word.wordType }}
+          </span>
+          <span
+            v-if="word.gender"
+            class="text-[10px] font-medium text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded-full"
+          >
+            {{ GENDER_LABELS[word.gender] || word.gender }}
+          </span>
         </div>
         <p v-if="word.note" class="text-xs text-stone-400 mt-0.5 line-clamp-2">{{ word.note }}</p>
         <p v-if="sourceTitle" class="text-[11px] text-stone-400 mt-0.5 italic">from {{ sourceTitle }}</p>
+        <div v-if="word.tags && word.tags.length" class="flex flex-wrap gap-1 mt-1">
+          <button
+            v-for="tag in word.tags"
+            :key="tag"
+            type="button"
+            @click="$emit('filter-tag', tag)"
+            class="text-[10px] font-medium text-garden-700 bg-garden-50 border border-garden-100 px-1.5 py-0.5 rounded-full hover:bg-garden-100 transition-colors"
+          >
+            {{ tag }}
+          </button>
+        </div>
       </div>
       <span
         v-if="due"
@@ -92,7 +115,39 @@
       <div v-if="!draft.meaning.trim()" class="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1">
         Adding a meaning helps the watering round stick.
       </div>
+
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <span class="text-xs font-medium text-stone-500">Part of speech</span>
+        <button
+          v-for="t in WORD_TYPES"
+          :key="t"
+          type="button"
+          @click="draft.wordType = draft.wordType === t ? '' : t"
+          class="px-2 py-0.5 rounded-full text-xs font-medium transition-all"
+          :class="draft.wordType === t ? 'bg-stone-800 text-white shadow-pill' : 'bg-white border border-line text-stone-600 hover:border-stone-300'"
+        >
+          {{ WORD_TYPE_LABELS[t] }}
+        </button>
+      </div>
+
+      <div v-if="availableGenders.length && isNounlike(draft.wordType)" class="flex items-center gap-1.5 flex-wrap">
+        <span class="text-xs font-medium text-stone-500">Gender</span>
+        <button
+          v-for="g in availableGenders"
+          :key="g"
+          type="button"
+          @click="draft.gender = draft.gender === g ? '' : g"
+          class="px-2 py-0.5 rounded-full text-xs font-medium transition-all"
+          :class="draft.gender === g ? 'bg-garden-600 text-white shadow-pill' : 'bg-white border border-line text-stone-600 hover:border-garden-200'"
+        >
+          {{ GENDER_LABELS[g] }}
+        </button>
+      </div>
+
       <input v-model="draft.note" type="text" class="gp-input text-sm" placeholder="Context or example (optional)" />
+      <div class="gp-input text-sm flex items-center focus-within:ring-2 focus-within:ring-garden-500/40 focus-within:border-garden-400">
+        <TagInput v-model="draft.tags" />
+      </div>
       <div class="flex items-center gap-2">
         <button
           @click="saveEdit"
@@ -108,11 +163,14 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Pencil, Trash2, Search, Loader2 } from 'lucide-vue-next'
 import { vocabGrowthStage, isDue } from '../../lib/srs.js'
 import { lookupWord } from '../../lib/dictLookup.js'
+import { gendersForLanguage, GENDER_LABELS } from '../../lib/grammaticalGender.js'
+import { WORD_TYPES, WORD_TYPE_LABELS, isNounlike } from '../../lib/wordType.js'
 import VocabStageGlyph from './VocabStageGlyph.vue'
+import TagInput from './TagInput.vue'
 
 const props = defineProps({
   word: { type: Object, required: true },
@@ -124,21 +182,29 @@ const props = defineProps({
   // action-API fallback so it can narrow the page to the right section.
   // Optional; lookup degrades to JSON-only REST if absent.
   languageCode: { type: String, default: null },
+  // Display name of the word's language — looked up against
+  // grammaticalGender.js to decide which gender pills (if any) to show.
+  languageName: { type: String, default: null },
   // When true, hide the inline edit/remove buttons. Used by the multi-
   // select mode in WordList — the parent owns the click/toggle instead.
   hideActions: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['update', 'remove'])
+const emit = defineEmits(['update', 'remove', 'filter-tag'])
 
 const growth = computed(() => vocabGrowthStage(props.word))
 const due = computed(() => isDue(props.word))
+const availableGenders = computed(() => gendersForLanguage(props.languageName))
 
 const editing = ref(false)
-const draft = ref({ term: '', meaning: '', note: '' })
+const draft = ref({ term: '', meaning: '', note: '', gender: '', wordType: '', tags: [] })
 const alternatives = ref([])
 const lookupLoading = ref(false)
 const lookupError = ref(null)
+
+// A gender only makes sense for a noun — retagging mid-edit clears a stale
+// selection the (now-hidden) pill row would otherwise silently carry into Save.
+watch(() => draft.value.wordType, (t) => { if (!isNounlike(t)) draft.value.gender = '' })
 
 function startEdit() {
   // Mined words can have a null meaning (they were planted seed-first);
@@ -148,6 +214,9 @@ function startEdit() {
     term: props.word.term || '',
     meaning: props.word.meaning || '',
     note: props.word.note || '',
+    gender: props.word.gender || '',
+    wordType: props.word.wordType || '',
+    tags: Array.isArray(props.word.tags) ? [...props.word.tags] : [],
   }
   // Reset the lookup state — the user may have changed the term.
   alternatives.value = []
@@ -183,6 +252,9 @@ function saveEdit() {
       term: draft.value.term.trim(),
       meaning: draft.value.meaning.trim() || null,
       note: draft.value.note.trim() || null,
+      gender: draft.value.gender || null,
+      wordType: draft.value.wordType || null,
+      tags: draft.value.tags,
     },
   })
   editing.value = false

@@ -57,6 +57,42 @@
       </div>
     </div>
 
+    <!-- Part of speech — universal (unlike gender, every language has
+         nouns/verbs/adjectives), so always offered. Also gates the gender
+         row below: gender only means something for a noun. -->
+    <div class="flex items-center gap-1.5 flex-wrap">
+      <span class="text-xs font-medium text-stone-500">Part of speech</span>
+      <button
+        v-for="t in WORD_TYPES"
+        :key="t"
+        type="button"
+        @click="wordType = wordType === t ? '' : t"
+        class="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+        :class="wordType === t ? 'bg-stone-800 text-white shadow-pill' : 'bg-white border border-line text-stone-600 hover:border-stone-300'"
+      >
+        {{ WORD_TYPE_LABELS[t] }}
+      </button>
+    </div>
+
+    <!-- Grammatical gender — only for languages that actually have one, and
+         only the genders that language has (e.g. no "Neuter" pill for
+         French), and only when the word is a noun (or untagged). Purely
+         optional: most planted words are ungendered or the gardener just
+         doesn't know it yet. -->
+    <div v-if="availableGenders.length && isNounlike(wordType)" class="flex items-center gap-1.5 flex-wrap">
+      <span class="text-xs font-medium text-stone-500">Gender</span>
+      <button
+        v-for="g in availableGenders"
+        :key="g"
+        type="button"
+        @click="gender = gender === g ? '' : g"
+        class="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+        :class="gender === g ? 'bg-garden-600 text-white shadow-pill' : 'bg-white border border-line text-stone-600 hover:border-garden-200'"
+      >
+        {{ GENDER_LABELS[g] }}
+      </button>
+    </div>
+
     <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
       <div class="sm:w-44 flex-shrink-0">
         <label class="block text-xs font-medium text-stone-500 mb-1">Language</label>
@@ -72,11 +108,15 @@
           @click="showNote = true"
           class="text-xs text-stone-400 hover:text-stone-600 transition-colors"
         >
-          + add context
+          + add context & tags
         </button>
         <template v-else>
           <label class="block text-xs font-medium text-stone-500 mb-1">Context or example <span class="font-normal text-stone-400">(optional)</span></label>
           <input v-model="note" type="text" class="gp-input" placeholder="the sentence where you met it" />
+          <label class="block text-xs font-medium text-stone-500 mb-1 mt-2">Tags <span class="font-normal text-stone-400">(optional — group into themed sets like "kitchen")</span></label>
+          <div class="gp-input flex items-center focus-within:ring-2 focus-within:ring-garden-500/40 focus-within:border-garden-400">
+            <TagInput v-model="tags" />
+          </div>
         </template>
       </div>
 
@@ -102,6 +142,9 @@ import { Sprout, Search, Loader2 } from 'lucide-vue-next'
 import { useVocab } from '../../composables/useVocab.js'
 import { lookupWord } from '../../lib/dictLookup.js'
 import { codeForName } from '../../lib/bookLanguages.js'
+import { gendersForLanguage, GENDER_LABELS } from '../../lib/grammaticalGender.js'
+import { WORD_TYPES, WORD_TYPE_LABELS, isNounlike } from '../../lib/wordType.js'
+import TagInput from './TagInput.vue'
 
 const props = defineProps({
   // Tracked Garten languages ({ id, name }).
@@ -125,6 +168,9 @@ const vocab = useVocab()
 const term = ref('')
 const meaning = ref('')
 const note = ref('')
+const gender = ref('')
+const wordType = ref('')
+const tags = ref([])
 const showNote = ref(false)
 const languageId = ref(null)
 const duplicateNote = ref('')
@@ -135,6 +181,19 @@ const lookupLoading = ref(false)
 const lookupError = ref(null)
 
 const canSubmit = computed(() => term.value.trim() && meaning.value.trim() && languageId.value)
+
+const selectedLanguageName = computed(() => props.languages.find((l) => l.id === languageId.value)?.name || null)
+const availableGenders = computed(() => gendersForLanguage(selectedLanguageName.value))
+
+// A gender picked for one language rarely means anything for another (and
+// "Common"/"Neuter" for Danish would be a stray, meaningless pill left over
+// for a German word) — clear it whenever the language changes.
+watch(languageId, () => { gender.value = '' })
+
+// Same idea: a gender only makes sense for a noun, so retagging a word as a
+// verb/adjective/etc. clears a stale selection the (now-hidden) pill row
+// would otherwise silently carry into the next Plant.
+watch(wordType, (t) => { if (!isNounlike(t)) gender.value = '' })
 
 // Default language: the parent's filter, the preset (capture-from-reading),
 // else the single tracked language, else the most recently studied one.
@@ -220,6 +279,9 @@ async function submit() {
       term: term.value,
       meaning: meaning.value,
       note: note.value,
+      gender: gender.value || null,
+      wordType: wordType.value || null,
+      tags: tags.value,
       languageId: languageId.value,
       sourceBookId: props.sourceBookId,
     })
@@ -231,6 +293,9 @@ async function submit() {
       term.value = ''
       meaning.value = ''
       note.value = ''
+      gender.value = ''
+      wordType.value = ''
+      tags.value = []
       emit('added', result.word)
       termInput.value?.focus()
     }

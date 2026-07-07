@@ -79,6 +79,12 @@
             </div>
             <template v-else>
               <div class="space-y-1 animate-fade-up">
+                <span
+                  v-if="current.gender"
+                  class="inline-block text-[11px] font-medium text-stone-500 bg-stone-100 px-2 py-0.5 rounded-full"
+                >
+                  {{ GENDER_LABELS[current.gender] || current.gender }}
+                </span>
                 <p v-if="current.meaning" class="text-lg text-stone-700">{{ current.meaning }}</p>
                 <p v-else class="text-sm italic text-stone-400">No meaning yet — add one in your Word Garden to water this properly.</p>
                 <p v-if="current.note" class="text-xs text-stone-400 italic px-4">{{ current.note }}</p>
@@ -164,6 +170,7 @@ import { useVocab } from '../../composables/useVocab.js'
 import { dueWords, sessionSummary, reviewWord, SRS_INTERVALS } from '../../lib/srs.js'
 import { localDateStr } from '../../lib/date.js'
 import { codeForName } from '../../lib/bookLanguages.js'
+import { GENDER_LABELS } from '../../lib/grammaticalGender.js'
 
 const props = defineProps({
   languages: { type: Array, default: () => [] },

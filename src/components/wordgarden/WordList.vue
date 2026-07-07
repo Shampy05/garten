@@ -42,6 +42,40 @@
       </button>
     </div>
 
+    <!-- Tag filter chips — a second, independent filter dimension (combines
+         with the language filter via AND) for themed collections ("kitchen",
+         "trip to Berlin") that cut across languages. Only shown when the
+         current language scope actually has tagged words. -->
+    <div v-if="tagsPresent.length" class="flex flex-wrap items-center gap-1.5">
+      <button
+        type="button"
+        @click="tagFilter = null"
+        class="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+        :class="!tagFilter ? 'bg-stone-800 text-white shadow-pill' : 'bg-white border border-line text-stone-600 hover:border-stone-300'"
+      >
+        All tags
+      </button>
+      <button
+        v-for="t in tagsPresent"
+        :key="t.tag"
+        type="button"
+        @click="tagFilter = tagFilter === t.tag ? null : t.tag"
+        class="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+        :class="tagFilter === t.tag ? 'bg-garden-600 text-white shadow-pill' : 'bg-white border border-line text-stone-600 hover:border-stone-300'"
+      >
+        {{ t.tag }} <span class="tabular-nums opacity-70">{{ t.count }}</span>
+      </button>
+      <button
+        v-if="tagFilter && dueWords.length"
+        type="button"
+        @click="$emit('review-tag', dueWords.map((w) => w.id))"
+        class="px-2.5 py-1 rounded-full text-xs font-medium bg-garden-50 border border-garden-200 text-garden-700 hover:bg-garden-100 transition-colors inline-flex items-center gap-1"
+      >
+        <Droplets :size="11" />
+        Review {{ dueWords.length }} in “{{ tagFilter }}”
+      </button>
+    </div>
+
     <!-- ── Deck 1: Due today ────────────────────────────────────────── -->
     <section class="gp-card overflow-hidden">
       <button
@@ -69,11 +103,13 @@
             :selected="selectedIds.has(word.id)"
             :language-color="colorFor(word.languageId)"
             :language-code="codeFor(word.languageId)"
+            :language-name="nameFor(word.languageId)"
             :source-title="sourceTitles[word.sourceBookId] || null"
             @update="$emit('update', $event)"
             @remove="$emit('remove', $event)"
             @toggle="onWordToggle(word)"
             @enter-select="onEnterSelect(word)"
+            @filter-tag="tagFilter = $event"
           />
         </div>
       </div>
@@ -106,11 +142,13 @@
             :selected="selectedIds.has(word.id)"
             :language-color="colorFor(word.languageId)"
             :language-code="codeFor(word.languageId)"
+            :language-name="nameFor(word.languageId)"
             :source-title="sourceTitles[word.sourceBookId] || null"
             @update="$emit('update', $event)"
             @remove="$emit('remove', $event)"
             @toggle="onWordToggle(word)"
             @enter-select="onEnterSelect(word)"
+            @filter-tag="tagFilter = $event"
           />
         </div>
       </div>
@@ -143,11 +181,13 @@
             :selected="selectedIds.has(word.id)"
             :language-color="colorFor(word.languageId)"
             :language-code="codeFor(word.languageId)"
+            :language-name="nameFor(word.languageId)"
             :source-title="sourceTitles[word.sourceBookId] || null"
             @update="$emit('update', $event)"
             @remove="$emit('remove', $event)"
             @toggle="onWordToggle(word)"
             @enter-select="onEnterSelect(word)"
+            @filter-tag="tagFilter = $event"
           />
         </div>
       </div>
@@ -208,7 +248,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { Droplets, Leaf, Sparkles, ChevronDown, CheckSquare, Trash2 } from 'lucide-vue-next'
 import { isDue } from '../../lib/srs.js'
 import { codeForName } from '../../lib/bookLanguages.js'
@@ -226,7 +266,7 @@ const props = defineProps({
   languageFilter: { type: String, default: null },
 })
 
-const emit = defineEmits(['update', 'remove', 'update:languageFilter', 'bulk-remove'])
+const emit = defineEmits(['update', 'remove', 'update:languageFilter', 'bulk-remove', 'review-tag'])
 
 const langById = computed(() => new Map(props.languages.map((l) => [l.id, l])))
 
@@ -241,6 +281,12 @@ function colorFor(languageId) {
 function codeFor(languageId) {
   const lang = langById.value.get(languageId)
   return lang ? codeForName(lang.name) : null
+}
+
+// Display name, threaded down to WordCard so it can look up which
+// grammatical genders (if any) that language has.
+function nameFor(languageId) {
+  return langById.value.get(languageId)?.name || null
 }
 
 function setFilter(id) {
@@ -264,7 +310,31 @@ const languagesPresent = computed(() => {
     .sort((a, b) => a.name.localeCompare(b.name))
 })
 
-const scoped = computed(() => props.words.filter((w) => !props.languageFilter || w.languageId === props.languageFilter))
+const languageScoped = computed(() => props.words.filter((w) => !props.languageFilter || w.languageId === props.languageFilter))
+
+// Tags present within the current language scope, not the full word list —
+// switching to German shouldn't still show a Welsh-only tag chip. Counts
+// help the gardener see which collections are worth reviewing.
+const tagsPresent = computed(() => {
+  const counts = new Map()
+  for (const w of languageScoped.value) {
+    for (const tag of w.tags || []) counts.set(tag, (counts.get(tag) || 0) + 1)
+  }
+  return [...counts.entries()]
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => a.tag.localeCompare(b.tag))
+})
+
+const tagFilter = ref(null)
+
+// A tag from a different language's word would be a stale, confusing
+// selection once the language chip changes — same reset instinct as the
+// gender pill clearing on a language change in WordCaptureForm.
+watch(() => props.languageFilter, () => { tagFilter.value = null })
+
+const scoped = computed(() =>
+  languageScoped.value.filter((w) => !tagFilter.value || (w.tags || []).includes(tagFilter.value))
+)
 
 // Three decks, in priority order: due → new → mature. The buckets are
 // disjoint AND exhaustive — every word is isDue, or stage 0, or stage ≥ 1 —
