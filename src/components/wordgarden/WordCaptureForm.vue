@@ -19,13 +19,41 @@
       </div>
       <div>
         <label class="block text-xs font-medium text-stone-500 mb-1">Meaning</label>
-        <input
-          v-model="meaning"
-          type="text"
-          class="gp-input"
-          placeholder="e.g. calmness, composure"
-          maxlength="500"
-        />
+        <div class="flex items-center gap-1">
+          <input
+            v-model="meaning"
+            type="text"
+            class="gp-input flex-1 min-w-0"
+            placeholder="e.g. calmness, composure"
+            maxlength="500"
+          />
+          <button
+            type="button"
+            @click="lookupOne"
+            :disabled="lookupLoading || !term.trim()"
+            :title="lookupError ? lookupError : 'Look up meaning in Wiktionary'"
+            class="flex-shrink-0 p-2 rounded-lg text-stone-400 hover:text-garden-700 hover:bg-garden-50 border border-transparent hover:border-garden-100 transition-colors disabled:opacity-50"
+            :aria-label="`Look up meaning of ${term}`"
+          >
+            <Loader2 v-if="lookupLoading" :size="14" class="animate-spin" />
+            <Search v-else :size="14" />
+          </button>
+        </div>
+        <div
+          v-if="alternatives.length > 1"
+          class="flex flex-wrap gap-1.5 mt-1.5"
+        >
+          <button
+            v-for="(alt, i) in alternatives"
+            :key="`alt-${i}`"
+            type="button"
+            @click="meaning = alt"
+            :class="meaning === alt ? 'bg-garden-600 text-white' : 'bg-white border border-line text-stone-600 hover:border-garden-200 hover:bg-garden-50'"
+            class="px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors"
+          >
+            {{ alt }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -70,8 +98,10 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Sprout } from 'lucide-vue-next'
+import { Sprout, Search, Loader2 } from 'lucide-vue-next'
 import { useVocab } from '../../composables/useVocab.js'
+import { lookupWord } from '../../lib/dictLookup.js'
+import { codeForName } from '../../lib/bookLanguages.js'
 
 const props = defineProps({
   // Tracked Garten languages ({ id, name }).
@@ -100,6 +130,9 @@ const languageId = ref(null)
 const duplicateNote = ref('')
 const submitting = ref(false)
 const termInput = ref(null)
+const alternatives = ref([])
+const lookupLoading = ref(false)
+const lookupError = ref(null)
 
 const canSubmit = computed(() => term.value.trim() && meaning.value.trim() && languageId.value)
 
@@ -138,6 +171,38 @@ watch(
 
 function onLanguageChange() {
   emit('update:languageFilter', languageId.value)
+}
+
+// Reset lookup alternatives when the user types a new term — the old chips
+// would otherwise stick around and confuse the next click.
+watch(term, () => {
+  alternatives.value = []
+  lookupError.value = null
+})
+
+// Wiktionary lookup. Same UX as MineWordsModal and WordCard's edit form:
+// spinner while loading, first result fills Meaning, alternative chips
+// below if multiple senses came back, quiet error tooltip on failure.
+const selectedLanguageCode = computed(() => {
+  const lang = props.languages.find((l) => l.id === languageId.value)
+  return lang ? codeForName(lang.name) : null
+})
+
+async function lookupOne() {
+  if (lookupLoading.value) return
+  const t = term.value.trim()
+  if (!t) return
+  lookupLoading.value = true
+  lookupError.value = null
+  const res = await lookupWord(t, { languageCode: selectedLanguageCode.value })
+  lookupLoading.value = false
+  if (res.ok) {
+    alternatives.value = res.definitions
+    meaning.value = res.definitions[0]
+  } else {
+    alternatives.value = []
+    lookupError.value = res.error || 'No result'
+  }
 }
 
 // Mirror every change to languageId (init, user pick, parent push) up to the
