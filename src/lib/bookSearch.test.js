@@ -16,8 +16,6 @@ import {
   pickPageCount,
   detectPageCount,
   pickRicher,
-  recommendationSeed,
-  searchRecommendations,
 } from './bookSearch.js'
 import { searchGoogleBooksPage } from './googleBooks.js'
 import { searchOpenLibraryPage } from './openLibrary.js'
@@ -220,50 +218,5 @@ describe('detectPageCount', () => {
     searchGoogleBooksPage.mockRejectedValue(new Error('429'))
     searchOpenLibraryPage.mockRejectedValue(new Error('down'))
     expect(await detectPageCount({ title: 'X' })).toBeNull()
-  })
-})
-
-// ── Recommendations ───────────────────────────────────────────────────────
-
-describe('recommendationSeed', () => {
-  it('returns null when no finished books exist', () => {
-    expect(recommendationSeed([])).toBeNull()
-  })
-  it('returns null when finished books have no author or language', () => {
-    expect(recommendationSeed([
-      { record: { status: 'read', finishedAt: '2026-01-01' } },
-    ])).toBeNull()
-  })
-  it('returns the most recently finished book with author + language', () => {
-    const seed = recommendationSeed([
-      { record: { status: 'read', finishedAt: '2025-12-01' }, author: 'A', languageCode: 'en' },
-      { record: { status: 'read', finishedAt: '2026-03-15' }, author: 'B', languageCode: 'fr' },
-    ])
-    expect(seed).toEqual({ author: 'B', languageCode: 'fr', title: undefined })
-  })
-})
-
-describe('searchRecommendations', () => {
-  it('returns empty when there is no seed', async () => {
-    const out = await searchRecommendations({ savedBooks: [] })
-    expect(out.books).toEqual([])
-    expect(out.seed).toBeNull()
-    expect(searchGoogleBooksPage).not.toHaveBeenCalled()
-  })
-
-  it('filters out the user\'s saved copies from the recommendations', async () => {
-    searchGoogleBooksPage.mockResolvedValue({
-      books: [
-        { externalId: 'g1', title: 'Book 1', source: 'google' },
-        { externalId: 'g2', title: 'Book 2', source: 'google' },
-      ],
-      hasMore: false,
-    })
-    searchOpenLibraryPage.mockResolvedValue({ books: [], hasMore: false })
-    const savedBooks = [
-      { externalId: 'g1', author: 'A', languageCode: 'en', record: { status: 'read', finishedAt: '2026-01-01' } },
-    ]
-    const out = await searchRecommendations({ savedBooks })
-    expect(out.books.map((b) => b.externalId)).toEqual(['g2'])
   })
 })

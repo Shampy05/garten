@@ -98,6 +98,32 @@ describe('useShelves reorderQueue — reactive composable', () => {
     stop()
   })
 
+  it('a reorder with the head element excluded from visibleIds leapfrogs it', async () => {
+    // The Up-next shelf spotlights one "next read" above the grid and passes
+    // only the grid's ids as visibleIds. Reordering must treat the excluded
+    // pick exactly like a filter-hidden row: swapping the grid's own rows,
+    // never dragging the pick out of its slot.
+    const { queue, reorderQueue } = useShelves()
+    const stop = watch(queue, () => {}, { immediate: true })
+    savedBooks.value = [
+      { id: 'pick', languageCode: 'fr', record: { status: 'want_to_read', sortIndex: 10 } },
+      { id: 'x', languageCode: 'fr', record: { status: 'want_to_read', sortIndex: 20 } },
+      { id: 'y', languageCode: 'fr', record: { status: 'want_to_read', sortIndex: 30 } },
+    ]
+    await nextTick()
+
+    const gridView = () => queue.value.filter((b) => b.id !== 'pick').map((b) => b.id)
+    expect(gridView()).toEqual(['x', 'y'])
+
+    await reorderQueue('y', 'up', gridView())
+    await nextTick()
+
+    expect(gridView()).toEqual(['y', 'x'])
+    // the excluded pick keeps its place at the front of the real queue
+    expect(queue.value[0].id).toBe('pick')
+    stop()
+  })
+
   it('three rapid ▼ clicks walk a book cleanly to the bottom', async () => {
     const { queue, reorderQueue } = useShelves()
     const stop = watch(queue, () => {}, { immediate: true })

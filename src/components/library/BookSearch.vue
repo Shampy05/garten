@@ -193,38 +193,13 @@
         </p>
       </div>
     </template>
-
-    <!-- Recommendation strip: "More by *author*". Only renders when the
-         composable produced a seed AND the user is not currently searching
-         (otherwise the recs would compete with the active results for room). -->
-    <div
-      v-if="!isActive && recommendations.length"
-      class="pt-3 border-t border-line"
-    >
-      <div class="flex items-center justify-between mb-2.5">
-        <h4 class="gp-title text-sm uppercase tracking-wider text-stone-500 inline-flex items-center gap-1.5">
-          <Sparkles :size="12" />
-          More by {{ recommendations[0]?.author || recommendationTitle?.author }}
-        </h4>
-        <span class="text-[11px] text-stone-400">{{ recommendations.length }} suggestions</span>
-      </div>
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <BookResultCard
-          v-for="book in recommendations"
-          :key="book.externalId"
-          :book="book"
-          :saved="savedIds.includes(book.externalId)"
-          @save="$emit('save', $event)"
-        />
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import {
-  Search, BookOpen, X, Loader2, ChevronDown, FileText, Hash, BookCheck, Sparkles,
+  Search, BookOpen, X, Loader2, ChevronDown, FileText, Hash, BookCheck,
   ArrowDownAZ, Calendar, Star,  // placeholder icons for sort options
 } from 'lucide-vue-next'
 import { useBookSearch } from '../../composables/useBookSearch.js'
@@ -237,13 +212,9 @@ const props = defineProps({
   // The user's tracked Garten languages — the dropdown lists all of them by
   // name. The ISO-639-1 code is used for the book search only when available.
   languages: { type: Array, default: () => [] },
-  // Saved books, used to feed the recommendation seed and the "In your library"
-  // secondary filter. Caller passes them in so the composable stays stateless
-  // about library state.
-  savedBooks: { type: Array, default: () => [] },
 })
 
-const emit = defineEmits(['save'])
+const emit = defineEmits(['save', 'active'])
 
 // The "Already saved" filter needs a Set of externalIds; the savedBooks prop
 // is the source of truth. We pass a getter so the composable sees live updates
@@ -273,10 +244,6 @@ const {
   loadMore,
   searchNow,
   setLanguage,
-  recommendations,
-  recommendationsLoading,
-  recommendationTitle,
-  loadRecommendations,
 } = search
 
 const selectedLanguageId = ref('')
@@ -287,10 +254,9 @@ const searchInput = ref(null)
 defineExpose({ focus: () => searchInput.value?.focus({ preventScroll: true }) })
 
 // "Active" means the user is in the middle of searching. We treat typing or
-// having a non-empty query as active; the rec strip only shows when not active.
+// having a non-empty query as active; the parent gates the Discover rows on it.
 const isActive = computed(() => query.value.trim().length > 0)
 watch(isActive, (active) => {
-  // Emit so the parent can decide if it wants to gate the rec strip.
   emit('active', active)
 })
 
@@ -355,19 +321,9 @@ onMounted(() => {
     const match = languageOptions.value.find((l) => l.code === props.defaultLanguageCode)
     if (match) selectLanguage(match.id)
   }
-  // Seed recommendations on first mount. The composable does nothing when
-  // the user has no finished books.
-  loadRecommendations(props.savedBooks)
 })
 
 onBeforeUnmount(cleanup)
-
-// Refresh recommendations when the saved-books list changes (e.g. a new
-// book was just finished). Watch the prop shallowly — deep watching would
-// re-fetch on every progress log.
-watch(() => props.savedBooks.length, () => {
-  if (!isActive.value) loadRecommendations(props.savedBooks)
-})
 
 function onInput() {
   search()

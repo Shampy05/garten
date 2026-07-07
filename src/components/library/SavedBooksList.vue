@@ -106,6 +106,7 @@
             @remove="$emit('remove', $event)"
             @log="$emit('log', $event)"
             @quick-log="$emit('quick-log', $event)"
+            @capture-word="$emit('capture-word', $event)"
           />
         </div>
         <p v-if="atActiveCap && queueHasMatches" class="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-2">
@@ -126,14 +127,22 @@
         <p class="text-sm text-stone-500 italic px-1 py-2">No books queued{{ languageFilter ? ' for this language' : '' }}.</p>
       </template>
       <template v-else>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <NextPickCard
+          v-if="nextPick"
+          :book="nextPick.book"
+          :reason="nextPick.reason"
+          :language-color="languageColors[nextPick.book.languageCode]"
+          @move-to-reading="onMoveToReading"
+          @edit="$emit('edit', $event)"
+        />
+        <div v-if="gridQueue.length" class="grid grid-cols-1 sm:grid-cols-2 gap-3" :class="nextPick ? 'mt-3' : ''">
           <QueueCard
-            v-for="(book, i) in filteredQueue"
+            v-for="(book, i) in gridQueue"
             :key="book.id"
             :book="book"
             :position="i + 1"
             :can-move-up="i > 0"
-            :can-move-down="i < filteredQueue.length - 1"
+            :can-move-down="i < gridQueue.length - 1"
             @edit="$emit('edit', $event)"
             @remove="$emit('remove', $event)"
             @move-to-reading="onMoveToReading"
@@ -182,7 +191,9 @@ import { BookOpen, BookCheck, SlidersHorizontal, ListOrdered } from 'lucide-vue-
 import { useShelves } from '../../composables/useShelves.js'
 import { useBooks } from '../../composables/useBooks.js'
 import { nameForCode } from '../../lib/bookLanguages.js'
+import { computeNextPick } from '../../lib/nextPick.js'
 import ReadingSpotlightCard from './ReadingSpotlightCard.vue'
+import NextPickCard from './NextPickCard.vue'
 import QueueCard from './QueueCard.vue'
 import FinishedShelf from './FinishedShelf.vue'
 import ShelfSection from './ShelfSection.vue'
@@ -191,9 +202,13 @@ import ConfirmDialog from '../ConfirmDialog.vue'
 const props = defineProps({
   savedBooks: { type: Array, default: () => [] },
   languageColors: { type: Object, default: () => ({}) },
+  // Study data from useStorage, threaded down by LibraryView so the next-pick
+  // ladder can spot neglected languages — no new reads.
+  entries: { type: Array, default: () => [] },
+  studyLanguages: { type: Array, default: () => [] },
 })
 
-const emit = defineEmits(['edit', 'remove', 'log', 'quick-log', 'mark-as-read', 'reorder', 'start-reread'])
+const emit = defineEmits(['edit', 'remove', 'log', 'quick-log', 'mark-as-read', 'reorder', 'start-reread', 'capture-word'])
 
 const shelves = useShelves()
 
@@ -257,6 +272,26 @@ const filteredFinished = computed(() =>
   finished.value.filter((b) => !languageFilter.value || b.languageCode === languageFilter.value)
 )
 
+// "Your next read" — one spotlighted pick above the queue grid, derived from
+// the *filtered* queue so it always belongs to what's on screen. The grid
+// below excludes the pick; reorder passes the grid's ids as visibleIds, so
+// the excluded pick behaves exactly like a filter-hidden row (runReorder's
+// leapfrog keeps its slot intact).
+const nextPick = computed(() =>
+  computeNextPick({
+    queue: filteredQueue.value,
+    activeBooks: active.value,
+    finishedBooks: finished.value,
+    entries: props.entries,
+    languages: props.studyLanguages,
+  })
+)
+const gridQueue = computed(() => {
+  const pickId = nextPick.value?.book?.id
+  if (!pickId) return filteredQueue.value
+  return filteredQueue.value.filter((b) => b.id !== pickId)
+})
+
 const showActive = computed(() => !statusFilter.value || statusFilter.value === 'reading')
 const showQueue = computed(() => !statusFilter.value || statusFilter.value === 'want_to_read')
 const showFinished = computed(() => !statusFilter.value || statusFilter.value === 'read')
@@ -311,8 +346,8 @@ async function onMarkAsRead(book) {
   await shelves.markAsRead(book.id)
 }
 async function onReorder({ book, direction }) {
-  // Pass the visible (language-filtered) order so a reorder swaps with the
-  // neighbour the user actually sees, not a hidden other-language row.
-  await shelves.reorderQueue(book.id, direction, filteredQueue.value.map((b) => b.id))
+  // Pass the visible (language-filtered, pick-excluded) order so a reorder
+  // swaps with the neighbour the user actually sees, not a hidden row.
+  await shelves.reorderQueue(book.id, direction, gridQueue.value.map((b) => b.id))
 }
 </script>

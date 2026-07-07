@@ -53,6 +53,14 @@
 
         <div class="flex items-center justify-end gap-1 mt-auto pt-2">
           <button
+            @click="$emit('capture-word', book)"
+            class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-stone-500 bg-white border border-line hover:border-garden-400 hover:text-garden-700 hover:shadow-pill transition-all active:scale-95"
+            title="Add a word from this book to your Word Garden"
+          >
+            <BookMarked :size="12" />
+            <span class="hidden sm:inline">Add a word</span>
+          </button>
+          <button
             @click="$emit('edit', book)"
             class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-stone-500 bg-white border border-line hover:border-garden-400 hover:text-garden-700 hover:shadow-pill transition-all active:scale-95"
             title="Edit book"
@@ -147,7 +155,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { BookOpen, Pencil, Trash2 } from 'lucide-vue-next'
+import { BookOpen, BookMarked, Pencil, Trash2 } from 'lucide-vue-next'
 import { nameForCode } from '../../lib/bookLanguages.js'
 import { bookPaceStats, formatPace } from '../../lib/readingProgress.js'
 
@@ -161,7 +169,7 @@ const props = defineProps({
   progressLoaded: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['edit', 'remove', 'log', 'quick-log'])
+const emit = defineEmits(['edit', 'remove', 'log', 'quick-log', 'capture-word'])
 
 const submitting = ref(false)
 

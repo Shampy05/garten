@@ -3,8 +3,6 @@ import {
   searchBooksMerged,
   sortBooks,
   applyFilters,
-  searchRecommendations,
-  recommendationSeed,
 } from '../lib/bookSearch.js'
 import { getRecentSearches, pushRecentSearch, clearRecentSearches } from '../lib/searchCache.js'
 import { useAuth } from './useAuth.js'
@@ -171,33 +169,6 @@ export function useBookSearch({ savedExternalIds = () => new Set() } = {}) {
     clearTimeout(debounceTimer)
   }
 
-  // ── Recommendations ────────────────────────────────────────────────────
-  // Lightweight wrapper around searchRecommendations. The caller passes the
-  // saved books; the composable reuses them for the "Already saved" filter
-  // and the seed.
-  const recommendations = ref([])
-  const recommendationsLoading = ref(false)
-  const recommendationTitle = ref(null)
-
-  async function loadRecommendations(savedBooks) {
-    const seed = recommendationSeed(savedBooks || [])
-    if (!seed) {
-      recommendations.value = []
-      recommendationTitle.value = null
-      return
-    }
-    recommendationsLoading.value = true
-    try {
-      const { books, seed: usedSeed } = await searchRecommendations({ savedBooks: savedBooks || [] })
-      recommendations.value = books
-      recommendationTitle.value = usedSeed
-    } catch (e) {
-      recommendations.value = []
-    } finally {
-      recommendationsLoading.value = false
-    }
-  }
-
   return {
     // query state
     query,
@@ -226,10 +197,5 @@ export function useBookSearch({ savedExternalIds = () => new Set() } = {}) {
     // recent
     recent,
     clearRecent,
-    // recommendations
-    recommendations,
-    recommendationsLoading,
-    recommendationTitle,
-    loadRecommendations,
   }
 }

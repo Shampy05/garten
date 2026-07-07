@@ -50,6 +50,18 @@
             <BookOpen :size="15" /> Library
           </button>
           <button
+            @click="navView = 'words'"
+            class="relative flex-1 sm:flex-initial inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200"
+            :class="navView === 'words' ? 'bg-gradient-to-b from-garden-500 to-garden-600 text-white shadow-[0_6px_14px_-8px_rgba(32,96,53,0.8)]' : 'text-stone-500 hover:text-stone-700'"
+          >
+            <Leaf :size="15" /> Words
+            <!-- Words due for review wait inside the Word Garden -->
+            <span
+              v-if="vocab.dueCount.value > 0 && navView !== 'words'"
+              class="absolute top-0.5 right-1 w-2 h-2 rounded-full bg-garden-500"
+            ></span>
+          </button>
+          <button
             @click="navView = 'friends'"
             class="relative flex-1 sm:flex-initial inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200"
             :class="navView === 'friends' ? 'bg-gradient-to-b from-garden-500 to-garden-600 text-white shadow-[0_6px_14px_-8px_rgba(32,96,53,0.8)]' : 'text-stone-500 hover:text-stone-700'"
@@ -458,6 +470,8 @@
 
       <LibraryView v-else-if="navView === 'library'" :languages="data.languages" />
 
+      <WordGardenView v-else-if="navView === 'words'" :languages="data.languages" :entries="data.entries" />
+
       <SocialView v-else :languages="data.languages" />
     </div>
 
@@ -513,7 +527,7 @@
 import { ref, computed, watch, watchEffect, provide, onMounted, onBeforeUnmount } from 'vue'
 import {
   Settings, Pencil, Trash2, Sprout, Users, Flame, ChevronDown, LogOut, BookOpen, User, Target, Droplets,
-  Layers, BookMarked, Headphones, MessageCircle, PenLine, Volume2,
+  Layers, BookMarked, Headphones, MessageCircle, PenLine, Volume2, Leaf,
 } from 'lucide-vue-next'
 import { useAuth } from './composables/useAuth.js'
 import { useStorage } from './composables/useStorage.js'
@@ -550,7 +564,9 @@ import ConfirmDialog from './components/ConfirmDialog.vue'
 import Toast from './components/Toast.vue'
 import SocialView from './components/social/SocialView.vue'
 import LibraryView from './components/library/LibraryView.vue'
+import WordGardenView from './components/wordgarden/WordGardenView.vue'
 import { useSocial } from './composables/useSocial.js'
+import { useVocab } from './composables/useVocab.js'
 import { growthStage, stageRank, BLOOMS } from './lib/avatar.js'
 import { bloomFaviconDataUri } from './lib/favicon.js'
 import { plantedOnLabel, gardenAnniversary, pressedFlowers } from './lib/profileStats.js'
@@ -567,15 +583,22 @@ provide('social', social)
 // GardenerProfile use — calling it here starts its (cached, 30s TTL) load
 // once per session rather than duplicating it.
 const booksApi = useBooks()
-// Top-level view: 'garden' | 'library' | 'friends'. Persisted; migrates the
-// previous boolean 'garten:socialMode' key on first load so existing users who
-// were on the Friends tab stay there. (Named navView to avoid colliding with
-// useTimeframe's heatmap `viewMode`.)
+// Word Garden state — a module singleton like useBooks. Called here so the
+// nav dot and the "Today's seed" vocab rung work without visiting the tab;
+// one cached read per session for every user, same trade as booksApi above.
+const vocab = useVocab()
+// Top-level view: 'garden' | 'library' | 'words' | 'friends'. Persisted;
+// migrates the previous boolean 'garten:socialMode' key on first load so
+// existing users who were on the Friends tab stay there. (Named navView to
+// avoid colliding with useTimeframe's heatmap `viewMode`.) Unknown stored
+// values fall back to 'garden' — without the whitelist a stale/renamed value
+// would silently land on the bare v-else view (Friends) instead.
 const NAV_VIEW_KEY = 'garten:viewMode'
-const navView = ref(
+const NAV_VIEWS = ['garden', 'library', 'words', 'friends']
+const storedNavView =
   localStorage.getItem(NAV_VIEW_KEY) ||
   (localStorage.getItem('garten:socialMode') === 'true' ? 'friends' : 'garden')
-)
+const navView = ref(NAV_VIEWS.includes(storedNavView) ? storedNavView : 'garden')
 watch(navView, (val) => localStorage.setItem(NAV_VIEW_KEY, val))
 
 // Account menu — consolidates identity, language management and sign-out so
@@ -876,6 +899,7 @@ const nextAction = computed(() =>
     goalHours: goalHours.value,
     activityRows: activityGoalRows.value,
     plantedAt: user.value?.created_at ?? null,
+    dueVocabCount: vocab.dueCount.value,
   })
 )
 const NEXT_ACTION_TONES = {
@@ -885,7 +909,7 @@ const NEXT_ACTION_TONES = {
   gentle: { icon: Sprout, classes: 'bg-stone-50 border-line text-stone-600' },
   calm: { icon: Sprout, classes: 'bg-garden-50/60 border-garden-100 text-garden-700' },
 }
-const NEXT_ACTION_ICONS = { flame: Flame, target: Target, sprout: Sprout, droplets: Droplets }
+const NEXT_ACTION_ICONS = { flame: Flame, target: Target, sprout: Sprout, droplets: Droplets, leaf: Leaf }
 const nextActionUi = computed(() => {
   const tone = NEXT_ACTION_TONES[nextAction.value.tone] || NEXT_ACTION_TONES.gentle
   return { icon: NEXT_ACTION_ICONS[nextAction.value.icon] || Sprout, classes: tone.classes }

@@ -75,6 +75,42 @@ describe('computeNextAction', () => {
     expect(a.message).toContain('9 days')
   })
 
+  it('nudges when three or more words are due for review', () => {
+    const entries = [entry('fr', TODAY), entry('de', daysBefore(2))]
+    const a = computeNextAction({
+      entries, languages: langs, todayMinutes: 20,
+      dueVocabCount: 5, today: TODAY,
+    })
+    expect(a.kind).toBe('vocab-due')
+    expect(a.icon).toBe('leaf')
+    expect(a.message).toContain('5 words')
+  })
+
+  it('one or two stray due words do not nag', () => {
+    const entries = [entry('fr', TODAY), entry('de', daysBefore(2))]
+    const a = computeNextAction({
+      entries, languages: langs, todayMinutes: 20,
+      dueVocabCount: 2, today: TODAY,
+    })
+    expect(a.kind).not.toBe('vocab-due')
+  })
+
+  it('plant-today outranks due words, but due words outrank a neglected language', () => {
+    // Nothing logged today → plant-today wins even with a vocab backlog.
+    const idle = computeNextAction({
+      entries: [entry('fr', daysBefore(5))], languages: langs,
+      todayMinutes: 0, dueVocabCount: 10, today: TODAY,
+    })
+    expect(idle.kind).toBe('plant-today')
+
+    // Today handled → the vocab backlog beats the neglected-language nudge.
+    const tended = computeNextAction({
+      entries: [entry('fr', TODAY), entry('de', daysBefore(9))], languages: langs,
+      todayMinutes: 20, dueVocabCount: 3, today: TODAY,
+    })
+    expect(tended.kind).toBe('vocab-due')
+  })
+
   it('affirms a thriving garden when nothing needs attention', () => {
     const entries = [entry('fr', TODAY), entry('de', daysBefore(2))]
     const a = computeNextAction({

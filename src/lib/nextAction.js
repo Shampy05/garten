@@ -88,6 +88,7 @@ export function computeNextAction({
   goalHours = null,
   activityRows = [],
   plantedAt = null,
+  dueVocabCount = 0,
   today = localDateStr(new Date()),
 } = {}) {
   // 0. Brand-new gardener.
@@ -167,6 +168,17 @@ export function computeNextAction({
       message: `Your ${cap(lagging.type)} goal is behind — ${fmtMin(
         lagging.targetHours * 60 - lagging.loggedMinutes
       )} to go this week.`,
+    }
+  }
+
+  // 4b. Words piling up in the Word Garden. Threshold of 3 keeps a single
+  //     stray word from nagging; a real backlog earns the nudge.
+  if (dueVocabCount >= 3) {
+    return {
+      kind: 'vocab-due',
+      tone: 'nudge',
+      icon: 'leaf',
+      message: `${dueVocabCount} words are ready for watering in your Word Garden.`,
     }
   }
 

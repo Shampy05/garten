@@ -48,10 +48,13 @@
           <SavedBooksList
             :saved-books="savedBooks"
             :language-colors="languageColorMap"
+            :entries="storageData.entries"
+            :study-languages="languages"
             @edit="openEditModal"
             @remove="confirmRemove"
             @log="openLogModal"
             @quick-log="handleQuickLog"
+            @capture-word="openCaptureWord"
           />
         </template>
       </div>
@@ -67,9 +70,20 @@
           :saved-ids="savedIds"
           :default-language-code="defaultLanguageCode"
           :languages="languages"
-          :saved-books="savedBooks"
           @save="openSaveModal"
           @active="searchActive = $event"
+        />
+
+        <!-- Discover rows — hidden while a search is active so suggestions
+             never compete with live results for room. -->
+        <DiscoverSection
+          v-if="!searchActive"
+          :saved-books="savedBooks"
+          :saved-ids="savedIds"
+          :entries="storageData.entries"
+          :languages="languages"
+          :ready="loaded && storageLoaded"
+          @save="openSaveModal"
         />
       </div>
     </div>
@@ -105,24 +119,58 @@
       @confirm="executeRemove"
       @cancel="cancelRemove"
     />
+
+    <!-- Capture-from-reading: a slim shell around the Word Garden's capture
+         form, prefilled with the book's language and carrying its id as the
+         word's (soft) source reference. -->
+    <Teleport to="body">
+      <div v-if="captureTarget" class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="fixed inset-0 bg-stone-900/25 backdrop-blur-sm animate-fade-up" @click="captureTarget = null"></div>
+        <div class="relative min-h-full flex items-start sm:items-center justify-center p-4 sm:py-12" @click.self="captureTarget = null">
+          <div class="relative w-full max-w-lg animate-grow-in">
+            <div class="flex items-center justify-between mb-2 px-1">
+              <p class="text-xs text-stone-500 truncate">
+                A word from <span class="font-medium text-stone-700">{{ captureTarget.title }}</span>
+              </p>
+              <button
+                @click="captureTarget = null"
+                class="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors flex-shrink-0"
+                aria-label="Close"
+              >
+                <X :size="15" />
+              </button>
+            </div>
+            <WordCaptureForm
+              :languages="storageData.languages"
+              :entries="storageData.entries"
+              :preset-language-id="captureLanguageId"
+              :source-book-id="captureTarget.id"
+              @added="onWordCaptured"
+            />
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Library, BookOpen, Search } from 'lucide-vue-next'
+import { Library, BookOpen, Search, X } from 'lucide-vue-next'
 import { useBooks } from '../../composables/useBooks.js'
 import { useStorage } from '../../composables/useStorage.js'
 import { useToast } from '../../composables/useToast.js'
 import { codeForName, nameForCode } from '../../lib/bookLanguages.js'
 import { bookJustFinished } from '../../lib/finishCelebration.js'
 import BookSearch from './BookSearch.vue'
+import DiscoverSection from './DiscoverSection.vue'
 import SavedBooksList from './SavedBooksList.vue'
 import ReadingSummary from './ReadingSummary.vue'
 import SaveBookModal from './SaveBookModal.vue'
 import EditBookModal from './EditBookModal.vue'
 import LogPagesModal from './LogPagesModal.vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
+import WordCaptureForm from '../wordgarden/WordCaptureForm.vue'
 
 const props = defineProps({
   // The user's tracked Garten languages — used only to default the search
@@ -131,7 +179,7 @@ const props = defineProps({
 })
 
 const { savedBooks, loaded, loadError, saveBook, updateRecord, removeBook, retryLoad, quickLog } = useBooks()
-const { addEntry, data: storageData } = useStorage()
+const { addEntry, data: storageData, loaded: storageLoaded } = useStorage()
 const toast = useToast()
 
 const searchActive = ref(false)
@@ -238,6 +286,24 @@ watch(savedBooks, (curr) => {
   celebrated.add(finished.id)
   toast.show(`Finished “${finished.title}” — lovely work.`, 'celebrate', 6000)
 }, { deep: true })
+
+// Capture-from-reading — "Add a word" on a Reading card opens the Word
+// Garden capture form with this book as the (soft) source.
+const captureTarget = ref(null)
+const captureLanguageId = computed(() => {
+  if (!captureTarget.value?.languageCode) return null
+  const lang = storageData.value.languages.find(
+    (l) => codeForName(l.name) === captureTarget.value.languageCode
+  )
+  return lang?.id ?? null
+})
+function openCaptureWord(book) {
+  captureTarget.value = book
+}
+function onWordCaptured(word) {
+  captureTarget.value = null
+  toast.show(`“${word.term}” planted in your Word Garden.`, 'success', 3500)
+}
 
 // Remove flow (FR11)
 const removeTarget = ref(null)
