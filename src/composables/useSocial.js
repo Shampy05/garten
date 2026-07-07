@@ -29,6 +29,10 @@ export function useSocial() {
   // user_id, for the active leaderboard window. { languages[], activities[], total }.
   const circleBreakdown = ref({})
   const circleWeekMinutes = ref(0)
+  // Friends' currently-reading + read books, keyed by friend_id. Fed by the
+  // SECURITY DEFINER circle_books() RPC so raw books/reading_records rows
+  // never cross the RLS boundary.
+  const circleBooks = ref({})
 
   let feedChannel = null
   let reactionsChannel = null
@@ -136,7 +140,7 @@ export function useSocial() {
         'actor:profiles!activity_events_actor_id_fkey(username, display_name), ' +
         'co_actor:profiles!activity_events_co_actor_id_fkey(username, display_name)'
       )
-      .in('kind', ['milestone', 'bloom', 'commitment_progress', 'new_language'])
+      .in('kind', ['milestone', 'bloom', 'commitment_progress', 'new_language', 'reading_milestone', 'reading'])
       .order('created_at', { ascending: false })
       .limit(50)
     if (error) return
@@ -304,7 +308,7 @@ export function useSocial() {
         { event: 'INSERT', schema: 'public', table: 'activity_events' },
         (payload) => {
           const item = normalizeEvent(payload.new)
-          if (!['milestone', 'bloom', 'commitment_progress', 'new_language'].includes(item.kind)) return
+          if (!['milestone', 'bloom', 'commitment_progress', 'new_language', 'reading_milestone', 'reading'].includes(item.kind)) return
           if (feed.value.some((e) => e.id === item.id)) return
           feed.value = dedupBlooms([item, ...feed.value]).slice(0, 50)
         }
@@ -413,6 +417,39 @@ export function useSocial() {
     }
   }
 
+  async function loadCircleBooks() {
+    if (!profile.value) {
+      circleBooks.value = {}
+      return
+    }
+    const { data, error } = await supabase.rpc('circle_books')
+    if (error) {
+      circleBooks.value = {}
+      return
+    }
+    const map = {}
+    for (const row of data || []) {
+      const fid = row.friend_id
+      if (!map[fid]) map[fid] = []
+      map[fid].push({
+        bookId: row.book_id,
+        externalId: row.external_id,
+        title: row.title,
+        author: row.author,
+        coverUrl: row.cover_url,
+        languageCode: row.language_code,
+        status: row.status,
+        currentPage: row.current_page,
+        totalPages: row.total_pages,
+        rating: row.rating,
+        difficulty: row.difficulty,
+        startedAt: row.started_at,
+        finishedAt: row.finished_at,
+      })
+    }
+    circleBooks.value = map
+  }
+
   async function refresh() {
     await loadProfile()
     if (profile.value) {
@@ -421,7 +458,8 @@ export function useSocial() {
         loadRequests(),
         loadFeed(),
         loadCommitments(),
-        loadLeaderboard()
+        loadLeaderboard(),
+        loadCircleBooks()
       ])
       await loadFeedReactions()
       subscribeFeed()
@@ -562,6 +600,7 @@ export function useSocial() {
     leaderboardWindow.value = 'week'
     circleBreakdown.value = {}
     circleWeekMinutes.value = 0
+    circleBooks.value = {}
     reactionsByEvent.value = {}
   })
 
@@ -579,6 +618,7 @@ export function useSocial() {
     leaderboardWindow,
     circleBreakdown,
     circleWeekMinutes,
+    circleBooks,
     refresh,
     loadProfile,
     loadFriends,
@@ -598,6 +638,7 @@ export function useSocial() {
     setCommitment,
     deleteCommitment,
     loadLeaderboard,
-    loadCircleBreakdown
+    loadCircleBreakdown,
+    loadCircleBooks
   }
 }

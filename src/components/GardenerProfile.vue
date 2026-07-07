@@ -292,6 +292,39 @@
             </div>
           </div>
 
+          <!-- Their nightstand (friend). Mirrors the self nightstand: a cover
+               strip of books they're currently reading, with a language dot
+               + thin progress bar. Reading books come from circle_books (a
+               SECURITY DEFINER RPC that joins books + reading_records for
+               accepted friends) so raw rows never cross the RLS boundary. -->
+          <div v-if="!isSelf && friendBooks.length" class="mt-5">
+            <h5 class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-2">Their nightstand</h5>
+            <div class="flex gap-2.5 overflow-x-auto -mx-1 px-1 pb-1">
+              <div
+                v-for="book in friendBooks"
+                :key="book.bookId"
+                class="flex-shrink-0 w-16"
+                :title="`${book.title}${book.author ? ' — ' + book.author : ''} · page ${book.currentPage || 0} of ${book.totalPages || '?'}${book.status === 'read' ? ' · finished' : ''}`"
+              >
+                <div class="relative w-16 h-24 rounded-lg overflow-hidden bg-stone-200 ring-1 ring-line">
+                  <img v-if="book.coverUrl" :src="book.coverUrl" :alt="book.title" class="w-full h-full object-cover" />
+                  <BookOpen v-else :size="18" class="text-stone-400 absolute inset-0 m-auto" />
+                  <span
+                    class="absolute top-1 right-1 w-2 h-2 rounded-full ring-2 ring-white"
+                    :style="{ backgroundColor: friendBookColor() }"
+                    :aria-label="book.languageCode ? `${nameForCode(book.languageCode)} language` : ''"
+                  ></span>
+                </div>
+                <div v-if="bookPct(book) > 0" class="mt-1 h-1 bg-stone-200 rounded-full overflow-hidden">
+                  <div
+                    class="h-full rounded-full transition-all duration-700"
+                    :style="{ width: bookPct(book) + '%', backgroundColor: friendBookColor() }"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Recent celebrations (friend) -->
           <div v-if="!isSelf && recentCelebrations.length" class="mt-5">
             <h5 class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-2">Recently</h5>
@@ -458,6 +491,34 @@ const statTiles = computed(() => {
 // ── Friend derived views ────────────────────────────────────────────────────
 const friendLanguages = computed(() => props.friend?.active_languages || [])
 const friendGardenName = computed(() => (props.friend?.garden_name || '').trim())
+// Books the friend is currently reading (or has finished), fed by the
+// circle_books RPC and indexed by friend_id. Only books with status 'reading'
+// or 'read' are returned by the RPC, so this list is already filtered.
+const friendBooks = computed(() => {
+  if (isSelf.value || !social) return []
+  const fid = props.friend?.friend_id
+  if (!fid) return []
+  return (social.circleBooks?.value?.[fid] || []).slice().sort((a, b) => {
+    // Currently reading first, finished at the tail.
+    if (a.status !== b.status) return a.status === 'reading' ? -1 : 1
+    return 0
+  })
+})
+
+function bookPct(book) {
+  if (!book.totalPages) return 0
+  return Math.min(100, Math.max(0, ((book.currentPage || 0) / book.totalPages) * 100))
+}
+
+// Friend's book covers use a neutral stone dot for the language hint — the
+// friend's own Garten language colours aren't exposed to the client (only
+// safe aggregates cross the RLS boundary in circle_books), so we can't
+// match a friend's tracked-language colour the way the self nightstand
+// does. The cover image + title do most of the identity work; the dot is
+// a quiet placeholder so the layout matches the self nightstand.
+function friendBookColor() {
+  return '#a8a29e'
+}
 
 const topLanguageName = computed(() => {
   const bd = social?.circleBreakdown?.value?.[props.friend?.friend_id]

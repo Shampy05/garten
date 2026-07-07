@@ -472,6 +472,23 @@ export function useBooks() {
       // Milestone celebrations are best-effort; don't block the log flow.
     }
 
+    // Friend-feed ping — every page log gets a "X is on page N of Title today"
+    // card in the Garden Circle. Also best-effort: a failed ping must not
+    // block the local progress save the user just asked for.
+    try {
+      await supabase.rpc('emit_reading_progress', {
+        p_book_id: bookId,
+        p_book_title: book.title,
+        p_language_name: book.record?.targetLanguage ? nameForCode(book.record.targetLanguage) : book.title,
+        p_language_color: languageColor || null,
+        p_current_page: newPage,
+        p_total_pages: totalPages,
+        p_pages_read: actualPagesRead,
+      })
+    } catch (e) {
+      // Silent — see above.
+    }
+
     const mergedRecord = { ...book.record, ...recordUpdates }
     savedBooks.value = savedBooks.value.map((b) =>
       b.id === bookId ? { ...b, record: mergedRecord } : b
