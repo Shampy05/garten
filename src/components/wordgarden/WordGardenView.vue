@@ -27,6 +27,17 @@
         <span v-else-if="words.length" class="text-xs text-stone-400 flex-shrink-0 sm:ml-auto">
           All watered<span class="hidden sm:inline"> — nothing due today.</span>
         </span>
+        <!-- Mine-words-from-book affordance: surfaced here so the user doesn't
+             need to navigate to the Library tab to mine a passage. Closes
+             the loop on the Word Garden / Library / Reading flow. -->
+        <button
+          v-if="savedBooks.length"
+          @click="showBookPicker = true"
+          class="gp-btn-ghost px-3 py-2 text-sm inline-flex items-center gap-1.5 flex-shrink-0"
+        >
+          <BookMarked :size="14" />
+          Mine from book
+        </button>
       </div>
     </div>
 
@@ -79,11 +90,18 @@
           @update:language-filter="languageFilter = $event"
           @update="onUpdate"
           @remove="confirmRemove"
+          @bulk-remove="onBulkRemove"
         />
       </template>
     </div>
 
-    <ReviewSession v-if="showReview" :languages="languages" @close="showReview = false" />
+    <ReviewSession
+      v-if="showReview"
+      :languages="languages"
+      :force-ids="forceReviewIds"
+      @close="onReviewClose"
+      @review-weak="onReviewWeak"
+    />
 
     <ConfirmDialog
       :visible="showRemoveConfirm"
@@ -94,17 +112,37 @@
       @confirm="executeRemove"
       @cancel="cancelRemove"
     />
+
+    <!-- Book picker → opens MineWordsModal scoped to the chosen book. Two-
+         step flow because we want a single mining modal, not two. -->
+    <BookPickerModal
+      :visible="showBookPicker"
+      :saved-books="savedBooks"
+      @close="showBookPicker = false"
+      @select="onBookSelected"
+    />
+    <MineWordsModal
+      v-if="mineTarget"
+      :visible="showMineModal"
+      :book="mineTarget"
+      :languages="languages"
+      @close="closeMineWords"
+      @planted="onMinePlanted"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Leaf, Droplets } from 'lucide-vue-next'
+import { Leaf, Droplets, BookMarked } from 'lucide-vue-next'
 import { useVocab } from '../../composables/useVocab.js'
 import { useBooks } from '../../composables/useBooks.js'
+import { useToast } from '../../composables/useToast.js'
 import WordCaptureForm from './WordCaptureForm.vue'
 import WordList from './WordList.vue'
 import ReviewSession from './ReviewSession.vue'
+import BookPickerModal from './BookPickerModal.vue'
+import MineWordsModal from './MineWordsModal.vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
 
 const props = defineProps({
@@ -114,7 +152,7 @@ const props = defineProps({
   entries: { type: Array, default: () => [] },
 })
 
-const { words, loaded, loadError, dueCount, retryLoad, updateWord, removeWord } = useVocab()
+const { words, loaded, loadError, dueCount, retryLoad, updateWord, removeWord, removeWords } = useVocab()
 
 // Resolve capture-from-reading source books to titles (soft references — a
 // removed book simply resolves to nothing). useBooks is the shared module
@@ -127,6 +165,59 @@ const sourceTitles = computed(() => {
 })
 
 const showReview = ref(false)
+// When non-empty, the open ReviewSession is scoped to these specific word
+// ids (a "review the agains" follow-up from the previous round's summary).
+// Empty = the regular "all due words" round.
+const forceReviewIds = ref([])
+
+// Two-step mine-from-book flow. The header "Mine from book" button opens
+// the BookPickerModal; selecting a book opens MineWordsModal scoped to
+// that book. Reusing MineWordsModal avoids duplicating the mining UX
+// (passage editor, candidate chips, define-meanings step).
+const showBookPicker = ref(false)
+const showMineModal = ref(false)
+const mineTargetId = ref(null)
+const mineTarget = computed(() =>
+  savedBooks.value.find((b) => b.id === mineTargetId.value) || null
+)
+const toast = useToast()
+function onBookSelected(book) {
+  if (!book) return
+  showBookPicker.value = false
+  mineTargetId.value = book.id
+  showMineModal.value = true
+}
+function closeMineWords() {
+  showMineModal.value = false
+  mineTargetId.value = null
+}
+function onMinePlanted({ book, count }) {
+  // The modal handles the per-token toasts and DB errors. We surface a
+  // success-only toast here so the user sees confirmation in the Word
+  // Garden context (in case they came from the book picker).
+  if (!count) return
+  toast.show(
+    `Planted ${count} ${count === 1 ? 'word' : 'words'} from “${book?.title || ''}”.`,
+    'success',
+    4000,
+  )
+}
+
+function onReviewClose() {
+  showReview.value = false
+  forceReviewIds.value = []
+}
+
+// End-of-round summary offered a "review the agains" follow-up. Stay in
+// the modal and re-scope the session to just the words the user got wrong.
+function onReviewWeak(wordIds) {
+  if (!Array.isArray(wordIds) || !wordIds.length) {
+    showReview.value = false
+    forceReviewIds.value = []
+    return
+  }
+  forceReviewIds.value = wordIds
+}
 
 // Active language filter shared by the Plant-a-word form and the word list —
 // the form's Language select and the list's chip bar are two views onto the
@@ -156,5 +247,19 @@ async function executeRemove() {
   if (removeTarget.value) await removeWord(removeTarget.value.id)
   removeTarget.value = null
   showRemoveConfirm.value = false
+}
+
+// Multi-select bulk remove: takes an array of word ids, fires one
+// DELETE in (ids) via useVocab.removeWords, and toasts the result.
+// useVocab owns the optimistic state + rollback on error.
+async function onBulkRemove(ids) {
+  if (!Array.isArray(ids) || !ids.length) return
+  const n = ids.length
+  const result = await removeWords(ids)
+  if (result?.error) {
+    // useVocab already toasted the error; nothing to do here.
+    return
+  }
+  toast.show(`Removed ${n} ${n === 1 ? 'word' : 'words'}.`, 'success', 3500)
 }
 </script>

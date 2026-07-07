@@ -27,7 +27,7 @@
       >
         Due
       </span>
-      <div class="flex items-center flex-shrink-0">
+      <div v-if="!hideActions" class="flex items-center flex-shrink-0">
         <button
           @click="startEdit"
           class="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors"
@@ -124,6 +124,9 @@ const props = defineProps({
   // action-API fallback so it can narrow the page to the right section.
   // Optional; lookup degrades to JSON-only REST if absent.
   languageCode: { type: String, default: null },
+  // When true, hide the inline edit/remove buttons. Used by the multi-
+  // select mode in WordList — the parent owns the click/toggle instead.
+  hideActions: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update', 'remove'])

@@ -24,6 +24,39 @@
 //      `# gloss` line under the target-language section. The wikitext is
 //      plain text (no HTML) so it round-trips through fetch + JSON safely.
 //
+// No caching of positive results — vocab meaning changes as the user
+// refines it, and we'd rather serve a fresh gloss than a stale one. But
+// negative results (no entry, timeout, network error) are cached for
+// `NEG_CACHE_MS` so a transient Wiktionary blip on one click doesn't
+// cost the user another round-trip the next time they hit Lookup on the
+// same term. Exposed via `clearLookupCache()` for tests and for any
+// future "retry" affordance.
+const NEG_CACHE_MS = 5 * 60 * 1000
+const _negCache = new Map() // `${term}|${languageCode}` → { error, at }
+
+function cacheKey(term, languageCode) {
+  return `${String(term || '').trim().toLowerCase()}|${languageCode || ''}`
+}
+
+export function clearLookupCache() {
+  _negCache.clear()
+}
+
+function readNegativeCache(term, languageCode) {
+  const k = cacheKey(term, languageCode)
+  const hit = _negCache.get(k)
+  if (!hit) return null
+  if (Date.now() - hit.at > NEG_CACHE_MS) {
+    _negCache.delete(k)
+    return null
+  }
+  return hit
+}
+
+function writeNegativeCache(term, languageCode, error) {
+  _negCache.set(cacheKey(term, languageCode), { error, at: Date.now() })
+}
+
 // No caching layer for now — the user only clicks Lookup once per word, so
 // the network call cost is trivial and stale data isn't a concern (we
 // always show the user what we got so they can correct it).
@@ -278,23 +311,41 @@ async function readResponseAsJsonOrText(res) {
 // `languageCode` is the ISO 639-1 code of the source language (the
 // language of the term being looked up). It only matters on the fallback
 // action API path, where we narrow the wikitext to that section.
+//
+// Negative results (no entry / timed out / network error / HTTP 5xx / bad
+// response / no definitions) are memoized in a session-scoped cache so a
+// transient Wiktionary blip doesn't cost another round-trip the next time
+// the user clicks Lookup on the same term. Positive results are NOT
+// cached: vocab meaning evolves as the user refines it, and a fresh
+// Wiktionary gloss is what they want when they click the magnifier a
+// second time on a word they just planted.
 export async function lookupWord(term, { languageCode = null, signal, fetch: fetchImpl = globalThis.fetch, timeoutMs = TIMEOUT_MS } = {}) {
   const restUrl = lookupUrl(term)
   if (!restUrl) return { ok: false, definitions: [], error: 'No term' }
+
+  // ── 0. Negative cache ────────────────────────────────────────────────
+  const cached = readNegativeCache(term, languageCode)
+  if (cached) return { ok: false, definitions: [], error: cached.error }
+
+  // Helper: record a negative result and return it.
+  const fail = (error) => {
+    writeNegativeCache(term, languageCode, error)
+    return { ok: false, definitions: [], error }
+  }
 
   // ── 1. Primary: REST definition endpoint ─────────────────────────────
   let res
   try {
     res = await fetchWithTimeout(restUrl, { signal, headers: { accept: 'application/json' } }, fetchImpl, timeoutMs)
   } catch (e) {
-    return { ok: false, definitions: [], error: e?.message || 'Network error' }
+    return fail(e?.message || 'Network error')
   }
-  if (!res) return { ok: false, definitions: [], error: 'Timed out' }
+  if (!res) return fail('Timed out')
   if (res.status === 404) {
     // REST has no JSON for this entry — could be a real missing word OR an
     // HTML-only page. Try the action API before giving up.
   } else if (!res.ok) {
-    return { ok: false, definitions: [], error: `HTTP ${res.status}` }
+    return fail(`HTTP ${res.status}`)
   } else {
     const body = await readResponseAsJsonOrText(res)
     if (body.kind === 'json') {
@@ -302,7 +353,7 @@ export async function lookupWord(term, { languageCode = null, signal, fetch: fet
       if (defs.length) return { ok: true, definitions: defs, error: null }
       // Empty JSON (a real entry with no definitions) — don't fall through,
       // the action API would just return HTML for the same page.
-      return { ok: false, definitions: [], error: 'No definitions' }
+      return fail('No definitions')
     }
     // body.kind === 'text' — REST returned HTML (Parsoid rendering for an
     // inflection or similar). Fall through to the action API.
@@ -310,29 +361,25 @@ export async function lookupWord(term, { languageCode = null, signal, fetch: fet
 
   // ── 2. Fallback: action API, parse the wikitext ourselves ────────────
   const actionUrl = actionApiUrl(term, languageCode)
-  if (!actionUrl) return { ok: false, definitions: [], error: 'No term' }
+  if (!actionUrl) return fail('No term')
   let actionRes
   try {
     actionRes = await fetchWithTimeout(actionUrl, { signal, headers: { accept: 'application/json' } }, fetchImpl, timeoutMs)
   } catch (e) {
-    return { ok: false, definitions: [], error: e?.message || 'Network error' }
+    return fail(e?.message || 'Network error')
   }
-  if (!actionRes) return { ok: false, definitions: [], error: 'Timed out' }
-  if (actionRes.status === 404) {
-    return { ok: false, definitions: [], error: 'No entry' }
-  }
-  if (!actionRes.ok) {
-    return { ok: false, definitions: [], error: `HTTP ${actionRes.status}` }
-  }
+  if (!actionRes) return fail('Timed out')
+  if (actionRes.status === 404) return fail('No entry')
+  if (!actionRes.ok) return fail(`HTTP ${actionRes.status}`)
   let actionJson
   try {
     actionJson = await actionRes.json()
   } catch {
-    return { ok: false, definitions: [], error: 'Bad response' }
+    return fail('Bad response')
   }
   const wikitext = actionJson?.parse?.wikitext?.['*'] || ''
-  if (!wikitext) return { ok: false, definitions: [], error: 'No entry' }
+  if (!wikitext) return fail('No entry')
   const parsed = parseWikitextDefinitions(wikitext, languageCode)
-  if (!parsed.length) return { ok: false, definitions: [], error: 'No definitions' }
+  if (!parsed.length) return fail('No definitions')
   return { ok: true, definitions: parsed.map((d) => d.definition), error: null }
 }

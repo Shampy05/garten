@@ -8,7 +8,7 @@
           <div class="flex items-center justify-between pb-3 border-b border-line">
             <h2 class="gp-title text-base text-stone-900 inline-flex items-center gap-2">
               <Droplets :size="16" class="text-garden-600" />
-              Watering round
+              {{ isForcedRound ? 'Targeted round' : 'Watering round' }}
             </h2>
             <div class="flex items-center gap-3">
               <span v-if="current" class="text-xs text-stone-400 tabular-nums">{{ completed }} of {{ total }}</span>
@@ -25,7 +25,7 @@
           <!-- Per-language filter chips — only when 2+ languages have due words.
                Mirrors WordList.vue's chip pattern; switching filters resets the
                active queue but preserves the cross-session total graded count. -->
-          <div v-if="languagesDue.length > 1" class="flex flex-wrap items-center justify-center gap-1.5 pt-3">
+          <div v-if="!isForcedRound && languagesDue.length > 1" class="flex flex-wrap items-center justify-center gap-1.5 pt-3">
             <button
               type="button"
               @click="applyFilter(null)"
@@ -114,7 +114,30 @@
             <Sprout :size="28" class="mx-auto text-garden-600" />
             <p class="font-display text-xl font-bold text-stone-900">All watered for today.</p>
             <p class="text-sm text-stone-500">{{ summaryLine }}</p>
-            <button @click="$emit('close')" class="gp-btn-primary px-6 py-2 text-sm">Back to the garden</button>
+            <div class="flex flex-col sm:flex-row items-center gap-2 justify-center pt-1">
+              <button
+                v-if="weakWordIds.length"
+                @click="$emit('review-weak', weakWordIds)"
+                class="gp-btn-primary px-5 py-2 text-sm inline-flex items-center gap-1.5"
+              >
+                <RotateCcw :size="14" />
+                Review the {{ weakWordIds.length }} again{{ weakWordIds.length === 1 ? '' : 's' }}
+              </button>
+              <button
+                v-if="weakWordIds.length"
+                @click="$emit('close')"
+                class="gp-btn-ghost px-4 py-2 text-sm"
+              >
+                Back to the garden
+              </button>
+              <button
+                v-else
+                @click="$emit('close')"
+                class="gp-btn-primary px-6 py-2 text-sm"
+              >
+                Back to the garden
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -123,19 +146,25 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { X, Droplets, Sprout } from 'lucide-vue-next'
+import { ref, computed, onMounted, watch } from 'vue'
+import { X, Droplets, Sprout, RotateCcw } from 'lucide-vue-next'
 import { useVocab } from '../../composables/useVocab.js'
 import { dueWords, sessionSummary, reviewWord, SRS_INTERVALS } from '../../lib/srs.js'
 import { localDateStr } from '../../lib/date.js'
 
 const props = defineProps({
   languages: { type: Array, default: () => [] },
+  // When the parent passes a list of word ids, the session is scoped to
+  // exactly those words (e.g. "review the ones you got wrong"). Otherwise
+  // the session uses the full due-words set.
+  forceIds: { type: Array, default: () => [] },
 })
 
-defineEmits(['close'])
+const emit = defineEmits(['close', 'review-weak'])
 
 const vocab = useVocab()
+
+const isForcedRound = computed(() => Array.isArray(props.forceIds) && props.forceIds.length > 0)
 
 // Snapshot the due queue at open — new words planted mid-session don't barge
 // into an ongoing round. "Again" re-enqueues at the back (its dueDate stays
@@ -153,23 +182,64 @@ const totalCompleted = ref(0) // graded across the whole session
 const revealed = ref(false)
 const grades = ref([])
 const gradedIds = new Set() // good/easy across session — closure-scoped, not reactive
+// Words graded 'again' this session — surfaced on the end-of-session summary
+// so the user can drill straight into another round on just those words.
+const weakWordIds = ref([])
 
-onMounted(() => {
-  const due = dueWords(vocab.words.value, localDateStr(new Date()))
-  allDue.value = due
+function buildInitialQueue() {
+  if (isForcedRound.value) {
+    // Parent told us exactly which words to re-water. Look them up in the
+    // live store so post-grade refreshes resolve against the latest data.
+    const ids = new Set(props.forceIds)
+    return vocab.words.value.filter((w) => ids.has(w.id))
+  }
+  return dueWords(vocab.words.value, localDateStr(new Date()))
+}
+
+function buildLanguagesDue(queue) {
   const countsByLang = new Map()
-  for (const w of due) countsByLang.set(w.languageId, (countsByLang.get(w.languageId) || 0) + 1)
+  for (const w of queue) countsByLang.set(w.languageId, (countsByLang.get(w.languageId) || 0) + 1)
   const langById = new Map(props.languages.map((l) => [l.id, l]))
-  languagesDue.value = [...countsByLang.entries()]
+  return [...countsByLang.entries()]
     .map(([id, count]) => {
       const lang = langById.get(id)
       return { id, name: lang?.name || id, color: lang?.color || null, count }
     })
     .sort((a, b) => a.name.localeCompare(b.name))
-  applyFilter(null)
-})
+}
+
+function resetSession() {
+  // Build the initial queue — the per-language chip bar and the active-card
+  // picker work off this. Forced rounds skip the chip bar entirely (single
+  // targeted review; the user picked a specific set).
+  const initial = buildInitialQueue()
+  allDue.value = initial
+  languagesDue.value = isForcedRound.value ? [] : buildLanguagesDue(initial)
+  languageFilter.value = null
+  queue.value = initial.slice()
+  total.value = queue.value.length
+  completed.value = 0
+  totalCompleted.value = 0
+  revealed.value = false
+  grades.value = []
+  gradedIds.clear()
+  weakWordIds.value = []
+}
+
+onMounted(resetSession)
+
+// When the parent updates forceIds (the "review the agains" flow), reset
+// the session to scope to the new word list without unmounting the modal.
+watch(
+  () => (Array.isArray(props.forceIds) ? props.forceIds.join(',') : ''),
+  () => {
+    if (!props.visible) return
+    resetSession()
+  }
+)
 
 function applyFilter(langId) {
+  if (isForcedRound.value) return // forced rounds don't have a chip bar
   languageFilter.value = langId
   const base = langId ? allDue.value.filter((w) => w.languageId === langId) : allDue.value.slice()
   queue.value = base.filter((w) => !gradedIds.has(w.id))
@@ -186,7 +256,7 @@ const current = computed(() => {
   if (!queued) return null
   return vocab.words.value.find((w) => w.id === queued.id) || queued
 })
-const filterBlocked = computed(() => !current.value && languageFilter.value !== null)
+const filterBlocked = computed(() => !current.value && languageFilter.value !== null && !isForcedRound.value)
 const activeFilterName = computed(() => languagesDue.value.find((l) => l.id === languageFilter.value)?.name || '')
 
 const langById = computed(() => new Map(props.languages.map((l) => [l.id, l])))
@@ -214,6 +284,8 @@ async function grade(g) {
   if (g === 'again') {
     // Keep the same in-memory object; its persisted dueDate stays today.
     queue.value = [...queue.value.slice(1), word]
+    // Track the word id so the summary can offer a follow-up round.
+    if (!weakWordIds.value.includes(word.id)) weakWordIds.value.push(word.id)
   } else {
     queue.value = queue.value.slice(1)
     completed.value += 1

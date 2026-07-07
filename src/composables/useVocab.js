@@ -212,6 +212,32 @@ export function useVocab() {
     }
   }
 
+  // Bulk delete for the multi-select flow. Optimistic — drops the rows
+  // locally first, then fires one DELETE with `id IN (...)`. If the
+  // server returns a partial result or an error, we roll back the whole
+  // set: the user can always re-select and try again, but a partial
+  // delete with no UI signal would be worse than a rollback.
+  const removeWords = async (ids) => {
+    if (!userId.value) return { error: 'Not signed in' }
+    if (!Array.isArray(ids) || !ids.length) return { count: 0 }
+    const prev = words.value
+    const idSet = new Set(ids)
+    words.value = words.value.filter((w) => !idSet.has(w.id))
+    persist()
+    const { error } = await supabase
+      .from('vocab_words')
+      .delete()
+      .eq('user_id', userId.value)
+      .in('id', ids)
+    if (error) {
+      words.value = prev
+      persist()
+      toast.error(`Couldn't remove those words — ${error.message || 'unknown error'}.`)
+      return { error: error.message }
+    }
+    return { count: ids.length }
+  }
+
   // Apply one review grade (again/good/easy) — the SRS math lives in
   // src/lib/srs.js; this just merges and persists the result.
   const gradeWord = async (id, grade) => {
@@ -229,6 +255,7 @@ export function useVocab() {
     addWord,
     updateWord,
     removeWord,
+    removeWords,
     gradeWord,
   }
 }

@@ -8,6 +8,7 @@ import {
   stripWikiMarkup,
   parseWikitextDefinitions,
   lookupWord,
+  clearLookupCache,
 } from './dictLookup.js'
 
 const SAMPLE_RESPONSE = {
@@ -227,9 +228,11 @@ describe('lookupWord', () => {
   let originalFetch
   beforeEach(() => {
     originalFetch = globalThis.fetch
+    clearLookupCache()
   })
   afterEach(() => {
     globalThis.fetch = originalFetch
+    clearLookupCache()
   })
 
   it('returns the definition list on a 200 JSON response from REST', async () => {
@@ -388,5 +391,57 @@ describe('lookupWord', () => {
     const out = await lookupWord('something', { languageCode: 'de', fetch: globalThis.fetch })
     expect(out.ok).toBe(false)
     expect(out.error).toBe('No definitions')
+  })
+
+  it('memoizes a 404 No entry result and does NOT re-hit Wiktionary on the second click', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      status: 404, ok: false, headers: { get: () => '' }, json: async () => ({}), text: async () => '',
+    })
+    globalThis.fetch = fetchSpy
+    const first = await lookupWord('zzznotaword', { languageCode: 'de' })
+    expect(first.ok).toBe(false)
+    expect(first.error).toBe('No entry')
+    expect(fetchSpy).toHaveBeenCalledTimes(2) // REST 404 → action API 404
+    const second = await lookupWord('zzznotaword', { languageCode: 'de' })
+    expect(second.ok).toBe(false)
+    expect(second.error).toBe('No entry')
+    // Cached — no new fetch on the second click.
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('keys the negative cache by (term, languageCode) so a German miss and a French miss don\'t collide', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      status: 404, ok: false, headers: { get: () => '' }, json: async () => ({}), text: async () => '',
+    })
+    globalThis.fetch = fetchSpy
+    await lookupWord('foo', { languageCode: 'de' })
+    await lookupWord('foo', { languageCode: 'fr' })
+    // Two separate misses — each one pays its 2-call price.
+    expect(fetchSpy).toHaveBeenCalledTimes(4)
+  })
+
+  it('does NOT memoize a positive result — second click re-fetches so a refined Wiktionary gloss wins', async () => {
+    const json = { German: [{ partOfSpeech: 'n', definitions: [{ definition: 'to go' }] }] }
+    const fetchSpy = vi.fn().mockResolvedValue({
+      status: 200, ok: true,
+      headers: { get: (k) => (k.toLowerCase() === 'content-type' ? 'application/json' : null) },
+      json: async () => json, text: async () => JSON.stringify(json),
+    })
+    globalThis.fetch = fetchSpy
+    await lookupWord('gehen', { languageCode: 'de' })
+    await lookupWord('gehen', { languageCode: 'de' })
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('clearLookupCache() forces the next click to re-fetch', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      status: 404, ok: false, headers: { get: () => '' }, json: async () => ({}), text: async () => '',
+    })
+    globalThis.fetch = fetchSpy
+    await lookupWord('foo', { languageCode: 'de' })
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    clearLookupCache()
+    await lookupWord('foo', { languageCode: 'de' })
+    expect(fetchSpy).toHaveBeenCalledTimes(4)
   })
 })

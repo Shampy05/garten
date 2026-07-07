@@ -27,36 +27,193 @@
         {{ lang.name }}
         <span class="tabular-nums opacity-70">{{ lang.count }}</span>
       </button>
+
+      <!-- Multi-select affordance — only when there's something to remove.
+           A small, secondary button so it doesn't fight the active watering
+           round for attention. -->
+      <button
+        v-if="scoped.length > 1 && !selectMode"
+        type="button"
+        @click="enterSelectMode"
+        class="px-2.5 py-1 rounded-full text-xs font-medium bg-white border border-line text-stone-500 hover:border-stone-300 transition-colors inline-flex items-center gap-1.5"
+      >
+        <CheckSquare :size="11" />
+        Select
+      </button>
     </div>
 
-    <div v-if="!filteredWords.length" class="text-center py-6 text-sm text-stone-400">
-      <template v-if="languageFilter && filterName">
-        No <span class="font-medium text-stone-600">{{ filterName }}</span> words here yet.
-      </template>
-      <template v-else>
-        No words here yet.
-      </template>
-    </div>
-    <div v-else class="space-y-2">
-      <WordCard
-        v-for="word in filteredWords"
-        :key="word.id"
-        :word="word"
-        :language-color="colorFor(word.languageId)"
-        :language-code="codeFor(word.languageId)"
-        :source-title="sourceTitles[word.sourceBookId] || null"
-        @update="$emit('update', $event)"
-        @remove="$emit('remove', $event)"
-      />
-    </div>
+    <!-- ── Deck 1: Due today ────────────────────────────────────────── -->
+    <section class="gp-card overflow-hidden">
+      <button
+        type="button"
+        @click="decksOpen.due = !decksOpen.due"
+        class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-stone-50 transition-colors"
+        :aria-expanded="decksOpen.due"
+      >
+        <span class="w-2 h-2 rounded-full flex-shrink-0 bg-garden-500" />
+        <Droplets :size="14" class="text-stone-500 flex-shrink-0" />
+        <h3 class="font-display text-sm font-bold text-stone-800 flex-1">Due today</h3>
+        <span class="text-xs text-stone-500 tabular-nums">{{ dueWords.length }}</span>
+        <ChevronDown :size="14" class="text-stone-400 transition-transform flex-shrink-0" :class="decksOpen.due ? 'rotate-180' : ''" />
+      </button>
+      <div v-if="decksOpen.due" class="border-t border-line">
+        <div v-if="dueWords.length === 0" class="px-4 py-3 text-sm text-stone-400 italic">
+          {{ dueEmptyMessage }}
+        </div>
+        <div v-else class="p-3 space-y-2">
+          <WordRow
+            v-for="word in dueWords"
+            :key="word.id"
+            :word="word"
+            :select-mode="selectMode"
+            :selected="selectedIds.has(word.id)"
+            :language-color="colorFor(word.languageId)"
+            :language-code="codeFor(word.languageId)"
+            :source-title="sourceTitles[word.sourceBookId] || null"
+            @update="$emit('update', $event)"
+            @remove="$emit('remove', $event)"
+            @toggle="onWordToggle(word)"
+            @enter-select="onEnterSelect(word)"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Deck 2: New (never reviewed) ────────────────────────────── -->
+    <section class="gp-card overflow-hidden">
+      <button
+        type="button"
+        @click="decksOpen.new = !decksOpen.new"
+        class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-stone-50 transition-colors"
+        :aria-expanded="decksOpen.new"
+      >
+        <span class="w-2 h-2 rounded-full flex-shrink-0 bg-stone-400" />
+        <Leaf :size="14" class="text-stone-500 flex-shrink-0" />
+        <h3 class="font-display text-sm font-bold text-stone-800 flex-1">New</h3>
+        <span class="text-xs text-stone-500 tabular-nums">{{ newWords.length }}</span>
+        <ChevronDown :size="14" class="text-stone-400 transition-transform flex-shrink-0" :class="decksOpen.new ? 'rotate-180' : ''" />
+      </button>
+      <div v-if="decksOpen.new" class="border-t border-line">
+        <div v-if="newWords.length === 0" class="px-4 py-3 text-sm text-stone-400 italic">
+          No new words waiting — plant more from a book or the form above.
+        </div>
+        <div v-else class="p-3 space-y-2">
+          <WordRow
+            v-for="word in newWords"
+            :key="word.id"
+            :word="word"
+            :select-mode="selectMode"
+            :selected="selectedIds.has(word.id)"
+            :language-color="colorFor(word.languageId)"
+            :language-code="codeFor(word.languageId)"
+            :source-title="sourceTitles[word.sourceBookId] || null"
+            @update="$emit('update', $event)"
+            @remove="$emit('remove', $event)"
+            @toggle="onWordToggle(word)"
+            @enter-select="onEnterSelect(word)"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Deck 3: Mature (stage ≥ 2) ──────────────────────────────── -->
+    <section class="gp-card overflow-hidden">
+      <button
+        type="button"
+        @click="decksOpen.mature = !decksOpen.mature"
+        class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-stone-50 transition-colors"
+        :aria-expanded="decksOpen.mature"
+      >
+        <span class="w-2 h-2 rounded-full flex-shrink-0 bg-amber-500" />
+        <Sparkles :size="14" class="text-stone-500 flex-shrink-0" />
+        <h3 class="font-display text-sm font-bold text-stone-800 flex-1">Mature</h3>
+        <span class="text-xs text-stone-500 tabular-nums">{{ matureWords.length }}</span>
+        <ChevronDown :size="14" class="text-stone-400 transition-transform flex-shrink-0" :class="decksOpen.mature ? 'rotate-180' : ''" />
+      </button>
+      <div v-if="decksOpen.mature" class="border-t border-line">
+        <div v-if="matureWords.length === 0" class="px-4 py-3 text-sm text-stone-400 italic">
+          Nothing mature yet — keep watering.
+        </div>
+        <div v-else class="p-3 space-y-2">
+          <WordRow
+            v-for="word in matureWords"
+            :key="word.id"
+            :word="word"
+            :select-mode="selectMode"
+            :selected="selectedIds.has(word.id)"
+            :language-color="colorFor(word.languageId)"
+            :language-code="codeFor(word.languageId)"
+            :source-title="sourceTitles[word.sourceBookId] || null"
+            @update="$emit('update', $event)"
+            @remove="$emit('remove', $event)"
+            @toggle="onWordToggle(word)"
+            @enter-select="onEnterSelect(word)"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- Multi-select floating action bar. Sits at the bottom of the screen
+         and is sticky so it's always in reach during long multi-card
+         selections. Tapping Remove asks for a confirm via the parent. -->
+    <Transition name="rise">
+      <div
+        v-if="selectMode"
+        class="fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-4 pointer-events-none"
+      >
+        <div class="gp-card shadow-hero flex items-center gap-2 px-3 py-2 max-w-md w-full pointer-events-auto">
+          <span class="text-sm text-stone-700 tabular-nums flex-1 min-w-0">
+            <span class="font-semibold">{{ selectedIds.size }}</span> selected
+          </span>
+          <button
+            v-if="selectedIds.size < scoped.length"
+            type="button"
+            @click="selectAllVisible"
+            class="px-3 py-1.5 text-xs font-medium text-stone-600 hover:text-stone-800 transition-colors"
+          >
+            Select all ({{ scoped.length }})
+          </button>
+          <button
+            type="button"
+            @click="exitSelectMode"
+            class="px-3 py-1.5 text-xs font-medium text-stone-600 hover:text-stone-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            :disabled="!selectedIds.size"
+            @click="confirmBulkRemove"
+            class="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 inline-flex items-center gap-1"
+          >
+            <Trash2 :size="12" />
+            Remove
+          </button>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Confirm dialog for bulk remove. Reuses the visual language of the
+         single-word remove flow but shows how many words are about to go. -->
+    <ConfirmDialog
+      :visible="showBulkConfirm"
+      :title="`Remove ${bulkConfirmIds.length} ${bulkConfirmIds.length === 1 ? 'word' : 'words'}?`"
+      :message="`This pulls ${bulkConfirmIds.length === 1 ? 'it' : 'them'} out of your garden, along with ${bulkConfirmIds.length === 1 ? 'its' : 'their'} review history. This cannot be undone.`"
+      confirm-label="Remove"
+      danger
+      @confirm="executeBulkRemove"
+      @cancel="showBulkConfirm = false"
+    />
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, reactive, ref } from 'vue'
+import { Droplets, Leaf, Sparkles, ChevronDown, CheckSquare, Trash2 } from 'lucide-vue-next'
 import { isDue } from '../../lib/srs.js'
 import { codeForName } from '../../lib/bookLanguages.js'
-import WordCard from './WordCard.vue'
+import WordRow from './WordRow.vue'
+import ConfirmDialog from '../ConfirmDialog.vue'
 
 const props = defineProps({
   words: { type: Array, default: () => [] },
@@ -69,7 +226,7 @@ const props = defineProps({
   languageFilter: { type: String, default: null },
 })
 
-const emit = defineEmits(['update', 'remove', 'update:languageFilter'])
+const emit = defineEmits(['update', 'remove', 'update:languageFilter', 'bulk-remove'])
 
 const langById = computed(() => new Map(props.languages.map((l) => [l.id, l])))
 
@@ -107,15 +264,98 @@ const languagesPresent = computed(() => {
     .sort((a, b) => a.name.localeCompare(b.name))
 })
 
-// Due words first (they're what the garden wants attention on), then newest
-// plantings.
-const filteredWords = computed(() => {
-  const list = props.words.filter((w) => !props.languageFilter || w.languageId === props.languageFilter)
-  return list.slice().sort((a, b) => {
-    const ad = isDue(a) ? 0 : 1
-    const bd = isDue(b) ? 0 : 1
-    if (ad !== bd) return ad - bd
-    return String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
-  })
-})
+const scoped = computed(() => props.words.filter((w) => !props.languageFilter || w.languageId === props.languageFilter))
+
+// Three decks, in priority order: due → new → mature. The buckets are
+// disjoint so a word only ever lives in one section.
+//
+// "New" = never reviewed (stage 0) AND not currently due. A word that's
+// just been planted and is still due today stays in "Due today" so the
+// user waters it the same session.
+//
+// "Mature" = stage ≥ 2 (at least one successful review) AND not due. This
+// is the long-tail shelf — words the user has already learned once and
+// that are on a multi-day interval. Stage 1 words (one good review, due
+// in 1 day) belong in "Due today" until they're reviewed, so they
+// don't bloat the mature deck.
+const dueWords = computed(() =>
+  scoped.value
+    .filter((w) => isDue(w))
+    .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)))
+)
+const newWords = computed(() =>
+  scoped.value
+    .filter((w) => !isDue(w) && (Number(w.stage) || 0) === 0)
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+)
+const matureWords = computed(() =>
+  scoped.value
+    .filter((w) => !isDue(w) && (Number(w.stage) || 0) >= 2)
+    .sort((a, b) => (Number(b.stage) || 0) - (Number(a.stage) || 0) || String(b.lastReviewedAt || '').localeCompare(String(a.lastReviewedAt || '')))
+)
+
+const dueEmptyMessage = computed(() =>
+  props.languageFilter && filterName.value
+    ? `No ${filterName.value} words due. Tap a language chip to switch.`
+    : 'Nothing due today — your words are all watered. Plant more from a book.'
+)
+
+// Open state per deck. Due is open by default (the active watering target),
+// New is open so the user can see their seed pile, Mature is collapsed
+// since it grows large over time.
+const decksOpen = reactive({ due: true, new: true, mature: false })
+
+// ── Multi-select state ───────────────────────────────────────────────
+const selectMode = ref(false)
+const selectedIds = reactive(new Set())
+
+function enterSelectMode() {
+  selectMode.value = true
+  selectedIds.clear()
+}
+
+function exitSelectMode() {
+  selectMode.value = false
+  selectedIds.clear()
+}
+
+function onEnterSelect(word) {
+  if (!selectMode.value) {
+    selectMode.value = true
+  }
+  selectedIds.add(word.id)
+}
+
+function onWordToggle(word) {
+  if (!selectMode.value) {
+    selectMode.value = true
+  }
+  if (selectedIds.has(word.id)) selectedIds.delete(word.id)
+  else selectedIds.add(word.id)
+  // Auto-exit when the last selection is removed.
+  if (selectMode.value && selectedIds.size === 0) {
+    selectMode.value = false
+  }
+}
+
+function selectAllVisible() {
+  for (const w of scoped.value) selectedIds.add(w.id)
+}
+
+const showBulkConfirm = ref(false)
+const bulkConfirmIds = ref([])
+function confirmBulkRemove() {
+  if (!selectedIds.size) return
+  bulkConfirmIds.value = [...selectedIds]
+  showBulkConfirm.value = true
+}
+async function executeBulkRemove() {
+  showBulkConfirm.value = false
+  if (!bulkConfirmIds.value.length) return
+  emit('bulk-remove', bulkConfirmIds.value)
+  // Optimistic UI: drop the selection now, parent will roll back via
+  // toast on error. (useVocab's removeWords is the source of truth.)
+  selectedIds.clear()
+  selectMode.value = false
+}
 </script>
