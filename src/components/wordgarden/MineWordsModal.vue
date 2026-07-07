@@ -426,7 +426,7 @@ async function lookupOne(row) {
   if (row.loading) return
   row.loading = true
   row.definitionError = null
-  const res = await lookupWord(row.term)
+  const res = await lookupWord(row.term, { languageCode: props.book?.languageCode || null })
   row.loading = false
   if (res.ok) {
     row.definitions = res.definitions

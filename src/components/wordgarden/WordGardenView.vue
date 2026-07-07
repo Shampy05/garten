@@ -228,8 +228,14 @@ const filterName = computed(() => {
   return props.languages.find((l) => l.id === languageFilter.value)?.name || languageFilter.value
 })
 
-function onUpdate({ id, updates }) {
-  updateWord(id, updates)
+// Renaming a word to match another one in the same language is rejected by
+// useVocab.updateWord() (same guard as planting a fresh duplicate) — the
+// edit form already closed optimistically, so surface why nothing changed.
+async function onUpdate({ id, updates }) {
+  const result = await updateWord(id, updates)
+  if (result?.duplicate) {
+    toast.error(`"${result.existing.term}" is already growing in your garden.`)
+  }
 }
 
 // Remove flow — same ConfirmDialog contract as the Library.

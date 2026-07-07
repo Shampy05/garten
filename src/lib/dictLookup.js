@@ -137,31 +137,68 @@ export function actionApiUrl(term, languageCode = null) {
   return `${ACTION_ENDPOINT}?${params.toString()}`
 }
 
+// Best-guess English Wiktionary section name for a target language, shared
+// by the REST path (below) and the wikitext fallback (parseWikitextDefinitions).
+// Falls back to the capitalized code itself for anything outside the curated
+// set, rather than refusing to filter at all.
+function targetSectionName(languageCode) {
+  if (!languageCode) return null
+  return SECTION_NAME[languageCode] || (languageCode[0].toUpperCase() + languageCode.slice(1))
+}
+
+// Wiktionary sometimes splits one language into named variants — e.g.
+// Norwegian appears as "Norwegian Bokmål" / "Norwegian Nynorsk", never
+// bare "Norwegian". A prefix match (not exact-equal) keeps both under the
+// "no" code without hand-listing every variant.
+function sectionMatches(name, target) {
+  if (!name || !target) return false
+  return name.toLowerCase().startsWith(target.toLowerCase())
+}
+
+// Real, very short glosses are rare; what's common is a template-only line
+// (`{{inflection of|...}}`) collapsing to a stray word or nothing after
+// stripWikiMarkup. Drop anything left too short to be a useful gloss.
+const MIN_DEFINITION_CHARS = 2
+
 // Pure response normalizer: take the raw Wiktionary JSON (from the REST
 // endpoint) and flatten it to a single list of { language, partOfSpeech,
 // definition } pairs. Wiktionary's shape is
-//   { <langName>: [ { partOfSpeech, definitions: [{definition, ...}] } ] }
-// where <langName> is "German", "French", etc. — one key per language the
-// entry belongs to.
+//   { <code>: [ { partOfSpeech, language, definitions: [{definition, ...}] } ] }
+// where <code> is Wiktionary's own internal bucket — a real ISO-ish code
+// ("de", "fr") for languages it breaks out individually, but a 3-letter
+// code or a catch-all "other" for everyone else. It is NOT a reliable
+// language identifier by itself (a page can carry a dozen+ language
+// sections, e.g. "die" has 18). Each `sense.language` field ("German",
+// "Norwegian Bokmål", ...) is the actual human name and IS reliable, so
+// that's what a `languageCode` filter matches against — falling back to
+// the outer key only for callers/tests that don't set `sense.language`.
+//
+// Without a `languageCode`, no filtering happens (legacy/all-languages
+// behavior). With one, only the matching language's senses survive — a
+// term that simply has no entry for that language returns [], which is
+// correct (better than surfacing another language's definition).
 //
 // The REST endpoint's `definition` strings sometimes contain pre-rendered
 // HTML (`<a rel="mw:WikiLink" ...>dealings</a>`) — that's the parser
 // rendering [[link|display]] as `<a>` markup. We strip the HTML so the
 // caller gets clean prose; the markup adds no information a learner
 // wants to see.
-export function normalizeDefinitions(json) {
+export function normalizeDefinitions(json, languageCode = null) {
   if (!json || typeof json !== 'object') return []
+  const target = targetSectionName(languageCode)
   const out = []
-  for (const [language, senses] of Object.entries(json)) {
+  for (const [key, senses] of Object.entries(json)) {
     if (!Array.isArray(senses)) continue
     for (const sense of senses) {
+      const language = sense?.language || key
+      if (target && !sectionMatches(language, target)) continue
       const pos = sense?.partOfSpeech || ''
       const defs = Array.isArray(sense?.definitions) ? sense.definitions : []
       for (const d of defs) {
         const text = typeof d === 'string' ? d : d?.definition
         if (typeof text !== 'string') continue
         const cleaned = stripWikiMarkup(text)
-        if (cleaned) {
+        if (cleaned && cleaned.length >= MIN_DEFINITION_CHARS) {
           out.push({ language, partOfSpeech: pos, definition: cleaned })
         }
       }
@@ -211,13 +248,15 @@ export function stripWikiMarkup(s) {
 //   ...
 //
 // We split on `==\n==` boundaries, take the section matching the language
-// (case-insensitive; section headers are like `==German==`), then walk the
-// lines and collect `# gloss` items. We drop glosses that came from
-// inflection transclusions (the `stripWikiMarkup` collapses them to
-// trivially short results that fall below MIN_DEFINITION_CHARS).
+// via `sectionMatches` (case-insensitive prefix — `target` "Norwegian"
+// matches the real header "Norwegian Bokmål"/"Norwegian Nynorsk"; Wiktionary
+// never emits a bare "Norwegian" section), then walk the lines and collect
+// `# gloss` items. We drop glosses that came from inflection transclusions
+// (the `stripWikiMarkup` collapses them to trivially short results that
+// fall below MIN_DEFINITION_CHARS).
 export function parseWikitextDefinitions(wikitext, languageCode) {
   if (typeof wikitext !== 'string' || !wikitext) return []
-  const target = SECTION_NAME[languageCode] || (languageCode ? languageCode[0].toUpperCase() + languageCode.slice(1) : null)
+  const target = targetSectionName(languageCode)
   if (!target) return []
 
   // Find the section block. The first level-2 heading in the page is the
@@ -231,7 +270,7 @@ export function parseWikitextDefinitions(wikitext, languageCode) {
     const line = raw.trimEnd()
     const h2 = line.match(/^==\s*([^=].*?)\s*==$/)
     if (h2) {
-      inSection = h2[1].trim().toLowerCase() === target.toLowerCase()
+      inSection = sectionMatches(h2[1].trim(), target)
       currentPos = ''
       continue
     }
@@ -247,7 +286,7 @@ export function parseWikitextDefinitions(wikitext, languageCode) {
     const m = line.match(/^:*#\s*(.+)$/)
     if (!m) continue
     const cleaned = stripWikiMarkup(m[1])
-    if (!cleaned) continue
+    if (!cleaned || cleaned.length < MIN_DEFINITION_CHARS) continue
     out.push({ partOfSpeech: currentPos, definition: cleaned })
   }
   return out
@@ -256,14 +295,14 @@ export function parseWikitextDefinitions(wikitext, languageCode) {
 // First non-empty definition string — what the UI auto-fills into the
 // meaning field. The user can always edit it; we just pick the simplest
 // "best guess" for one-tap fill.
-export function firstDefinition(json) {
-  const all = normalizeDefinitions(json)
+export function firstDefinition(json, languageCode = null) {
+  const all = normalizeDefinitions(json, languageCode)
   return all[0]?.definition || ''
 }
 
 // All definitions as flat strings (for surfacing alternatives in a list).
-export function allDefinitions(json) {
-  return normalizeDefinitions(json).map((d) => d.definition)
+export function allDefinitions(json, languageCode = null) {
+  return normalizeDefinitions(json, languageCode).map((d) => d.definition)
 }
 
 // Internal: a single fetch with timeout + signal forwarding. Returns the
@@ -349,11 +388,19 @@ export async function lookupWord(term, { languageCode = null, signal, fetch: fet
   } else {
     const body = await readResponseAsJsonOrText(res)
     if (body.kind === 'json') {
-      const defs = allDefinitions(body.json)
+      const defs = allDefinitions(body.json, languageCode)
       if (defs.length) return { ok: true, definitions: defs, error: null }
-      // Empty JSON (a real entry with no definitions) — don't fall through,
-      // the action API would just return HTML for the same page.
-      return fail('No definitions')
+      if (Object.keys(body.json).length === 0) {
+        // A real entry with genuinely no content — don't fall through, the
+        // action API would just read the same empty page.
+        return fail('No definitions')
+      }
+      // The page has entries, just none tagged as our target language in
+      // REST's per-language breakout (a term can carry a dozen+ unrelated
+      // language sections — e.g. "die" has 18). The action API reads the
+      // actual wikitext section headers, which is authoritative, so it's
+      // worth one more try before telling the user there's no entry.
+      // (fall through to the action API below)
     }
     // body.kind === 'text' — REST returned HTML (Parsoid rendering for an
     // inflection or similar). Fall through to the action API.

@@ -267,17 +267,22 @@ const languagesPresent = computed(() => {
 const scoped = computed(() => props.words.filter((w) => !props.languageFilter || w.languageId === props.languageFilter))
 
 // Three decks, in priority order: due → new → mature. The buckets are
-// disjoint so a word only ever lives in one section.
+// disjoint AND exhaustive — every word is isDue, or stage 0, or stage ≥ 1 —
+// so nothing can fall between them.
 //
 // "New" = never reviewed (stage 0) AND not currently due. A word that's
 // just been planted and is still due today stays in "Due today" so the
 // user waters it the same session.
 //
-// "Mature" = stage ≥ 2 (at least one successful review) AND not due. This
-// is the long-tail shelf — words the user has already learned once and
-// that are on a multi-day interval. Stage 1 words (one good review, due
-// in 1 day) belong in "Due today" until they're reviewed, so they
-// don't bloat the mature deck.
+// "Mature" = stage ≥ 1 (at least one successful review) AND not due. This
+// is the long-tail shelf — words the user has already learned at least
+// once and that are sitting on their next interval, from a day out to 90.
+// (Previously gated on stage ≥ 2 on the theory that stage-1 words are
+// always "due today" — they aren't: a Good from stage 0 sets a 1-day
+// interval, so the word sits due *tomorrow*, matching neither "New" (not
+// stage 0) nor the old "Mature" (not ≥ 2) and vanishing from the list
+// entirely until it came due again. Confirmed live: a freshly-graded word
+// disappeared from all three decks for a day.)
 const dueWords = computed(() =>
   scoped.value
     .filter((w) => isDue(w))
@@ -290,7 +295,7 @@ const newWords = computed(() =>
 )
 const matureWords = computed(() =>
   scoped.value
-    .filter((w) => !isDue(w) && (Number(w.stage) || 0) >= 2)
+    .filter((w) => !isDue(w) && (Number(w.stage) || 0) >= 1)
     .sort((a, b) => (Number(b.stage) || 0) - (Number(a.stage) || 0) || String(b.lastReviewedAt || '').localeCompare(String(a.lastReviewedAt || '')))
 )
 

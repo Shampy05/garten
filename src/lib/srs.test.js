@@ -38,11 +38,19 @@ describe('reviewWord', () => {
     const fromTop = reviewWord(word({ stage: 6, lapses: 1 }), 'again', TODAY)
     expect(fromTop.stage).toBe(4)
     expect(fromTop.lapses).toBe(2)
+    // Regression: dueDate must be today regardless of the landing stage —
+    // a word dropping to stage 4 must NOT ride out stage 4's 14-day
+    // interval, or "Again" barely differs from "Good" for advanced words.
+    expect(fromTop.dueDate).toBe(TODAY)
 
     const fromBottom = reviewWord(word({ stage: 0 }), 'again', TODAY)
     expect(fromBottom.stage).toBe(0)
     expect(fromBottom.dueDate).toBe(TODAY) // recycles within the session
     expect(fromBottom.lapses).toBe(1)
+
+    const fromMiddle = reviewWord(word({ stage: 3 }), 'again', TODAY)
+    expect(fromMiddle.stage).toBe(1)
+    expect(fromMiddle.dueDate).toBe(TODAY)
   })
 
   it('stamps review bookkeeping', () => {

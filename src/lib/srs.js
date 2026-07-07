@@ -28,8 +28,11 @@ function addDays(dateStr, n) {
 
 // Apply one review grade to a word. Pure — returns the updated SRS fields for
 // the caller to merge/persist:
-//   again → drop two stages (floor 0), count a lapse; the word stays due
-//           today so the session can recycle it.
+//   again → drop two stages (floor 0), count a lapse; the word is due today
+//           regardless of the landing stage — classic Leitner "back to box
+//           one," not a partial credit on the ladder. (A word dropping from
+//           stage 5 to 3 should resurface today, not ride out stage 3's
+//           7-day interval — that would barely distinguish it from a Good.)
 //   good  → up one stage.
 //   easy  → up two stages (a word you know cold skips ahead).
 export function reviewWord(word, grade, today = localDateStr(new Date())) {
@@ -46,7 +49,7 @@ export function reviewWord(word, grade, today = localDateStr(new Date())) {
   }
   return {
     stage: nextStage,
-    dueDate: addDays(today, SRS_INTERVALS[nextStage]),
+    dueDate: grade === 'again' ? today : addDays(today, SRS_INTERVALS[nextStage]),
     lapses,
     reviewCount: (Number(word?.reviewCount) || 0) + 1,
     lastReviewedAt: today,

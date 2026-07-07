@@ -18,6 +18,11 @@
 -- without PG15's column-list form. The client joins in memory and simply shows
 -- no source label when the book is gone.
 --
+-- `meaning` is nullable: mining a passage (MineWordsModal) plants a batch of
+-- words seed-first with no meaning, then prompts the gardener to fill them in
+-- right after. useVocab.addWord() documents this and sends `meaning: null`
+-- for that flow — the column must accept it.
+--
 -- Statements are idempotent, matching 20260624000000_reading_library.sql.
 
 create table if not exists public.vocab_words (
@@ -25,7 +30,7 @@ create table if not exists public.vocab_words (
   id text not null,
   language_id text not null,
   term text not null,
-  meaning text not null,
+  meaning text,
   note text,
   source_book_id text,
   stage int not null default 0,
@@ -36,6 +41,12 @@ create table if not exists public.vocab_words (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Reconcile environments where this table already exists from an earlier
+-- version of this migration that had `meaning not null` — DROP NOT NULL is
+-- inherently idempotent (a no-op if the column is already nullable), unlike
+-- `add constraint`, so it needs no existence guard.
+alter table public.vocab_words alter column meaning drop not null;
 
 -- Primary key (added separately; `add primary key if not exists` is invalid).
 do $$
@@ -85,9 +96,13 @@ end $$;
 do $$
 begin
   if not exists (select 1 from pg_constraint where conname = 'chk_vocab_meaning') then
+    -- `meaning is null` is listed explicitly rather than relying on
+    -- Postgres's "CHECK passes on NULL" behavior — a mined word plants
+    -- with no meaning by design (see the column comment above), and this
+    -- makes that intent readable instead of an implicit side effect.
     alter table public.vocab_words
       add constraint chk_vocab_meaning
-      check (char_length(btrim(meaning)) between 1 and 500);
+      check (meaning is null or char_length(btrim(meaning)) between 1 and 500);
   end if;
 end $$;
 

@@ -124,6 +124,65 @@ describe('normalizeDefinitions', () => {
     const out = normalizeDefinitions(json)
     expect(out[0].definition).toBe('dealings , (social) intercourse')
   })
+
+  it('drops stray residue shorter than MIN_DEFINITION_CHARS after markup removal', () => {
+    const json = {
+      L: [{ partOfSpeech: 'n', definitions: [{ definition: '{{q|informal}} .' }, { definition: 'a real gloss' }] }],
+    }
+    expect(normalizeDefinitions(json)).toEqual([
+      { language: 'L', partOfSpeech: 'n', definition: 'a real gloss' },
+    ])
+  })
+
+  describe('with a languageCode filter', () => {
+    // Regression for the real "die" entry: Wiktionary's REST JSON keys
+    // definitions by its own internal bucket ("en", "de", "other", ...),
+    // NOT the target language — "die" alone carries 18 unrelated language
+    // sections. Without filtering, a German learner's first definition
+    // could easily be the English "to stop living" instead of "the".
+    const HOMOGRAPH = {
+      en: [{ partOfSpeech: 'Verb', language: 'English', definitions: [{ definition: 'to stop living' }] }],
+      de: [{ partOfSpeech: 'Article', language: 'German', definitions: [{ definition: 'the (feminine)' }] }],
+    }
+
+    it('keeps only the sense matching the target language', () => {
+      expect(normalizeDefinitions(HOMOGRAPH, 'de')).toEqual([
+        { language: 'German', partOfSpeech: 'Article', definition: 'the (feminine)' },
+      ])
+      expect(normalizeDefinitions(HOMOGRAPH, 'en')).toEqual([
+        { language: 'English', partOfSpeech: 'Verb', definition: 'to stop living' },
+      ])
+    })
+
+    it('returns [] rather than another language\'s definition when the target has no entry', () => {
+      const onlyEnglish = { en: HOMOGRAPH.en }
+      expect(normalizeDefinitions(onlyEnglish, 'de')).toEqual([])
+    })
+
+    it('matches a language variant via prefix — Norwegian Bokmål/Nynorsk under the "no" code', () => {
+      // Wiktionary never emits a bare "Norwegian" section; both real
+      // varieties (and their bucket key, often "other") must still match.
+      const json = {
+        other: [
+          { partOfSpeech: 'Noun', language: 'Norwegian Bokmål', definitions: [{ definition: 'house' }] },
+          { partOfSpeech: 'Noun', language: 'Norwegian Nynorsk', definitions: [{ definition: 'house (nynorsk)' }] },
+          { partOfSpeech: 'Noun', language: 'Middle English', definitions: [{ definition: 'unrelated' }] },
+        ],
+      }
+      expect(normalizeDefinitions(json, 'no')).toEqual([
+        { language: 'Norwegian Bokmål', partOfSpeech: 'Noun', definition: 'house' },
+        { language: 'Norwegian Nynorsk', partOfSpeech: 'Noun', definition: 'house (nynorsk)' },
+      ])
+    })
+
+    it('falls back to the outer JSON key when a sense has no explicit language field', () => {
+      // Covers callers/tests whose fixtures predate the `sense.language` field.
+      const json = { German: [{ partOfSpeech: 'Noun', definitions: [{ definition: 'a walk' }] }] }
+      expect(normalizeDefinitions(json, 'de')).toEqual([
+        { language: 'German', partOfSpeech: 'Noun', definition: 'a walk' },
+      ])
+    })
+  })
 })
 
 describe('firstDefinition / allDefinitions', () => {
@@ -216,6 +275,14 @@ describe('parseWikitextDefinitions', () => {
     expect(parseWikitextDefinitions(wt, null)).toEqual([])
   })
 
+  it('matches a real Wiktionary language-variant header via prefix (Norwegian Bokmål for code "no")', () => {
+    // Wiktionary never emits a bare "==Norwegian==" section — only the
+    // variant headers. An exact-match target would silently return []
+    // for every Norwegian word; the prefix match fixes that.
+    const wt = ['==Norwegian Bokmål==', '===Noun===', '# house', '==Danish==', '===Noun===', '# house (danish)'].join('\n')
+    expect(parseWikitextDefinitions(wt, 'no')).toEqual([{ partOfSpeech: 'Noun', definition: 'house' }])
+  })
+
   it('matches the section header case-insensitively', () => {
     const wt = ['==german==', '# to go'].join('\n')
     expect(parseWikitextDefinitions(wt, 'de')).toEqual([
@@ -280,6 +347,67 @@ describe('lookupWord', () => {
       'dealings , (social) intercourse',
       'acquaintances',
     ])
+  })
+
+  it('filters REST results to the target language, ignoring unrelated homograph sections', async () => {
+    // Regression for the real "die" entry, which carries 18 language
+    // sections on English Wiktionary. Before the languageCode filter, a
+    // German learner's auto-filled meaning could be the English "to stop
+    // living" sense just because "en" happened to sort first.
+    const json = {
+      en: [{ partOfSpeech: 'Verb', language: 'English', definitions: [{ definition: 'to stop living' }] }],
+      de: [{ partOfSpeech: 'Article', language: 'German', definitions: [{ definition: 'the (feminine)' }] }],
+    }
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      headers: { get: (k) => (k.toLowerCase() === 'content-type' ? 'application/json' : null) },
+      json: async () => json,
+      text: async () => JSON.stringify(json),
+    })
+    const out = await lookupWord('die', { languageCode: 'de', fetch: globalThis.fetch })
+    expect(out.ok).toBe(true)
+    expect(out.definitions).toEqual(['the (feminine)'])
+  })
+
+  it('falls back to the action API when REST has content but none tagged for the target language', async () => {
+    const restJson = { en: [{ partOfSpeech: 'Verb', language: 'English', definitions: [{ definition: 'to stop living' }] }] }
+    const wikitext = ['==German==', '===Article===', '# the (feminine)'].join('\n')
+    globalThis.fetch = vi.fn().mockImplementation((url) => {
+      if (url.includes('/api/rest_v1/')) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: { get: (k) => (k.toLowerCase() === 'content-type' ? 'application/json' : null) },
+          json: async () => restJson,
+          text: async () => JSON.stringify(restJson),
+        })
+      }
+      return Promise.resolve({
+        status: 200,
+        ok: true,
+        headers: { get: (k) => (k.toLowerCase() === 'content-type' ? 'application/json' : null) },
+        json: async () => ({ parse: { wikitext: { '*': wikitext } } }),
+        text: async () => '',
+      })
+    })
+    const out = await lookupWord('die', { languageCode: 'de', fetch: globalThis.fetch })
+    expect(out.ok).toBe(true)
+    expect(out.definitions).toEqual(['the (feminine)'])
+  })
+
+  it('does NOT fall back to the action API when REST JSON is genuinely empty', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      headers: { get: (k) => (k.toLowerCase() === 'content-type' ? 'application/json' : null) },
+      json: async () => ({}),
+      text: async () => '{}',
+    })
+    const out = await lookupWord('gehen', { languageCode: 'de', fetch: globalThis.fetch })
+    expect(out.ok).toBe(false)
+    expect(out.error).toBe('No definitions')
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1)
   })
 
   it('falls back to the action API when REST returns 404', async () => {

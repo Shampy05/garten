@@ -173,12 +173,27 @@ export function useVocab() {
     return { word }
   }
 
+  // Renaming a word (or moving it to another language) can collide with an
+  // existing word the same way a fresh plant can — addWord() already guards
+  // that case, but a rename via the edit form went straight to the database
+  // with no check at all. Mirrors addWord's case-insensitive (language, term)
+  // match, excluding the word being edited, and returns the same
+  // { duplicate, existing } shape so callers can show the same gentle note.
   const updateWord = async (id, updates) => {
     if (!userId.value) return
     const idx = words.value.findIndex((w) => w.id === id)
     if (idx === -1) return
     const prev = words.value[idx]
     const next = { ...prev, ...updates }
+
+    if (updates.term !== undefined || updates.languageId !== undefined) {
+      const nextTerm = (next.term || '').trim().toLowerCase()
+      const collision = words.value.find(
+        (w) => w.id !== id && w.languageId === next.languageId && w.term.trim().toLowerCase() === nextTerm
+      )
+      if (collision) return { duplicate: true, existing: collision }
+    }
+
     words.value = words.value.map((w) => (w.id === id ? next : w))
     persist()
 

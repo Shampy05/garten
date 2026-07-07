@@ -59,7 +59,19 @@
               </span>
             </div>
 
-            <p class="font-display text-2xl font-bold text-stone-900 leading-snug px-2">{{ current.term }}</p>
+            <div class="flex items-center justify-center gap-1.5 px-2">
+              <p class="font-display text-2xl font-bold text-stone-900 leading-snug">{{ current.term }}</p>
+              <button
+                v-if="canSpeak(current)"
+                type="button"
+                @click="speak(current)"
+                class="p-1.5 rounded-lg text-stone-400 hover:text-garden-700 hover:bg-garden-50 transition-colors"
+                title="Hear it"
+                aria-label="Hear pronunciation"
+              >
+                <Volume2 :size="18" />
+              </button>
+            </div>
 
             <!-- Recall first, then reveal. -->
             <div v-if="!revealed">
@@ -146,11 +158,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { X, Droplets, Sprout, RotateCcw } from 'lucide-vue-next'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { X, Droplets, Sprout, RotateCcw, Volume2 } from 'lucide-vue-next'
 import { useVocab } from '../../composables/useVocab.js'
 import { dueWords, sessionSummary, reviewWord, SRS_INTERVALS } from '../../lib/srs.js'
 import { localDateStr } from '../../lib/date.js'
+import { codeForName } from '../../lib/bookLanguages.js'
 
 const props = defineProps({
   languages: { type: Array, default: () => [] },
@@ -265,6 +278,53 @@ function languageName(word) {
 }
 function languageColor(word) {
   return langById.value.get(word.languageId)?.color || null
+}
+
+// ISO 639-1 code for the utterance's lang tag — same lookup path as the
+// Wiktionary magnifier (WordList.vue's codeFor). Missing/untracked language
+// still speaks, just with the browser's default voice.
+function codeFor(word) {
+  const lang = langById.value.get(word.languageId)
+  return lang ? codeForName(lang.name) : null
+}
+
+// Browser-native TTS, zero backend. Voice quality varies wildly by
+// language/platform though — a fallback voice reading a word in the wrong
+// accent teaches worse pronunciation than showing nothing, so the icon only
+// appears once we can confirm a real voice exists for that language.
+const speechSupported = typeof window !== 'undefined' && 'speechSynthesis' in window
+const availableVoices = ref([])
+
+function loadVoices() {
+  if (!speechSupported) return
+  availableVoices.value = window.speechSynthesis.getVoices()
+}
+
+onMounted(() => {
+  loadVoices()
+  // Chrome loads voices asynchronously — the first call above often returns
+  // an empty list, and this event is how it tells us they're ready.
+  if (speechSupported) window.speechSynthesis.addEventListener('voiceschanged', loadVoices)
+})
+onBeforeUnmount(() => {
+  if (speechSupported) window.speechSynthesis.removeEventListener('voiceschanged', loadVoices)
+})
+
+function hasVoiceFor(code) {
+  if (!code) return false
+  return availableVoices.value.some((v) => v.lang?.toLowerCase().startsWith(code.toLowerCase()))
+}
+
+function canSpeak(word) {
+  return !!word && speechSupported && hasVoiceFor(codeFor(word))
+}
+
+function speak(word) {
+  if (!canSpeak(word)) return
+  const utterance = new SpeechSynthesisUtterance(word.term)
+  utterance.lang = codeFor(word)
+  window.speechSynthesis.cancel()
+  window.speechSynthesis.speak(utterance)
 }
 
 // "in 3d" — where this grade would send the word, so the buttons teach the
