@@ -79,6 +79,13 @@ export function lookupUrl(term) {
 // Build the fallback action API request URL. We pass the language code so
 // the caller can hint at which section to read (the action API returns the
 // whole page; the parser narrows to that section).
+//
+// MediaWiki's /w/api.php doesn't send CORS headers by default, but it
+// honors the documented `origin=*` query parameter to add an
+// `Access-Control-Allow-Origin: *` response header. We always include it
+// so the URL works from the browser; it's a no-op for server-side callers
+// and is the only way the action API can be reached directly from Garten's
+// SPA without a CORS proxy.
 export function actionApiUrl(term, languageCode = null) {
   if (!term) return null
   const title = encodeURIComponent(String(term).trim().replace(/\s+/g, '_'))
@@ -91,6 +98,7 @@ export function actionApiUrl(term, languageCode = null) {
     prop: 'wikitext',
     format: 'json',
     wraplines: '0',
+    origin: '*',
   })
   void languageCode
   return `${ACTION_ENDPOINT}?${params.toString()}`

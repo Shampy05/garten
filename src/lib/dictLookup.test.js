@@ -63,6 +63,12 @@ describe('actionApiUrl', () => {
     expect(url).toContain('page=gehen')
   })
 
+  it('includes origin=* so the request is CORS-allowed from a browser', () => {
+    // MediaWiki honors this parameter to add Access-Control-Allow-Origin.
+    // Without it, the action API can't be called directly from the SPA.
+    expect(actionApiUrl('gehen', 'de')).toContain('origin=*')
+  })
+
   it('returns null for empty input', () => {
     expect(actionApiUrl('')).toBeNull()
     expect(actionApiUrl('   ')).toBeNull()
