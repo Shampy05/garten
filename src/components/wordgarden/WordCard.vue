@@ -94,9 +94,12 @@ const editing = ref(false)
 const draft = ref({ term: '', meaning: '', note: '' })
 
 function startEdit() {
+  // Mined words can have a null meaning (they were planted seed-first);
+  // normalize to '' so the input renders an empty field rather than the
+  // literal "null" and so the .trim() in saveEdit never throws.
   draft.value = {
-    term: props.word.term,
-    meaning: props.word.meaning,
+    term: props.word.term || '',
+    meaning: props.word.meaning || '',
     note: props.word.note || '',
   }
   editing.value = true
