@@ -107,7 +107,7 @@ import WordList from './WordList.vue'
 import ReviewSession from './ReviewSession.vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
 
-defineProps({
+const props = defineProps({
   // Tracked Garten languages + study entries, passed by App.vue from the
   // useStorage data it already holds — no new reads.
   languages: { type: Array, default: () => [] },
