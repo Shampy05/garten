@@ -51,8 +51,44 @@
     <div v-else class="space-y-2">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <input v-model="draft.term" type="text" class="gp-input text-sm" placeholder="Word or phrase" />
-        <input v-model="draft.meaning" type="text" class="gp-input text-sm" placeholder="Meaning" />
+        <div class="flex items-center gap-1">
+          <input
+            v-model="draft.meaning"
+            type="text"
+            class="gp-input text-sm flex-1 min-w-0"
+            placeholder="Meaning"
+          />
+          <button
+            type="button"
+            @click="lookupOne"
+            :disabled="lookupLoading"
+            :title="lookupError ? lookupError : 'Look up meaning in Wiktionary'"
+            class="flex-shrink-0 p-1.5 rounded-lg text-stone-400 hover:text-garden-700 hover:bg-garden-50 border border-transparent hover:border-garden-100 transition-colors disabled:opacity-50"
+            :aria-label="`Look up meaning of ${draft.term}`"
+          >
+            <Loader2 v-if="lookupLoading" :size="13" class="animate-spin" />
+            <Search v-else :size="13" />
+          </button>
+        </div>
       </div>
+
+      <!-- Alternative definitions for the most recent lookup -->
+      <div
+        v-if="alternatives.length > 1"
+        class="flex flex-wrap gap-1.5 -mt-1"
+      >
+        <button
+          v-for="(alt, i) in alternatives"
+          :key="`alt-${i}`"
+          type="button"
+          @click="draft.meaning = alt"
+          :class="draft.meaning === alt ? 'bg-garden-600 text-white' : 'bg-white border border-line text-stone-600 hover:border-garden-200 hover:bg-garden-50'"
+          class="px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors"
+        >
+          {{ alt }}
+        </button>
+      </div>
+
       <div v-if="!draft.meaning.trim()" class="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1">
         Adding a meaning helps the watering round stick.
       </div>
@@ -73,8 +109,9 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Pencil, Trash2 } from 'lucide-vue-next'
+import { Pencil, Trash2, Search, Loader2 } from 'lucide-vue-next'
 import { vocabGrowthStage, isDue } from '../../lib/srs.js'
+import { lookupWord } from '../../lib/dictLookup.js'
 import VocabStageGlyph from './VocabStageGlyph.vue'
 
 const props = defineProps({
@@ -83,6 +120,10 @@ const props = defineProps({
   // Resolved by the parent against saved books; null when the source book is
   // gone (soft reference) or the word was planted by hand.
   sourceTitle: { type: String, default: null },
+  // ISO 639-1 of the word's language — passed through to the Wiktionary
+  // action-API fallback so it can narrow the page to the right section.
+  // Optional; lookup degrades to JSON-only REST if absent.
+  languageCode: { type: String, default: null },
 })
 
 const emit = defineEmits(['update', 'remove'])
@@ -92,6 +133,9 @@ const due = computed(() => isDue(props.word))
 
 const editing = ref(false)
 const draft = ref({ term: '', meaning: '', note: '' })
+const alternatives = ref([])
+const lookupLoading = ref(false)
+const lookupError = ref(null)
 
 function startEdit() {
   // Mined words can have a null meaning (they were planted seed-first);
@@ -102,7 +146,31 @@ function startEdit() {
     meaning: props.word.meaning || '',
     note: props.word.note || '',
   }
+  // Reset the lookup state — the user may have changed the term.
+  alternatives.value = []
+  lookupError.value = null
   editing.value = true
+}
+
+// One-tap fill from Wiktionary. Same UX as the mining modal: spinner
+// while loading, first result fills the input, alternative definitions
+// appear as clickable chips below. Failed lookups set a quiet error
+// tooltip on the button — the user can always type the meaning by hand.
+async function lookupOne() {
+  if (lookupLoading.value) return
+  const term = draft.value.term.trim()
+  if (!term) return
+  lookupLoading.value = true
+  lookupError.value = null
+  const res = await lookupWord(term, { languageCode: props.languageCode })
+  lookupLoading.value = false
+  if (res.ok) {
+    alternatives.value = res.definitions
+    draft.value.meaning = res.definitions[0]
+  } else {
+    alternatives.value = []
+    lookupError.value = res.error || 'No result'
+  }
 }
 
 function saveEdit() {

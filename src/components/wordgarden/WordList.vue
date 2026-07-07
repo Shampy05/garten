@@ -43,6 +43,7 @@
         :key="word.id"
         :word="word"
         :language-color="colorFor(word.languageId)"
+        :language-code="codeFor(word.languageId)"
         :source-title="sourceTitles[word.sourceBookId] || null"
         @update="$emit('update', $event)"
         @remove="$emit('remove', $event)"
@@ -54,6 +55,7 @@
 <script setup>
 import { computed } from 'vue'
 import { isDue } from '../../lib/srs.js'
+import { codeForName } from '../../lib/bookLanguages.js'
 import WordCard from './WordCard.vue'
 
 const props = defineProps({
@@ -73,6 +75,15 @@ const langById = computed(() => new Map(props.languages.map((l) => [l.id, l])))
 
 function colorFor(languageId) {
   return langById.value.get(languageId)?.color || null
+}
+
+// ISO 639-1 code for a tracked language, used to thread the language hint
+// through to the Wiktionary lookup. Returns null for words whose language
+// was deleted from the user's garden — the lookup then falls back to a
+// broader REST search that doesn't need a section hint.
+function codeFor(languageId) {
+  const lang = langById.value.get(languageId)
+  return lang ? codeForName(lang.name) : null
 }
 
 function setFilter(id) {
