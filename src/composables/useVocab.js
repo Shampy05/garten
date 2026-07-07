@@ -162,8 +162,13 @@ export function useVocab() {
     if (error) {
       words.value = words.value.filter((w) => w.id !== word.id)
       persist()
-      toast.error("Couldn't plant that word — please try again.")
-      return { error: error.message }
+      // Surface the real error so callers (and the toast) can see constraint
+      // violations, e.g. "null value in column 'meaning' violates not-null
+      // constraint" — a tell that the latest migration hasn't been applied
+      // to the live database.
+      const detail = error.message || 'Unknown error'
+      toast.error(`Couldn't plant “${cleanTerm}” — ${detail}`)
+      return { error: detail }
     }
     return { word }
   }

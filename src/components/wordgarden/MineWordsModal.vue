@@ -223,6 +223,7 @@ async function plantSelected() {
   const book = props.book
   let successCount = 0
   let duplicateCount = 0
+  let firstError = null
   for (const tok of toPlant) {
     const result = await vocab.addWord({
       term: tok,
@@ -232,6 +233,7 @@ async function plantSelected() {
     })
     if (result?.word) successCount += 1
     else if (result?.duplicate) duplicateCount += 1
+    else if (result?.error && !firstError) firstError = result.error
   }
   // Emit a celebration event so friends see "<you> planted N new words from
   // <title>" in the Garden Circle feed — one signal per batch, never one per
@@ -251,11 +253,22 @@ async function plantSelected() {
     }
   }
   emit('planted', { book, count: successCount })
-  toast.show(
-    `Planted ${successCount} ${successCount === 1 ? 'word' : 'words'} from “${book?.title || ''}”.${duplicateCount ? ` ${duplicateCount} already growing.` : ''}`,
-    'success',
-    4000,
-  )
+
+  // Three distinct terminal states: nothing planted (every insert failed —
+  // usually a missing migration; lead with the real DB error so the user
+  // can see the cause instead of a generic "0 words"); some planted
+  // (success toast); only duplicates (gentle note).
+  if (successCount === 0 && duplicateCount === 0 && firstError) {
+    toast.error(`Couldn't plant any words — ${firstError}`, 7000)
+  } else if (successCount === 0 && duplicateCount > 0) {
+    toast.show(`All ${duplicateCount} already growing in your garden.`, 'success', 3500)
+  } else {
+    toast.show(
+      `Planted ${successCount} ${successCount === 1 ? 'word' : 'words'} from “${book?.title || ''}”.${duplicateCount ? ` ${duplicateCount} already growing.` : ''}`,
+      'success',
+      4000,
+    )
+  }
   // Clear selection so the batch is gone — already-planted chips now appear
   // below in the muted list and the new-candidate list reflows.
   selected.value = new Set()

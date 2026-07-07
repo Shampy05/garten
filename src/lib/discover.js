@@ -30,8 +30,10 @@ const MORE_LIKE_THIS_SEED_WORDS = 3
 
 // Minimum description length (chars) before we mine it for content words —
 // shorter descriptions are usually Google/Open Library boilerplate that
-// doesn't carry usable theme signal.
-const MORE_LIKE_THIS_MIN_DESC_CHARS = 80
+// doesn't carry usable theme signal. Below this we fall back to the book
+// title (always present) so the row never silently disappears just
+// because a book happens to have a short blurb.
+const MORE_LIKE_THIS_MIN_DESC_CHARS = 40
 
 function normAuthor(s) {
   return (s || '').trim().toLowerCase()
@@ -166,7 +168,7 @@ export function topContentWords(passage, { count = MORE_LIKE_THIS_SEED_WORDS, la
 
 // "Books like <title>" — seeded from the most recently finished book that
 // has a usable description AND a language the user is currently watering
-// (tracked). The query is a 2–3-word string built from the book's
+// (tracked). The query is a 1–3-word string built from the book's
 // description, run through Google/Open Library filtered to the book's
 // language — so a German "Reunion" finished book yields other German
 // books that share the same content words, not English translations.
@@ -176,10 +178,11 @@ export function topContentWords(passage, { count = MORE_LIKE_THIS_SEED_WORDS, la
 // book APIs do not expose a real "for you" endpoint, so we make the best
 // of the description's strongest nouns and let the user decide whether
 // the hits resonate.
+//
+// Source preference: description (richer theme signal) → title (always
+// present) → author + title (last-resort). We never silently drop a row
+// just because the saved book has a short blurb.
 export function moreLikeThisSeed(savedBooks = [], languages = [], today = localDateStr(new Date())) {
-  // Most recently finished book first; only those with a description long
-  // enough to carry theme signal, and only those whose language is one the
-  // user is currently tracking.
   const trackedCodes = new Set(
     languages
       .map((l) => codeForName(l.name))
@@ -190,24 +193,41 @@ export function moreLikeThisSeed(savedBooks = [], languages = [], today = localD
     .filter((b) =>
       b.record?.status === 'read' &&
       b.record?.finishedAt &&
-      typeof b.description === 'string' &&
-      b.description.trim().length >= MORE_LIKE_THIS_MIN_DESC_CHARS &&
       b.languageCode &&
       trackedCodes.has(b.languageCode)
     )
     .sort((a, b) => String(b.record.finishedAt).localeCompare(String(a.record.finishedAt)))
 
   for (const book of candidates) {
-    const seeds = topContentWords(book.description, {
+    // Build the query from the richest source available, falling back
+    // through description → title → author+title so the row always
+    // produces a usable query as long as the book has a title.
+    const desc = typeof book.description === 'string' ? book.description.trim() : ''
+    let source = ''
+    let reason = ''
+    if (desc.length >= MORE_LIKE_THIS_MIN_DESC_CHARS) {
+      source = desc
+      reason = `Sharing themes with ${book.title} by ${book.author || 'this author'}.`
+    } else if (book.title) {
+      // Title is short — combine with the author for a richer query, framed
+      // honestly so the user knows this is a "more from this title/author"
+      // pull, not a deep theme match.
+      source = [book.title, book.author].filter(Boolean).join(' ')
+      reason = `Other books around “${book.title}”.`
+    } else {
+      continue
+    }
+
+    const seeds = topContentWords(source, {
       count: MORE_LIKE_THIS_SEED_WORDS,
       languageCode: book.languageCode,
     })
-    if (seeds.length < 2) continue
+    if (seeds.length < 1) continue
     return {
       kind: 'more_like_this',
       key: `more_like_this:${book.id || book.externalId}:${today}`,
       title: `Books like ${book.title}`,
-      reason: `Sharing themes with ${book.title} by ${book.author || 'this author'}.`,
+      reason,
       query: seeds.join(' '),
       languageCode: book.languageCode,
     }

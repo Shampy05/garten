@@ -224,8 +224,9 @@ describe('moreLikeThisSeed', () => {
     'A sweeping family story about memory, war, and the long shadow of the past ' +
     'across generations of one household in a small town by the river.'
 
-  it('returns null when there are no finished books with descriptions', () => {
-    expect(moreLikeThisSeed([finished('a')], [FRENCH], TODAY)).toBeNull()
+  it('returns null when a finished book has neither a description nor a title to seed from', () => {
+    const blank = { ...finished('a'), title: '', author: null, description: '' }
+    expect(moreLikeThisSeed([blank], [FRENCH], TODAY)).toBeNull()
   })
 
   it('skips books whose language the user is no longer watering', () => {
@@ -271,13 +272,45 @@ describe('moreLikeThisSeed', () => {
     expect(seed.languageCode).toBe('de')
   })
 
-  it('skips books whose description is too short to carry theme signal', () => {
+  it('falls back to title when the description is too short to mine', () => {
+    // Description is 1 char long (well under the 40-char minimum) — the row
+    // should still appear, seeded from the book title.
     const seed = moreLikeThisSeed(
-      [finished('a', { languageCode: 'fr', finishedAt: '2026-06-20', description: 'short' })],
-      [FRENCH],
+      [
+        finished('a', {
+          title: 'Der Sandmann',
+          author: 'E.T.A. Hoffmann',
+          languageCode: 'de',
+          finishedAt: '2026-06-20',
+          description: 'x',
+        }),
+      ],
+      [{ id: 'de', name: 'German' }],
       TODAY,
     )
-    expect(seed).toBeNull()
+    expect(seed).not.toBeNull()
+    expect(seed.title).toBe('Books like Der Sandmann')
+    expect(seed.reason).toBe('Other books around “Der Sandmann”.')
+    expect(seed.query).toContain('sandmann')
+  })
+
+  it('falls back to author + title when the description is missing entirely', () => {
+    const seed = moreLikeThisSeed(
+      [
+        finished('a', {
+          title: 'Damals im Sommer',
+          author: 'Ildikó von Kürthy',
+          languageCode: 'de',
+          finishedAt: '2026-06-20',
+          description: '',
+        }),
+      ],
+      [{ id: 'de', name: 'German' }],
+      TODAY,
+    )
+    expect(seed).not.toBeNull()
+    expect(seed.query).toContain('damals')
+    expect(seed.query).toContain('sommer')
   })
 })
 
