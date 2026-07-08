@@ -39,6 +39,22 @@
           Mine from book
         </button>
       </div>
+
+      <!-- Rediscover nudge — only when there's nothing left due. A word
+           that reaches the top of the ladder (30/90-day intervals) would
+           otherwise only ever resurface on its exact due date; this offers
+           one old, neglected word as an optional early peek instead. -->
+      <p v-if="!dueCount && rediscoverWord" class="text-xs text-stone-500 mt-2 flex items-center gap-1.5 flex-wrap">
+        <Sparkles :size="12" class="text-amber-500 flex-shrink-0" />
+        Still remember <span class="font-medium text-stone-700">{{ rediscoverWord.term }}</span>? It's been a while.
+        <button
+          type="button"
+          @click="startScopedReview([rediscoverWord.id])"
+          class="text-garden-700 hover:text-garden-800 font-medium hover:underline flex-shrink-0"
+        >
+          Peek
+        </button>
+      </p>
     </div>
 
     <div class="space-y-5">
@@ -135,8 +151,9 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Leaf, Droplets, BookMarked } from 'lucide-vue-next'
+import { Leaf, Droplets, BookMarked, Sparkles } from 'lucide-vue-next'
 import { useVocab } from '../../composables/useVocab.js'
+import { rediscoverPick } from '../../lib/srs.js'
 import { useBooks } from '../../composables/useBooks.js'
 import { useToast } from '../../composables/useToast.js'
 import WordCaptureForm from './WordCaptureForm.vue'
@@ -181,6 +198,12 @@ function startScopedReview(wordIds) {
   showReview.value = true
 }
 
+// Only surfaced once there's nothing left due — the regular queue always
+// takes priority, and this is meant to fill the "all watered" dead space,
+// not compete with it. A forced round works fine for a not-due word:
+// ReviewSession's forced-round queue just filters by id, no isDue gate.
+const rediscoverWord = computed(() => (dueCount.value ? null : rediscoverPick(words.value)))
+
 // Two-step mine-from-book flow. The header "Mine from book" button opens
 // the BookPickerModal; selecting a book opens MineWordsModal scoped to
 // that book. Reusing MineWordsModal avoids duplicating the mining UX
@@ -202,17 +225,9 @@ function closeMineWords() {
   showMineModal.value = false
   mineTargetId.value = null
 }
-function onMinePlanted({ book, count }) {
-  // The modal handles the per-token toasts and DB errors. We surface a
-  // success-only toast here so the user sees confirmation in the Word
-  // Garden context (in case they came from the book picker).
-  if (!count) return
-  toast.show(
-    `Planted ${count} ${count === 1 ? 'word' : 'words'} from “${book?.title || ''}”.`,
-    'success',
-    4000,
-  )
-}
+// The modal already shows its own success/duplicate/error toast for the
+// mining action (MineWordsModal.vue) — nothing to do here.
+function onMinePlanted() {}
 
 function onReviewClose() {
   showReview.value = false

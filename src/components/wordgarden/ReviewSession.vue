@@ -49,7 +49,10 @@
           </div>
 
           <!-- Active card -->
-          <div v-if="current" class="py-8 text-center space-y-5">
+          <div
+            v-if="current"
+            class="mt-4 py-8 px-2 text-center space-y-5"
+          >
             <div class="flex items-center justify-center gap-2">
               <span
                 class="inline-flex items-center gap-1.5 text-[11px] font-medium text-stone-600 bg-stone-100 px-2 py-0.5 rounded-full"

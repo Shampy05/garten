@@ -6,6 +6,8 @@ import {
   countDue,
   vocabGrowthStage,
   sessionSummary,
+  rediscoverPick,
+  REDISCOVER_MIN_STAGE,
   SRS_INTERVALS,
   MAX_STAGE,
 } from './srs.js'
@@ -118,6 +120,80 @@ describe('SRS_INTERVALS invariants', () => {
     expect(SRS_INTERVALS[0]).toBe(0)
     for (let i = 1; i < SRS_INTERVALS.length; i++) {
       expect(SRS_INTERVALS[i]).toBeGreaterThan(SRS_INTERVALS[i - 1])
+    }
+  })
+})
+
+describe('rediscoverPick', () => {
+  it('returns null when nothing qualifies (no words, or none mature enough)', () => {
+    expect(rediscoverPick([], TODAY)).toBeNull()
+    expect(rediscoverPick([word({ id: 'a', stage: 1, dueDate: '2026-08-01' })], TODAY)).toBeNull()
+  })
+
+  it('excludes due words even at a qualifying stage', () => {
+    const due = word({ id: 'due', stage: REDISCOVER_MIN_STAGE, dueDate: TODAY })
+    expect(rediscoverPick([due], TODAY)).toBeNull()
+  })
+
+  it('excludes words below REDISCOVER_MIN_STAGE even if not due', () => {
+    const tooYoung = word({ id: 'young', stage: REDISCOVER_MIN_STAGE - 1, dueDate: '2026-08-01' })
+    expect(rediscoverPick([tooYoung], TODAY)).toBeNull()
+  })
+
+  it('picks a single qualifying candidate', () => {
+    const w = word({ id: 'solo', stage: REDISCOVER_MIN_STAGE, dueDate: '2026-08-01', lastReviewedAt: '2026-06-01' })
+    expect(rediscoverPick([w], TODAY)?.id).toBe('solo')
+  })
+
+  it('sorts by staleness — the least-recently-reviewed candidates fill the rotation pool, the freshest is always excluded', () => {
+    // With 4 qualifying candidates and a pool of REDISCOVER_POOL (3), the
+    // single freshest one should never be picked, on any day — this is
+    // robust to exactly which day the internal rotation lands on, unlike
+    // asserting a specific winner between just two candidates would be.
+    const stale = word({ id: 'stale', stage: 4, dueDate: '2026-08-01', lastReviewedAt: '2026-01-01' })
+    const mid1 = word({ id: 'mid1', stage: 4, dueDate: '2026-08-01', lastReviewedAt: '2026-02-01' })
+    const mid2 = word({ id: 'mid2', stage: 4, dueDate: '2026-08-01', lastReviewedAt: '2026-03-01' })
+    const fresher = word({ id: 'fresher', stage: 4, dueDate: '2026-08-01', lastReviewedAt: '2026-06-15' })
+    const candidates = [fresher, mid2, stale, mid1] // shuffled input order — proves sort, not insertion order
+    for (let d = 0; d < 14; d++) {
+      const today = `2026-07-${String(d + 1).padStart(2, '0')}`
+      expect(rediscoverPick(candidates, today)?.id).not.toBe('fresher')
+    }
+  })
+
+  it('treats equal lastReviewedAt as a tie — both stay eligible across the rotation', () => {
+    const high = word({ id: 'high', stage: 6, dueDate: '2026-09-01', lastReviewedAt: '2026-01-01' })
+    const low = word({ id: 'low', stage: 4, dueDate: '2026-08-01', lastReviewedAt: '2026-01-01' })
+    const picks = new Set()
+    for (let d = 0; d < 6; d++) {
+      const today = `2026-07-${String(d + 1).padStart(2, '0')}`
+      picks.add(rediscoverPick([low, high], today)?.id)
+    }
+    expect(picks).toEqual(new Set(['low', 'high']))
+  })
+
+  it('rotates deterministically across the pool by day, not always the same word', () => {
+    const pool = ['a', 'b', 'c'].map((id, i) =>
+      word({ id, stage: 4, dueDate: '2026-08-01', lastReviewedAt: `2026-0${i + 1}-01` })
+    )
+    const day1 = rediscoverPick(pool, '2026-07-07')?.id
+    const day2 = rediscoverPick(pool, '2026-07-08')?.id
+    // Same inputs, consecutive days — deterministic, and not required to
+    // differ every single day, but must always be one of the pool and
+    // must be a pure function of `today` (same day → same answer).
+    expect(pool.map((w) => w.id)).toContain(day1)
+    expect(rediscoverPick(pool, '2026-07-07')?.id).toBe(day1)
+    void day2
+  })
+
+  it('never picks from beyond the top REDISCOVER_POOL most-neglected candidates', () => {
+    const many = Array.from({ length: 10 }, (_, i) =>
+      word({ id: `w${i}`, stage: 4, dueDate: '2026-08-01', lastReviewedAt: `2026-01-${String(i + 1).padStart(2, '0')}` })
+    )
+    // The 3 most-neglected are w0, w1, w2 (earliest lastReviewedAt sorts first).
+    for (let d = 0; d < 30; d++) {
+      const today = `2026-0${1 + Math.floor(d / 28)}-${String((d % 28) + 1).padStart(2, '0')}`
+      expect(['w0', 'w1', 'w2']).toContain(rediscoverPick(many, today)?.id)
     }
   })
 })

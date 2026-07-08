@@ -88,6 +88,37 @@ export function vocabGrowthStage(word) {
   return 'seed'
 }
 
+// Once a word reaches "bloom" (stage 4, a 14-day+ interval) it only ever
+// resurfaces on its exact due date — up to 90 days apart at the top of the
+// ladder — and otherwise quietly fossilizes. `rediscoverPick` offers one
+// NOT-due bloom/flourish word as an optional early peek, for the moments
+// there's nothing left due (see WordGardenView, gated on dueCount === 0).
+export const REDISCOVER_MIN_STAGE = 4
+const REDISCOVER_POOL = 3 // rotate across the N most-neglected, not always the same word
+
+function daysSinceEpoch(today) {
+  return Math.floor(new Date(today + 'T12:00:00').getTime() / 86400000)
+}
+
+// Most-neglected first (oldest lastReviewedAt, i.e. longest since it was
+// last touched; ties broken toward the higher stage — the ones with the
+// longest intervals ahead of them). Rotates daily across the top
+// REDISCOVER_POOL candidates so a visit-every-day gardener doesn't just
+// see the same single word forever (mirrors discover.js's
+// daysSinceEpoch-modulo rotation for "More by <author>").
+export function rediscoverPick(words = [], today = localDateStr(new Date())) {
+  const candidates = words
+    .filter((w) => !isDue(w, today) && (Number(w.stage) || 0) >= REDISCOVER_MIN_STAGE)
+    .sort(
+      (a, b) =>
+        String(a.lastReviewedAt || '').localeCompare(String(b.lastReviewedAt || '')) ||
+        (Number(b.stage) || 0) - (Number(a.stage) || 0)
+    )
+  if (!candidates.length) return null
+  const pool = candidates.slice(0, REDISCOVER_POOL)
+  return pool[daysSinceEpoch(today) % pool.length]
+}
+
 // Tally a session's grades for the end-of-session summary.
 export function sessionSummary(grades = []) {
   const out = { reviewed: grades.length, again: 0, good: 0, easy: 0 }
