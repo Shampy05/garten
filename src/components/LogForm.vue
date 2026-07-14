@@ -105,6 +105,42 @@
 
       <!-- Step 3: Duration -->
       <div v-if="step === 3" class="animate-fadeIn">
+        <!-- Optional book link — only for reading sessions, only when the
+             gardener has a book actively "reading" in this language. Fully
+             optional: skipping it leaves the rest of the flow untouched. -->
+        <div v-if="entry.type === 'reading' && readingBooksForLanguage.length > 0" class="mb-5 pb-5 border-b border-stone-100">
+          <p class="text-sm text-stone-500 mb-3">Reading one of these? <span class="text-stone-400">(optional)</span></p>
+          <div class="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1">
+            <button
+              v-for="b in readingBooksForLanguage" :key="b.id"
+              type="button"
+              @click="toggleBook(b)"
+              class="flex-shrink-0 w-16 group"
+              :title="b.title"
+            >
+              <div
+                class="w-16 h-24 rounded-lg overflow-hidden bg-stone-100 border-2 transition-all flex items-center justify-center"
+                :class="entry.bookId === b.id ? 'border-garden-500 shadow-sm' : 'border-transparent group-hover:border-stone-300'"
+              >
+                <img v-if="b.coverUrl" :src="b.coverUrl" :alt="b.title" class="w-full h-full object-cover" loading="lazy" />
+                <BookOpen v-else :size="20" class="text-stone-300" />
+              </div>
+              <p class="text-[10px] text-stone-500 mt-1 truncate text-center">{{ b.title }}</p>
+            </button>
+          </div>
+          <div v-if="entry.bookId" class="mt-3 flex items-center gap-2">
+            <label class="text-xs text-stone-500" for="log-pages-read">Pages read</label>
+            <input
+              id="log-pages-read"
+              v-model.number="entry.pagesRead"
+              type="number"
+              min="0"
+              placeholder="optional"
+              class="gp-input w-24 py-1.5 text-sm"
+            />
+          </div>
+        </div>
+
         <p class="text-sm text-stone-500 mb-3">How long did you study?</p>
         <div class="grid grid-cols-3 gap-2 mb-4">
           <button v-for="preset in presets" :key="preset.label"
@@ -195,9 +231,10 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Sprout, RotateCcw } from 'lucide-vue-next'
+import { Sprout, RotateCcw, BookOpen } from 'lucide-vue-next'
 import { useLanguageLookup } from '../composables/useLanguageLookup.js'
 import { suggestQuickLogs } from '../lib/quickLogs.js'
+import { codeForName } from '../lib/bookLanguages.js'
 
 const props = defineProps({
   languages: {
@@ -208,6 +245,13 @@ const props = defineProps({
   // when the parent doesn't pass them (e.g. the stepper is being used in
   // isolation outside the dashboard).
   entries: {
+    type: Array,
+    default: () => []
+  },
+  // The Reading Library's saved books (useBooks().savedBooks), so a reading
+  // session can optionally link to a currently-reading book. Optional — the
+  // book-picker just doesn't render when the parent doesn't pass any.
+  savedBooks: {
     type: Array,
     default: () => []
   }
@@ -227,7 +271,12 @@ const entry = ref({
   hours: 0,
   minutes: 30,
   date: today,
-  notes: ''
+  notes: '',
+  // Optional reading-session link (Reading Library book + pages read).
+  // Neither field is part of the entries table — App.vue strips them off
+  // before saving the study entry and uses them to log book progress.
+  bookId: null,
+  pagesRead: null
 })
 
 const presets = [
@@ -244,6 +293,15 @@ const selectedLanguage = computed(() => {
 
 const availableTypes = computed(() => {
   return selectedLanguage.value ? selectedLanguage.value.types : []
+})
+
+// Currently-reading books in the selected language only — a book "want to
+// read" or already "read" isn't an active session to link against.
+const readingBooksForLanguage = computed(() => {
+  if (!selectedLanguage.value) return []
+  const code = codeForName(selectedLanguage.value.name)
+  if (!code) return []
+  return props.savedBooks.filter((b) => b.languageCode === code && b.record?.status === 'reading')
 })
 
 // One-tap suggestions: most recent + most-frequent (14d) + filler, deduped
@@ -275,12 +333,28 @@ function formatDuration(item) {
 const selectLanguage = (lang) => {
   entry.value.languageId = lang.id
   entry.value.type = ''
+  // The book picker is scoped to the selected language — clear any prior
+  // pick so a stale book from a different language can't ship silently.
+  entry.value.bookId = null
+  entry.value.pagesRead = null
   step.value = (lang.types && lang.types.length > 0) ? 2 : 3
 }
 
 const selectType = (type) => {
   entry.value.type = type
+  if (type !== 'reading') {
+    entry.value.bookId = null
+    entry.value.pagesRead = null
+  }
   step.value = 3
+}
+
+// Tapping the same book again deselects it (it's optional, not a required
+// pick). Clearing pagesRead alongside keeps it from shipping detached from
+// a book once deselected.
+const toggleBook = (book) => {
+  entry.value.bookId = entry.value.bookId === book.id ? null : book.id
+  if (!entry.value.bookId) entry.value.pagesRead = null
 }
 
 const selectPreset = (preset) => {
@@ -291,7 +365,7 @@ const selectPreset = (preset) => {
 }
 
 const reset = () => {
-  entry.value = { languageId: '', type: '', hours: 0, minutes: 30, date: today, notes: '' }
+  entry.value = { languageId: '', type: '', hours: 0, minutes: 30, date: today, notes: '', bookId: null, pagesRead: null }
   activePreset.value = null
   step.value = 0
 }

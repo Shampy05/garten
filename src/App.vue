@@ -257,6 +257,7 @@
         <LogForm
           :languages="data.languages"
           :entries="data.entries"
+          :saved-books="booksApi.savedBooks.value"
           @add-entry="addEntry"
           @quick-add="quickAddEntry"
         />
@@ -959,14 +960,27 @@ function milestoneSnapshot() {
 // against the just-inserted row (id comes straight from useStorage, not by
 // fishing the array — race-safe even if two adds are in flight).
 const addEntry = async (entry) => {
+  // bookId/pagesRead are LogForm's optional "link this reading session to a
+  // book" fields — not part of the entries table, so they're stripped before
+  // the study entry is saved and handled separately below.
+  const { bookId, pagesRead, ...entryFields } = entry
   const before = milestoneSnapshot()
-  const inserted = await storageAddEntry(entry)
+  const inserted = await storageAddEntry(entryFields)
   const after = milestoneSnapshot()
   const milestone = detectMilestone(before, after)
   if (milestone?.kind === 'first_bloom' && milestone.langId) {
     await storageMarkFirstBloom(milestone.langId)
   }
   if (milestone) toast.show(milestone.message, 'celebrate', 6000)
+
+  // Optional book-progress link: logs the same page-advance path as the
+  // Library's own quick-log, so the linked book's pace/last-read stay in
+  // sync with a session logged from the main stepper.
+  if (bookId && pagesRead > 0) {
+    const result = await booksApi.quickLog(bookId, pagesRead)
+    if (result?.error) toast.error(result.error)
+  }
+
   return { id: inserted?.id || null, milestone }
 }
 
