@@ -306,6 +306,18 @@ export function useBooks() {
       b.id === bookId ? { ...b, record: merged } : b
     )
     persist()
+
+    // A manual page-count correction (e.g. typing a new "Current page" in
+    // Edit book) is real reading progress too — log it as a session so pace
+    // and "last read" on the spotlight card don't go stale after an edit.
+    // Only forward advances count (startReread/markAsRead's currentPage
+    // resets/jumps go through here too, but a decrease is a correction, not
+    // progress, so it's left alone).
+    const oldPage = Number(current.record?.currentPage) || 0
+    const newPage = Number(updates.currentPage)
+    if (Number.isFinite(newPage) && newPage > oldPage) {
+      await recordProgressRow(bookId, newPage - oldPage, { fromPage: oldPage + 1, toPage: newPage })
+    }
   }
 
   // FR11 — remove a book; the FK cascade drops its reading record.
@@ -355,6 +367,43 @@ export function useBooks() {
     }))
   }
 
+  // Insert a reading_progress row and keep the bulk-loaded history (spotlight
+  // pace tiles, Recent Sessions timeline) + its cache in step. Shared by
+  // logProgress (explicit "log pages" flows) and updateRecord (a manual
+  // page-count correction in Edit book is still real progress — without this,
+  // pace/last-read on the spotlight card go stale forever after an edit even
+  // though the page count itself just advanced). Gated on progressLoaded:
+  // appending after a failed bulk load would cache a partial dataset that
+  // loadAllProgress would later serve as complete.
+  const recordProgressRow = async (bookId, pagesRead, { fromPage = null, toPage = null, minutes = null, notes = null } = {}) => {
+    const today = new Date().toISOString().slice(0, 10)
+    const normalizedMinutes = minutes ? Math.max(0, Math.round(Number(minutes))) : null
+    const { data: progressRow, error } = await supabase
+      .from('reading_progress')
+      .insert({
+        user_id: userId.value,
+        book_id: bookId,
+        date: today,
+        pages_read: pagesRead,
+        from_page: fromPage,
+        to_page: toPage,
+        minutes: normalizedMinutes,
+        notes: notes?.trim() || null,
+      })
+      .select('id, created_at')
+      .single()
+    if (error) return { error }
+
+    if (progressLoaded.value) {
+      readingProgress.value = [
+        ...readingProgress.value,
+        { id: progressRow.id, bookId, date: today, pagesRead, minutes: normalizedMinutes, createdAt: progressRow.created_at },
+      ]
+      setCache(progressCacheKey(userId.value), readingProgress.value)
+    }
+    return { progressRow }
+  }
+
   // Inline-log wrapper used by the Reading-shelf quick-log bar. No minutes, no
   // notes — those still live in the full LogPagesModal. Returns the same
   // { book, pagesRead } / { error } shape as logProgress so callers can handle
@@ -396,46 +445,18 @@ export function useBooks() {
       return { error: 'You are already at or past the last page.' }
     }
 
-    const today = new Date().toISOString().slice(0, 10)
-    const normalizedMinutes = minutes ? Math.max(0, Math.round(Number(minutes))) : null
-    const { data: progressRow, error: progressErr } = await supabase
-      .from('reading_progress')
-      .insert({
-        user_id: userId.value,
-        book_id: bookId,
-        date: today,
-        pages_read: actualPagesRead,
-        from_page: fromPage ?? null,
-        to_page: toPage ?? null,
-        minutes: normalizedMinutes,
-        notes: notes?.trim() || null,
-      })
-      .select('id, created_at')
-      .single()
+    const { error: progressErr } = await recordProgressRow(bookId, actualPagesRead, {
+      fromPage: fromPage ?? null,
+      toPage: toPage ?? null,
+      minutes,
+      notes,
+    })
     if (progressErr) {
       toast.error('Failed to log pages. Please try again.')
       return { error: progressErr.message }
     }
 
-    // Keep the bulk-loaded history (spotlight pace tiles, Recent Sessions
-    // timeline) and its cache in step with the row that now exists in the DB.
-    // Gated on progressLoaded: appending after a failed bulk load would cache
-    // a partial dataset that loadAllProgress would later serve as complete.
-    if (progressLoaded.value) {
-      readingProgress.value = [
-        ...readingProgress.value,
-        {
-          id: progressRow.id,
-          bookId,
-          date: today,
-          pagesRead: actualPagesRead,
-          minutes: normalizedMinutes,
-          createdAt: progressRow.created_at,
-        },
-      ]
-      setCache(progressCacheKey(userId.value), readingProgress.value)
-    }
-
+    const today = new Date().toISOString().slice(0, 10)
     const isFinished = newPage >= totalPages
     const recordUpdates = {
       currentPage: newPage,
