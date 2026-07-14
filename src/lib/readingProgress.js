@@ -8,21 +8,31 @@ function localDateKey(d = new Date()) {
 }
 
 /**
- * Pages per day over the last `windowDays`, weighted so recent sessions count
- * more. Returns 0 if there is no history.
+ * Pages per day over the last `windowDays`, weighted so recent days count
+ * more. Bucketed by calendar day first (same day-bucketed exponential-decay
+ * pattern as `weightedWeeklyPace` in proficiency.js) and averaged over every
+ * day in the window, not just days with a session — otherwise a single big
+ * session surrounded by off-days reads as a sustained daily pace instead of
+ * an occasional binge, badly overestimating how fast the book will be
+ * finished. Returns 0 if there is no history.
  */
 export function weightedPace(sessions = [], windowDays = 28, halfLifeDays = 7) {
   const cutoff = new Date(Date.now() - windowDays * MS_PER_DAY)
+  const pagesByDay = new Map()
+  for (const s of sessions) {
+    if (!s.date) continue
+    const d = new Date(s.date + 'T00:00:00')
+    if (d < cutoff) continue
+    pagesByDay.set(s.date, (pagesByDay.get(s.date) || 0) + (s.pagesRead || 0))
+  }
+
   const lambda = Math.log(2) / halfLifeDays
   let weightedPages = 0
   let weightSum = 0
-
-  for (const s of sessions) {
-    const d = new Date(s.date + 'T00:00:00')
-    if (d < cutoff) continue
-    const ageDays = (Date.now() - d.getTime()) / MS_PER_DAY
-    const weight = Math.exp(-lambda * ageDays)
-    weightedPages += (s.pagesRead || 0) * weight
+  for (let age = 0; age < windowDays; age++) {
+    const key = localDateKey(new Date(Date.now() - age * MS_PER_DAY))
+    const weight = Math.exp(-lambda * age)
+    weightedPages += weight * (pagesByDay.get(key) || 0)
     weightSum += weight
   }
 

@@ -1,9 +1,9 @@
-// Small curated stopword sets per language — used by vocabMining.js to drop
-// the most frequent function words so candidate chips aren't 90% "the / and /
-// of". Coverage today: English, Spanish, French, German, Italian (ISO 639-1
+// Small curated stopword sets per language — used by discover.js to drop the
+// most frequent function words when picking theme words from a passage.
+// Coverage today: English, Spanish, French, German, Italian (ISO 639-1
 // 'en', 'es', 'fr', 'de', 'it').
 //
-// For any language not listed here, vocabMining.js falls back to *no* stopword
+// For any language not listed here, callers fall back to *no* stopword
 // filtering (length/dedupe only). That is a deliberate, documented trade-off
 // rather than silently mis-filtering: keep coverage honest as more languages
 // are added by extending STOPWORDS below — keyed by ISO 639-1 code.
@@ -82,7 +82,7 @@ export const STOPWORDS = {
   ]),
 }
 
-// Has a stopword list for the given ISO 639-1 code? vocabMining.js uses this to
+// Has a stopword list for the given ISO 639-1 code? Callers use this to
 // decide whether to apply stopword filtering or fall back to length-only.
 export function hasStopwords(code) {
   return Boolean(code && STOPWORDS[code.toLowerCase()])

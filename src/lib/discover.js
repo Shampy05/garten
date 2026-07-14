@@ -145,10 +145,9 @@ export function topContentWords(passage, { count = MORE_LIKE_THIS_SEED_WORDS, la
   const text = String(passage || '')
   if (!text) return []
   const stop = stopwordsFor(languageCode)
-  // Mirror vocabMining.js's \p{L} token set — but be stricter (max 24 chars
-  // for theme words) and drop any token that's not a plausible noun. We
-  // don't reuse mineCandidates directly because we want the *order* by
-  // frequency, not first-occurrence.
+  // A \p{L} token set, stricter than a general tokenizer (max 24 chars for
+  // theme words) and dropping any token that's not a plausible noun. Order
+  // is by frequency, not first-occurrence.
   const counts = new Map()
   const firstSeen = new Map()
   let i = 0

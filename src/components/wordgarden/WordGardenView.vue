@@ -27,17 +27,6 @@
         <span v-else-if="words.length" class="text-xs text-stone-400 flex-shrink-0 sm:ml-auto">
           All watered<span class="hidden sm:inline"> — nothing due today.</span>
         </span>
-        <!-- Mine-words-from-book affordance: surfaced here so the user doesn't
-             need to navigate to the Library tab to mine a passage. Closes
-             the loop on the Word Garden / Library / Reading flow. -->
-        <button
-          v-if="savedBooks.length"
-          @click="showBookPicker = true"
-          class="gp-btn-ghost px-3 py-2 text-sm inline-flex items-center gap-1.5 flex-shrink-0"
-        >
-          <BookMarked :size="14" />
-          Mine from book
-        </button>
       </div>
 
       <!-- Rediscover nudge — only when there's nothing left due. A word
@@ -129,29 +118,12 @@
       @confirm="executeRemove"
       @cancel="cancelRemove"
     />
-
-    <!-- Book picker → opens MineWordsModal scoped to the chosen book. Two-
-         step flow because we want a single mining modal, not two. -->
-    <BookPickerModal
-      :visible="showBookPicker"
-      :saved-books="savedBooks"
-      @close="showBookPicker = false"
-      @select="onBookSelected"
-    />
-    <MineWordsModal
-      v-if="mineTarget"
-      :visible="showMineModal"
-      :book="mineTarget"
-      :languages="languages"
-      @close="closeMineWords"
-      @planted="onMinePlanted"
-    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Leaf, Droplets, BookMarked, Sparkles } from 'lucide-vue-next'
+import { Leaf, Droplets, Sparkles } from 'lucide-vue-next'
 import { useVocab } from '../../composables/useVocab.js'
 import { rediscoverPick } from '../../lib/srs.js'
 import { useBooks } from '../../composables/useBooks.js'
@@ -159,8 +131,6 @@ import { useToast } from '../../composables/useToast.js'
 import WordCaptureForm from './WordCaptureForm.vue'
 import WordList from './WordList.vue'
 import ReviewSession from './ReviewSession.vue'
-import BookPickerModal from './BookPickerModal.vue'
-import MineWordsModal from './MineWordsModal.vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
 
 const props = defineProps({
@@ -204,30 +174,7 @@ function startScopedReview(wordIds) {
 // ReviewSession's forced-round queue just filters by id, no isDue gate.
 const rediscoverWord = computed(() => (dueCount.value ? null : rediscoverPick(words.value)))
 
-// Two-step mine-from-book flow. The header "Mine from book" button opens
-// the BookPickerModal; selecting a book opens MineWordsModal scoped to
-// that book. Reusing MineWordsModal avoids duplicating the mining UX
-// (passage editor, candidate chips, define-meanings step).
-const showBookPicker = ref(false)
-const showMineModal = ref(false)
-const mineTargetId = ref(null)
-const mineTarget = computed(() =>
-  savedBooks.value.find((b) => b.id === mineTargetId.value) || null
-)
 const toast = useToast()
-function onBookSelected(book) {
-  if (!book) return
-  showBookPicker.value = false
-  mineTargetId.value = book.id
-  showMineModal.value = true
-}
-function closeMineWords() {
-  showMineModal.value = false
-  mineTargetId.value = null
-}
-// The modal already shows its own success/duplicate/error toast for the
-// mining action (MineWordsModal.vue) — nothing to do here.
-function onMinePlanted() {}
 
 function onReviewClose() {
   showReview.value = false

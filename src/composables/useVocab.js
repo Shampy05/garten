@@ -128,11 +128,9 @@ export function useVocab() {
   // a duplicate returns { duplicate: true, existing } so the form can show a
   // gentle note instead of inserting a second copy.
   //
-  // `meaning` is optional — mining from a passage (`MineWordsModal`) plants
-  // batches with empty meanings the gardener fills in later, so we accept
-  // null/empty as a "to-define" placeholder. Hand capture (`WordCaptureForm`)
-  // still validates presence at the form level so manual plants keep their
-  // meaning before pressing "Plant".
+  // `meaning` is optional at the data layer — hand capture (`WordCaptureForm`)
+  // validates presence at the form level so manual plants keep their meaning
+  // before pressing "Plant".
   const addWord = async ({ term, meaning, languageId, note = null, sourceBookId = null, gender = null, wordType = null, tags = [] }) => {
     if (!userId.value) return { error: 'Not signed in' }
     const cleanTerm = (term || '').trim()

@@ -61,14 +61,6 @@
             <span class="hidden sm:inline">Add a word</span>
           </button>
           <button
-            @click="$emit('mine-words', book)"
-            class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-garden-700 bg-garden-50 border border-garden-200 hover:bg-garden-100 hover:border-garden-300 transition-all active:scale-95"
-            title="Mine words from a passage in this book"
-          >
-            <Sparkles :size="12" />
-            <span class="hidden sm:inline">Mine words</span>
-          </button>
-          <button
             @click="$emit('edit', book)"
             class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-stone-500 bg-white border border-line hover:border-garden-400 hover:text-garden-700 hover:shadow-pill transition-all active:scale-95"
             title="Edit book"
@@ -163,7 +155,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { BookOpen, BookMarked, Pencil, Trash2, Sparkles } from 'lucide-vue-next'
+import { BookOpen, BookMarked, Pencil, Trash2 } from 'lucide-vue-next'
 import { nameForCode } from '../../lib/bookLanguages.js'
 import { bookPaceStats, formatPace } from '../../lib/readingProgress.js'
 
@@ -177,7 +169,7 @@ const props = defineProps({
   progressLoaded: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['edit', 'remove', 'log', 'quick-log', 'capture-word', 'mine-words'])
+const emit = defineEmits(['edit', 'remove', 'log', 'quick-log', 'capture-word'])
 
 const submitting = ref(false)
 

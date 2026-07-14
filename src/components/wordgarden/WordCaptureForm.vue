@@ -239,9 +239,9 @@ watch(term, () => {
   lookupError.value = null
 })
 
-// Wiktionary lookup. Same UX as MineWordsModal and WordCard's edit form:
-// spinner while loading, first result fills Meaning, alternative chips
-// below if multiple senses came back, quiet error tooltip on failure.
+// Wiktionary lookup. Same UX as WordCard's edit form: spinner while loading,
+// first result fills Meaning, alternative chips below if multiple senses
+// came back, quiet error tooltip on failure.
 const selectedLanguageCode = computed(() => {
   const lang = props.languages.find((l) => l.id === languageId.value)
   return lang ? codeForName(lang.name) : null

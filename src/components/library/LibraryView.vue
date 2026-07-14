@@ -55,7 +55,6 @@
             @log="openLogModal"
             @quick-log="handleQuickLog"
             @capture-word="openCaptureWord"
-            @mine-words="openMineWords"
           />
         </template>
       </div>
@@ -152,15 +151,6 @@
         </div>
       </div>
     </Teleport>
-
-    <!-- Mine words from a passage (book description or pasted excerpt). -->
-    <MineWordsModal
-      :visible="showMineModal"
-      :book="mineTarget"
-      :languages="storageData.languages"
-      @close="showMineModal = false"
-      @planted="onMinePlanted"
-    />
   </div>
 </template>
 
@@ -181,7 +171,6 @@ import EditBookModal from './EditBookModal.vue'
 import LogPagesModal from './LogPagesModal.vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import WordCaptureForm from '../wordgarden/WordCaptureForm.vue'
-import MineWordsModal from '../wordgarden/MineWordsModal.vue'
 
 const props = defineProps({
   // The user's tracked Garten languages — used only to default the search
@@ -314,27 +303,6 @@ function openCaptureWord(book) {
 function onWordCaptured(word) {
   captureTarget.value = null
   toast.show(`“${word.term}” planted in your Word Garden.`, 'success', 3500)
-}
-
-// Mine-words-from-a-passage: opens MineWordsModal on the clicked book. The
-// modal handles the per-token bulk plant and the activity_events RPC itself;
-// LibraryView just owns the open/close state and the toast.
-const showMineModal = ref(false)
-const mineTargetId = ref(null)
-const mineTarget = computed(() =>
-  savedBooks.value.find((b) => b.id === mineTargetId.value) || null
-)
-function openMineWords(book) {
-  mineTargetId.value = book.id
-  showMineModal.value = true
-}
-function onMinePlanted({ book, count }) {
-  // The modal owns the success/error toasts (it knows the per-token counts
-  // and any DB error message). This handler is here for any parent-side
-  // bookkeeping we may add later (e.g. analytics) and intentionally does
-  // not toast to avoid the duplicate-notification issue.
-  if (!count) return
-  void book
 }
 
 // Remove flow (FR11)

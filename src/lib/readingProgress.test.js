@@ -6,13 +6,16 @@ describe('weightedPace', () => {
     expect(weightedPace([])).toBe(0)
   })
 
-  it('returns the simple average for same-day sessions', () => {
+  it('sums same-day sessions rather than averaging them', () => {
+    // Two sessions logged on the same day (e.g. a morning + evening read)
+    // are 30 pages of real progress that day, not a "15 pages/session" rate.
     const today = new Date().toISOString().slice(0, 10)
     const sessions = [
       { date: today, pagesRead: 10 },
       { date: today, pagesRead: 20 },
     ]
-    expect(weightedPace(sessions)).toBeCloseTo(15, 1)
+    const soloDay = weightedPace([{ date: today, pagesRead: 30 }])
+    expect(weightedPace(sessions)).toBeCloseTo(soloDay, 5)
   })
 
   it('weights recent sessions more heavily', () => {
@@ -24,7 +27,21 @@ describe('weightedPace', () => {
       { date: today, pagesRead: 20 },
       { date: twoWeeksAgo, pagesRead: 10 },
     ]
-    expect(weightedPace(sessions)).toBeGreaterThan(15)
+    // A day-bucketed average over the whole window, not per-session — so a
+    // single 20-page day pulls the average well below 20, not above 15.
+    const pace = weightedPace(sessions)
+    expect(pace).toBeGreaterThan(0)
+    expect(pace).toBeLessThan(20)
+  })
+
+  it('does not inflate pace when one big session is surrounded by off-days', () => {
+    // Reading 60 pages once a week is a real pace of ~8.6 pages/day, not 60 —
+    // the old per-session average conflated "session size" with "daily pace".
+    const dateStrDaysAgo = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const sessions = [0, 7, 14, 21].map((n) => ({ date: dateStrDaysAgo(n), pagesRead: 60 }))
+    const pace = weightedPace(sessions)
+    expect(pace).toBeGreaterThan(5)
+    expect(pace).toBeLessThan(20)
   })
 })
 

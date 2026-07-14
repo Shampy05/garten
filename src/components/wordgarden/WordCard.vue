@@ -224,10 +224,10 @@ function startEdit() {
   editing.value = true
 }
 
-// One-tap fill from Wiktionary. Same UX as the mining modal: spinner
-// while loading, first result fills the input, alternative definitions
-// appear as clickable chips below. Failed lookups set a quiet error
-// tooltip on the button — the user can always type the meaning by hand.
+// One-tap fill from Wiktionary: spinner while loading, first result fills
+// the input, alternative definitions appear as clickable chips below.
+// Failed lookups set a quiet error tooltip on the button — the user can
+// always type the meaning by hand.
 async function lookupOne() {
   if (lookupLoading.value) return
   const term = draft.value.term.trim()
