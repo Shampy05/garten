@@ -245,7 +245,7 @@ export function buildGardenScene({
   // ---- layout ----
   const positions = plantPositions(languages.length)
   const crowdScale = languages.length >= 7 ? 0.9 : 1.0
-  const recentByLang = recentHoursByLanguage(entries)
+  const recentByLang = recentHoursByLanguage(entries, 7, now)
   const plants = languages.map((lang, i) => buildPlant(lang, {
     hours: hoursByLang[lang.id] || 0,
     recentHours: recentByLang[lang.id] || 0,
