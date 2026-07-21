@@ -1,0 +1,176 @@
+{
+  "responses": [
+    {
+      "fullTextAnnotation": {
+        "text": "Der Wald war still und dunkel. »Wald« flüsterte sie, 12 Schritte weiter.",
+        "pages": [
+          {
+            "width": 1600,
+            "height": 1200,
+            "blocks": [
+              {
+                "paragraphs": [
+                  {
+                    "words": [
+                      {
+                        "symbols": [{ "text": "D" }, { "text": "er" }],
+                        "boundingBox": {
+                          "vertices": [
+                            { "y": 100 },
+                            { "x": 90, "y": 100 },
+                            { "x": 90, "y": 140 },
+                            { "x": 40, "y": 140 }
+                          ]
+                        }
+                      },
+                      {
+                        "symbols": [{ "text": "Wal" }, { "text": "d" }],
+                        "boundingBox": {
+                          "vertices": [
+                            { "x": 100, "y": 100 },
+                            { "x": 180, "y": 100 },
+                            { "x": 180, "y": 140 },
+                            { "x": 100, "y": 140 }
+                          ]
+                        }
+                      },
+                      {
+                        "symbols": [{ "text": "war" }],
+                        "boundingBox": {
+                          "vertices": [
+                            { "x": 190, "y": 100 },
+                            { "x": 250, "y": 100 },
+                            { "x": 250, "y": 140 },
+                            { "x": 190, "y": 140 }
+                          ]
+                        }
+                      },
+                      {
+                        "symbols": [{ "text": "sti" }, { "text": "ll" }],
+                        "boundingBox": {
+                          "vertices": [
+                            { "x": 260, "y": 100 },
+                            { "x": 330, "y": 100 },
+                            { "x": 330, "y": 140 },
+                            { "x": 260, "y": 140 }
+                          ]
+                        }
+                      },
+                      {
+                        "symbols": [{ "text": "und" }],
+                        "boundingBox": {
+                          "vertices": [
+                            { "x": 340, "y": 100 },
+                            { "x": 400, "y": 100 },
+                            { "x": 400, "y": 140 },
+                            { "x": 340, "y": 140 }
+                          ]
+                        }
+                      },
+                      {
+                        "symbols": [{ "text": "dunkel" }],
+                        "boundingBox": {
+                          "vertices": [
+                            { "x": 410, "y": 100 },
+                            { "x": 490, "y": 100 },
+                            { "x": 490, "y": 140 },
+                            { "x": 410, "y": 140 }
+                          ]
+                        }
+                      },
+                      {
+                        "symbols": [{ "text": "." }],
+                        "boundingBox": {
+                          "vertices": [
+                            { "x": 495, "y": 100 },
+                            { "x": 500, "y": 100 },
+                            { "x": 500, "y": 140 },
+                            { "x": 495, "y": 140 }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "paragraphs": [
+                  {
+                    "words": [
+                      {
+                        "symbols": [{ "text": "»Wald«" }],
+                        "boundingBox": {
+                          "vertices": [
+                            { "x": 40, "y": 200 },
+                            { "x": 130, "y": 200 },
+                            { "x": 130, "y": 240 },
+                            { "x": 40, "y": 240 }
+                          ]
+                        }
+                      },
+                      {
+                        "symbols": [{ "text": "flü" }, { "text": "sterte" }],
+                        "boundingBox": {
+                          "vertices": [
+                            { "x": 140, "y": 200 },
+                            { "x": 240, "y": 200 },
+                            { "x": 240, "y": 240 },
+                            { "x": 140, "y": 240 }
+                          ]
+                        }
+                      },
+                      {
+                        "symbols": [{ "text": "sie" }],
+                        "boundingBox": {
+                          "vertices": [
+                            { "x": 250, "y": 200 },
+                            { "x": 300, "y": 200 },
+                            { "x": 300, "y": 240 },
+                            { "x": 250, "y": 240 }
+                          ]
+                        }
+                      },
+                      {
+                        "symbols": [{ "text": "12" }],
+                        "boundingBox": {
+                          "vertices": [
+                            { "x": 310, "y": 200 },
+                            { "x": 340, "y": 200 },
+                            { "x": 340, "y": 240 },
+                            { "x": 310, "y": 240 }
+                          ]
+                        }
+                      },
+                      {
+                        "symbols": [{ "text": "Schrit" }, { "text": "te" }],
+                        "boundingBox": {
+                          "vertices": [
+                            { "x": 350, "y": 200 },
+                            { "x": 440, "y": 200 },
+                            { "x": 440, "y": 240 },
+                            { "x": 350, "y": 240 }
+                          ]
+                        }
+                      },
+                      {
+                        "symbols": [{ "text": "weiter" }],
+                        "boundingBox": {
+                          "vertices": [
+                            { "x": 450, "y": 200 },
+                            { "x": 520, "y": 200 },
+                            { "x": 520, "y": 240 },
+                            { "x": 450, "y": 240 }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

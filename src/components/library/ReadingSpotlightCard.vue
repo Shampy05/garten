@@ -61,6 +61,14 @@
             <span class="hidden sm:inline">Add a word</span>
           </button>
           <button
+            @click="$emit('scan-page', book)"
+            class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-stone-500 bg-white border border-line hover:border-garden-400 hover:text-garden-700 hover:shadow-pill transition-all active:scale-95"
+            title="Photograph this page to plant multiple words"
+          >
+            <Camera :size="12" />
+            <span class="hidden sm:inline">Scan page</span>
+          </button>
+          <button
             @click="$emit('edit', book)"
             class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-stone-500 bg-white border border-line hover:border-garden-400 hover:text-garden-700 hover:shadow-pill transition-all active:scale-95"
             title="Edit book"
@@ -155,7 +163,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { BookOpen, BookMarked, Pencil, Trash2 } from 'lucide-vue-next'
+import { BookOpen, BookMarked, Camera, Pencil, Trash2 } from 'lucide-vue-next'
 import { nameForCode } from '../../lib/bookLanguages.js'
 import { bookPaceStats, formatPace } from '../../lib/readingProgress.js'
 
@@ -169,7 +177,7 @@ const props = defineProps({
   progressLoaded: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['edit', 'remove', 'log', 'quick-log', 'capture-word'])
+const emit = defineEmits(['edit', 'remove', 'log', 'quick-log', 'capture-word', 'scan-page'])
 
 const submitting = ref(false)
 

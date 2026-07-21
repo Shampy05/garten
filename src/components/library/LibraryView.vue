@@ -55,6 +55,7 @@
             @log="openLogModal"
             @quick-log="handleQuickLog"
             @capture-word="openCaptureWord"
+            @scan-page="openScanPage"
           />
         </template>
       </div>
@@ -151,6 +152,17 @@
         </div>
       </div>
     </Teleport>
+
+    <ScanPageModal
+      :visible="Boolean(scanTarget)"
+      :languages="storageData.languages"
+      :entries="storageData.entries"
+      :preset-language-id="scanLanguageId"
+      :source-book-id="scanTarget?.id ?? null"
+      :book-title="scanTarget?.title ?? null"
+      :book-language-code="scanTarget?.languageCode ?? null"
+      @close="scanTarget = null"
+    />
   </div>
 </template>
 
@@ -171,6 +183,7 @@ import EditBookModal from './EditBookModal.vue'
 import LogPagesModal from './LogPagesModal.vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import WordCaptureForm from '../wordgarden/WordCaptureForm.vue'
+import ScanPageModal from '../wordgarden/ScanPageModal.vue'
 
 const props = defineProps({
   // The user's tracked Garten languages — used only to default the search
@@ -303,6 +316,18 @@ function openCaptureWord(book) {
 function onWordCaptured(word) {
   captureTarget.value = null
   toast.show(`“${word.term}” planted in your Word Garden.`, 'success', 3500)
+}
+
+// Scan-a-page — same capture-from-reading pattern as "Add a word", just a
+// richer camera-driven modal instead of a single-word form.
+const scanTarget = ref(null)
+const scanLanguageId = computed(() => {
+  if (!scanTarget.value?.languageCode) return null
+  const lang = storageData.value.languages.find((l) => codeForName(l.name) === scanTarget.value.languageCode)
+  return lang?.id ?? null
+})
+function openScanPage(book) {
+  scanTarget.value = book
 }
 
 // Remove flow (FR11)

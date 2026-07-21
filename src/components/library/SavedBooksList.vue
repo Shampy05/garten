@@ -107,6 +107,7 @@
             @log="$emit('log', $event)"
             @quick-log="$emit('quick-log', $event)"
             @capture-word="$emit('capture-word', $event)"
+            @scan-page="$emit('scan-page', $event)"
           />
         </div>
         <p v-if="atActiveCap && queueHasMatches" class="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-2">
@@ -208,7 +209,7 @@ const props = defineProps({
   studyLanguages: { type: Array, default: () => [] },
 })
 
-const emit = defineEmits(['edit', 'remove', 'log', 'quick-log', 'mark-as-read', 'reorder', 'start-reread', 'capture-word'])
+const emit = defineEmits(['edit', 'remove', 'log', 'quick-log', 'mark-as-read', 'reorder', 'start-reread', 'capture-word', 'scan-page'])
 
 const shelves = useShelves()
 

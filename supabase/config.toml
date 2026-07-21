@@ -371,6 +371,11 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+[functions.ocr-page]
+# Requires a real signed-in user (index.ts also checks auth.getUser() itself,
+# since verify_jwt alone would accept the anon key — itself a valid JWT).
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

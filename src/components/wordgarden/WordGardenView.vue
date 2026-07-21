@@ -16,17 +16,27 @@
             </p>
           </div>
         </div>
-        <button
-          v-if="dueCount > 0"
-          @click="showReview = true"
-          class="gp-btn-primary px-4 py-2 text-sm inline-flex items-center gap-1.5 flex-shrink-0 sm:ml-auto"
-        >
-          <Droplets :size="14" />
-          Review · {{ dueCount }} due
-        </button>
-        <span v-else-if="words.length" class="text-xs text-stone-400 flex-shrink-0 sm:ml-auto">
-          All watered<span class="hidden sm:inline"> — nothing due today.</span>
-        </span>
+        <div class="flex items-center gap-2 flex-wrap sm:ml-auto">
+          <button
+            v-if="languages.length"
+            @click="showScan = true"
+            class="gp-btn-ghost px-4 py-2 text-sm inline-flex items-center gap-1.5 flex-shrink-0"
+          >
+            <Camera :size="14" />
+            Scan a page
+          </button>
+          <button
+            v-if="dueCount > 0"
+            @click="showReview = true"
+            class="gp-btn-primary px-4 py-2 text-sm inline-flex items-center gap-1.5 flex-shrink-0"
+          >
+            <Droplets :size="14" />
+            Review · {{ dueCount }} due
+          </button>
+          <span v-else-if="words.length" class="text-xs text-stone-400 flex-shrink-0">
+            All watered<span class="hidden sm:inline"> — nothing due today.</span>
+          </span>
+        </div>
       </div>
 
       <!-- Rediscover nudge — only when there's nothing left due. A word
@@ -109,6 +119,13 @@
       @review-weak="onReviewWeak"
     />
 
+    <ScanPageModal
+      :visible="showScan"
+      :languages="languages"
+      :entries="entries"
+      @close="showScan = false"
+    />
+
     <ConfirmDialog
       :visible="showRemoveConfirm"
       title="Remove word?"
@@ -123,7 +140,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Leaf, Droplets, Sparkles } from 'lucide-vue-next'
+import { Leaf, Droplets, Sparkles, Camera } from 'lucide-vue-next'
 import { useVocab } from '../../composables/useVocab.js'
 import { rediscoverPick } from '../../lib/srs.js'
 import { useBooks } from '../../composables/useBooks.js'
@@ -131,6 +148,7 @@ import { useToast } from '../../composables/useToast.js'
 import WordCaptureForm from './WordCaptureForm.vue'
 import WordList from './WordList.vue'
 import ReviewSession from './ReviewSession.vue'
+import ScanPageModal from './ScanPageModal.vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
 
 const props = defineProps({
@@ -153,6 +171,7 @@ const sourceTitles = computed(() => {
 })
 
 const showReview = ref(false)
+const showScan = ref(false)
 // When non-empty, the open ReviewSession is scoped to these specific word
 // ids (a "review the agains" follow-up from the previous round's summary,
 // or a themed "review this tag" round from WordList). Empty = the regular
