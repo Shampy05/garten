@@ -7,6 +7,9 @@ import {
   vocabGrowthStage,
   sessionSummary,
   rediscoverPick,
+  daysUntilDue,
+  intervalProgress,
+  wordDeck,
   REDISCOVER_MIN_STAGE,
   SRS_INTERVALS,
   MAX_STAGE,
@@ -112,6 +115,82 @@ describe('sessionSummary', () => {
       easy: 1,
     })
     expect(sessionSummary([])).toEqual({ reviewed: 0, again: 0, good: 0, easy: 0 })
+  })
+})
+
+describe('daysUntilDue', () => {
+  it('returns null when there is no dueDate', () => {
+    expect(daysUntilDue({}, TODAY)).toBeNull()
+  })
+
+  it('returns a positive count for a future due date', () => {
+    expect(daysUntilDue(word({ dueDate: '2026-07-21' }), TODAY)).toBe(14)
+  })
+
+  it('returns zero or negative for today/overdue', () => {
+    expect(daysUntilDue(word({ dueDate: TODAY }), TODAY)).toBe(0)
+    expect(daysUntilDue(word({ dueDate: '2026-07-01' }), TODAY)).toBe(-6)
+  })
+})
+
+describe('intervalProgress', () => {
+  it('returns null without a lastReviewedAt or dueDate', () => {
+    expect(intervalProgress(word({ lastReviewedAt: null, dueDate: '2026-07-14' }), TODAY)).toBeNull()
+    expect(intervalProgress(word({ lastReviewedAt: '2026-07-01', dueDate: null }), TODAY)).toBeNull()
+  })
+
+  it('computes position within the span from last review to due date', () => {
+    // 2026-07-01 -> 2026-07-15 is a 14-day span; today (07-07) is 6 days in.
+    const w = word({ lastReviewedAt: '2026-07-01', dueDate: '2026-07-15' })
+    expect(intervalProgress(w, TODAY)).toBeCloseTo((6 / 14) * 100)
+  })
+
+  it('clamps to 0 and 100 at the span edges', () => {
+    const notStarted = word({ lastReviewedAt: TODAY, dueDate: '2026-07-15' })
+    expect(intervalProgress(notStarted, TODAY)).toBe(0)
+    const overdueSpan = word({ lastReviewedAt: '2026-06-01', dueDate: '2026-07-01' })
+    expect(intervalProgress(overdueSpan, TODAY)).toBe(100)
+  })
+
+  it('treats a same-day span (right after an again) as fully elapsed', () => {
+    const w = word({ lastReviewedAt: TODAY, dueDate: TODAY })
+    expect(intervalProgress(w, TODAY)).toBe(100)
+  })
+})
+
+describe('wordDeck', () => {
+  it('buckets a never-graded word as new, even though it is also due today', () => {
+    const fresh = word({ stage: 0, dueDate: TODAY, reviewCount: 0 })
+    expect(wordDeck(fresh, TODAY)).toBe('new')
+    expect(isDue(fresh, TODAY)).toBe(true) // the state that made the old bucketing unreachable
+  })
+
+  it('buckets a reviewed word that is due again as due, not new', () => {
+    const returning = word({ stage: 3, dueDate: TODAY, reviewCount: 4 })
+    expect(wordDeck(returning, TODAY)).toBe('due')
+  })
+
+  it('buckets a reviewed word resting on its interval as mature', () => {
+    const resting = word({ stage: 3, dueDate: '2026-07-21', reviewCount: 4 })
+    expect(wordDeck(resting, TODAY)).toBe('mature')
+  })
+
+  it('a word that lapsed back to stage 0 is due, not new — reviewCount is what matters, not stage', () => {
+    const lapsed = word({ stage: 0, dueDate: TODAY, reviewCount: 2 })
+    expect(wordDeck(lapsed, TODAY)).toBe('due')
+  })
+
+  it('is exhaustive and disjoint: every word lands in exactly one deck', () => {
+    const sample = [
+      word({ stage: 0, dueDate: TODAY, reviewCount: 0 }),
+      word({ stage: 0, dueDate: TODAY, reviewCount: 1 }),
+      word({ stage: 1, dueDate: TODAY, reviewCount: 1 }),
+      word({ stage: 2, dueDate: '2026-07-10', reviewCount: 2 }),
+      word({ stage: 6, dueDate: '2026-10-01', reviewCount: 9 }),
+    ]
+    for (const w of sample) {
+      expect(['new', 'due', 'mature']).toContain(wordDeck(w, TODAY))
+    }
   })
 })
 

@@ -12,7 +12,7 @@
 // arc (src/lib/avatar.js) but maps from SRS stage, not hours — a word blooms
 // by surviving reviews.
 
-import { localDateStr } from './date.js'
+import { localDateStr, daysBetween } from './date.js'
 
 // Days until the next review, per stage. Stage 0 is "due today" — brand-new
 // words and lapsed words recycle within the same session.
@@ -58,6 +58,32 @@ export function reviewWord(word, grade, today = localDateStr(new Date())) {
 
 export function isDue(word, today = localDateStr(new Date())) {
   return Boolean(word?.dueDate) && word.dueDate <= today
+}
+
+// Which of the Word Garden's three resting-list decks a word belongs in —
+// disjoint and exhaustive over `reviewCount`, not stage/due-date:
+//   'new'    → never graded (reviewCount === 0). Always also due (a fresh
+//              word's dueDate is always today — see useVocab.addWord), but
+//              shown here instead of 'due' so first-time and returning
+//              words read as two different things, the way most SRS apps
+//              distinguish "new" from "review" cards.
+//   'due'    → graded before, and due again right now.
+//   'mature' → graded before, resting on its interval.
+//
+// Deliberately NOT gated on stage: a word that lapsed hard enough to floor
+// back to stage 0 (two "again"s from stage 1) has reviewCount > 0 — it's a
+// struggling returning word, not a fresh seed, and belongs in 'due', not
+// 'new'. reviewCount === 0 is guaranteed to mean stage === 0 too (the two
+// only ever change together, in reviewWord), so callers rendering a 'new'
+// word's growth glyph can safely assume the seed stage.
+//
+// This does NOT change what counts as "due" for scheduling — isDue()/
+// dueWords() still correctly treat a brand-new word as due today, so the
+// main Review/Quick water flows pick it up regardless of which deck it
+// displays in. This only decides how the resting list groups words.
+export function wordDeck(word, today = localDateStr(new Date())) {
+  if ((Number(word?.reviewCount) || 0) === 0) return 'new'
+  return isDue(word, today) ? 'due' : 'mature'
 }
 
 // Due words for a review session: most overdue first, ties broken toward the
@@ -117,6 +143,29 @@ export function rediscoverPick(words = [], today = localDateStr(new Date())) {
   if (!candidates.length) return null
   const pool = candidates.slice(0, REDISCOVER_POOL)
   return pool[daysSinceEpoch(today) % pool.length]
+}
+
+// Days from today until a word's next review — negative/zero for an overdue
+// or due-today word (decks route those into "Due today" rather than here),
+// positive for a word still resting on its interval. Used for the Mature
+// deck's quiet "back in Nd" temporal caption.
+export function daysUntilDue(word, today = localDateStr(new Date())) {
+  if (!word?.dueDate) return null
+  return daysBetween(today, word.dueDate)
+}
+
+// How far a word has traveled through its current interval (0–100), for a
+// quiet progress hairline under mature words: the span from its last review
+// to its next due date, and where today sits within that span. A word with
+// no review yet (no lastReviewedAt) has no interval to show progress
+// through — returns null. A same-day span (dueDate === lastReviewedAt, only
+// possible right after an "again") is treated as fully elapsed.
+export function intervalProgress(word, today = localDateStr(new Date())) {
+  if (!word?.lastReviewedAt || !word?.dueDate) return null
+  const span = daysBetween(word.lastReviewedAt, word.dueDate)
+  if (span <= 0) return 100
+  const elapsed = daysBetween(word.lastReviewedAt, today)
+  return Math.max(0, Math.min(100, (elapsed / span) * 100))
 }
 
 // Tally a session's grades for the end-of-session summary.

@@ -66,30 +66,49 @@
         {{ t.tag }} <span class="tabular-nums opacity-70">{{ t.count }}</span>
       </button>
       <button
-        v-if="tagFilter && dueWords.length"
+        v-if="tagFilter && allDueInScope.length"
         type="button"
-        @click="$emit('review-tag', dueWords.map((w) => w.id))"
+        @click="$emit('review-tag', allDueInScope.map((w) => w.id))"
         class="px-2.5 py-1 rounded-full text-xs font-medium bg-garden-50 border border-garden-200 text-garden-700 hover:bg-garden-100 transition-colors inline-flex items-center gap-1"
       >
         <Droplets :size="11" />
-        Review {{ dueWords.length }} in “{{ tagFilter }}”
+        Review {{ allDueInScope.length }} in “{{ tagFilter }}”
       </button>
     </div>
 
-    <!-- ── Deck 1: Due today ────────────────────────────────────────── -->
+    <!-- ── Deck 1: Due today ("Needs water") ───────────────────────── -->
     <section class="gp-card overflow-hidden">
-      <button
-        type="button"
-        @click="decksOpen.due = !decksOpen.due"
-        class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-stone-50 transition-colors"
-        :aria-expanded="decksOpen.due"
-      >
-        <span class="w-2 h-2 rounded-full flex-shrink-0 bg-garden-500" />
-        <Droplets :size="14" class="text-stone-500 flex-shrink-0" />
-        <h3 class="font-display text-sm font-bold text-stone-800 flex-1">Due today</h3>
-        <span class="text-xs text-stone-500 tabular-nums">{{ dueWords.length }}</span>
-        <ChevronDown :size="14" class="text-stone-400 transition-transform flex-shrink-0" :class="decksOpen.due ? 'rotate-180' : ''" />
-      </button>
+      <div class="w-full flex items-center gap-3 px-4 py-3 bg-garden-50/50">
+        <button
+          type="button"
+          @click="decksOpen.due = !decksOpen.due"
+          class="flex items-center gap-3 flex-1 min-w-0 text-left"
+          :aria-expanded="decksOpen.due"
+        >
+          <span class="w-2 h-2 rounded-full flex-shrink-0 bg-garden-500" />
+          <Droplets :size="14" class="text-garden-600 flex-shrink-0" />
+          <h3 class="font-display text-sm font-bold text-stone-800 flex-1">Needs water</h3>
+          <span class="text-xs text-stone-500 tabular-nums">{{ dueWords.length }}</span>
+        </button>
+        <!-- Opens a review round scoped to exactly the (filtered) due words
+             visible here — same forceIds plumbing as the tag-scoped round
+             below, just triggered from the deck itself instead of a tag chip. -->
+        <button
+          v-if="dueWords.length"
+          type="button"
+          @click="$emit('review-tag', dueWords.map((w) => w.id))"
+          class="px-2.5 py-1 rounded-full text-xs font-medium bg-garden-600 text-white hover:bg-garden-700 transition-colors inline-flex items-center gap-1 flex-shrink-0"
+        >
+          <Droplets :size="11" />
+          Water these {{ dueWords.length }}
+        </button>
+        <ChevronDown
+          :size="14"
+          class="text-stone-400 transition-transform flex-shrink-0 cursor-pointer"
+          :class="decksOpen.due ? 'rotate-180' : ''"
+          @click="decksOpen.due = !decksOpen.due"
+        />
+      </div>
       <div v-if="decksOpen.due" class="border-t border-line">
         <div v-if="dueWords.length === 0" class="px-4 py-3 text-sm text-stone-400 italic">
           {{ dueEmptyMessage }}
@@ -99,6 +118,7 @@
             v-for="word in dueWords"
             :key="word.id"
             :word="word"
+            :just-advanced="advancedIds.has(word.id)"
             :select-mode="selectMode"
             :selected="selectedIds.has(word.id)"
             :language-color="colorFor(word.languageId)"
@@ -133,11 +153,56 @@
         <div v-if="newWords.length === 0" class="px-4 py-3 text-sm text-stone-400 italic">
           No new words waiting — plant more from a book or the form above.
         </div>
+        <!-- Seed tray: seeds haven't earned a full row's visual weight yet —
+             a dense grid of term-only tiles, soil-toned. Tap a tile to reveal
+             its full card (meaning, pills, edit/remove) inline; tap again to
+             collapse. Multi-select falls back to the normal row list so
+             long-press/tap selection works identically across every deck. -->
+        <div v-else-if="!selectMode" class="p-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <template v-for="word in newWords" :key="word.id">
+            <button
+              v-if="!expandedSeeds.has(word.id)"
+              type="button"
+              @click="expandedSeeds.add(word.id)"
+              class="text-left px-3 py-2.5 rounded-xl bg-garden-soil border border-line hover:border-stone-300 transition-colors"
+            >
+              <span class="flex items-center gap-1.5 min-w-0">
+                <VocabStageGlyph stage="seed" :color="colorFor(word.languageId)" :size="14" />
+                <span class="text-sm font-semibold text-stone-800 truncate">{{ word.term }}</span>
+              </span>
+            </button>
+            <div v-else class="col-span-2 sm:col-span-3">
+              <WordRow
+                :word="word"
+                :just-advanced="advancedIds.has(word.id)"
+                :select-mode="selectMode"
+                :selected="selectedIds.has(word.id)"
+                :language-color="colorFor(word.languageId)"
+                :language-code="codeFor(word.languageId)"
+                :language-name="nameFor(word.languageId)"
+                :source-title="sourceTitles[word.sourceBookId] || null"
+                @update="$emit('update', $event)"
+                @remove="$emit('remove', $event)"
+                @toggle="onWordToggle(word)"
+                @enter-select="onEnterSelect(word)"
+                @filter-tag="tagFilter = $event"
+              />
+              <button
+                type="button"
+                @click="expandedSeeds.delete(word.id)"
+                class="text-[11px] text-stone-400 hover:text-stone-600 mt-1 ml-1"
+              >
+                Collapse
+              </button>
+            </div>
+          </template>
+        </div>
         <div v-else class="p-3 space-y-2">
           <WordRow
             v-for="word in newWords"
             :key="word.id"
             :word="word"
+            :just-advanced="advancedIds.has(word.id)"
             :select-mode="selectMode"
             :selected="selectedIds.has(word.id)"
             :language-color="colorFor(word.languageId)"
@@ -172,11 +237,13 @@
         <div v-if="matureWords.length === 0" class="px-4 py-3 text-sm text-stone-400 italic">
           Nothing mature yet — keep watering.
         </div>
-        <div v-else class="p-3 space-y-2">
+        <div v-else class="p-3 space-y-3">
           <WordRow
             v-for="word in matureWords"
             :key="word.id"
             :word="word"
+            size="lg"
+            :just-advanced="advancedIds.has(word.id)"
             :select-mode="selectMode"
             :selected="selectedIds.has(word.id)"
             :language-color="colorFor(word.languageId)"
@@ -250,9 +317,10 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { Droplets, Leaf, Sparkles, ChevronDown, CheckSquare, Trash2 } from 'lucide-vue-next'
-import { isDue } from '../../lib/srs.js'
+import { isDue, wordDeck } from '../../lib/srs.js'
 import { codeForName } from '../../lib/bookLanguages.js'
 import WordRow from './WordRow.vue'
+import VocabStageGlyph from './VocabStageGlyph.vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
 
 const props = defineProps({
@@ -264,6 +332,10 @@ const props = defineProps({
   // Active language filter, owned by the parent so the Plant-a-word form
   // shares it. `null` = show all languages.
   languageFilter: { type: String, default: null },
+  // Word ids that just crossed a growth-stage glyph in the review session
+  // that closed moments ago — the post-review return moment plays a one-time
+  // grow-in flash on these when they resurface here. See WordGardenView.
+  advancedIds: { type: Set, default: () => new Set() },
 })
 
 const emit = defineEmits(['update', 'remove', 'update:languageFilter', 'bulk-remove', 'review-tag'])
@@ -336,36 +408,29 @@ const scoped = computed(() =>
   languageScoped.value.filter((w) => !tagFilter.value || (w.tags || []).includes(tagFilter.value))
 )
 
-// Three decks, in priority order: due → new → mature. The buckets are
-// disjoint AND exhaustive — every word is isDue, or stage 0, or stage ≥ 1 —
-// so nothing can fall between them.
-//
-// "New" = never reviewed (stage 0) AND not currently due. A word that's
-// just been planted and is still due today stays in "Due today" so the
-// user waters it the same session.
-//
-// "Mature" = stage ≥ 1 (at least one successful review) AND not due. This
-// is the long-tail shelf — words the user has already learned at least
-// once and that are sitting on their next interval, from a day out to 90.
-// (Previously gated on stage ≥ 2 on the theory that stage-1 words are
-// always "due today" — they aren't: a Good from stage 0 sets a 1-day
-// interval, so the word sits due *tomorrow*, matching neither "New" (not
-// stage 0) nor the old "Mature" (not ≥ 2) and vanishing from the list
-// entirely until it came due again. Confirmed live: a freshly-graded word
-// disappeared from all three decks for a day.)
+// All currently-due words in scope, regardless of new-vs-returning — used
+// by the tag-scoped review trigger above, which should offer every due
+// word under a tag (including brand-new ones), not just the "returning"
+// subset the Needs Water deck below displays.
+const allDueInScope = computed(() => scoped.value.filter((w) => isDue(w)))
+
+// Three decks, in priority order: new → due → mature. Bucketing itself
+// lives in wordDeck() (src/lib/srs.js, tested) — see the comment there for
+// why this is keyed on reviewCount rather than stage/due-date (the previous
+// due-date-based split made "New" permanently unreachable).
 const dueWords = computed(() =>
   scoped.value
-    .filter((w) => isDue(w))
+    .filter((w) => wordDeck(w) === 'due')
     .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)))
 )
 const newWords = computed(() =>
   scoped.value
-    .filter((w) => !isDue(w) && (Number(w.stage) || 0) === 0)
+    .filter((w) => wordDeck(w) === 'new')
     .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
 )
 const matureWords = computed(() =>
   scoped.value
-    .filter((w) => !isDue(w) && (Number(w.stage) || 0) >= 1)
+    .filter((w) => wordDeck(w) === 'mature')
     .sort((a, b) => (Number(b.stage) || 0) - (Number(a.stage) || 0) || String(b.lastReviewedAt || '').localeCompare(String(a.lastReviewedAt || '')))
 )
 
@@ -379,6 +444,11 @@ const dueEmptyMessage = computed(() =>
 // New is open so the user can see their seed pile, Mature is collapsed
 // since it grows large over time.
 const decksOpen = reactive({ due: true, new: true, mature: false })
+
+// Seed-tray expansion — which New-deck words are showing their full card
+// instead of the compact tile. Local, ephemeral UI state (not persisted);
+// resets naturally on remount.
+const expandedSeeds = reactive(new Set())
 
 // ── Multi-select state ───────────────────────────────────────────────
 const selectMode = ref(false)

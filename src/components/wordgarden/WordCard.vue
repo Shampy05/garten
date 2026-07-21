@@ -2,13 +2,16 @@
   <div class="gp-card p-3">
     <!-- Display state -->
     <div v-if="!editing" class="flex items-start gap-3">
-      <div class="pt-0.5">
-        <VocabStageGlyph :stage="growth" :color="languageColor" :size="20" />
+      <div
+        class="pt-0.5 flex-shrink-0"
+        :class="isLg && growth === 'flourish' ? 'ring-2 ring-amber-200/70 rounded-full' : ''"
+      >
+        <VocabStageGlyph :stage="growth" :color="languageColor" :size="glyphSize" />
       </div>
       <div class="flex-1 min-w-0">
         <div class="flex items-baseline gap-2 flex-wrap">
-          <span class="text-sm font-semibold text-stone-800">{{ word.term }}</span>
-          <span v-if="word.meaning" class="text-sm text-stone-500 min-w-0">{{ word.meaning }}</span>
+          <span :class="isLg ? 'text-base' : 'text-sm'" class="font-semibold text-stone-800">{{ word.term }}</span>
+          <span v-if="word.meaning" :class="isLg ? 'text-base' : 'text-sm'" class="text-stone-500 min-w-0">{{ word.meaning }}</span>
           <button
             v-else
             @click="startEdit"
@@ -42,6 +45,19 @@
           >
             {{ tag }}
           </button>
+        </div>
+
+        <!-- Album footer — only for the Mature deck's larger rows: a quiet
+             "back in Nd" caption plus a hairline showing how far the word
+             has traveled through its current interval. -->
+        <div v-if="isLg && dueInDays !== null" class="mt-1.5 max-w-[10rem]">
+          <span class="text-[11px] text-stone-400">back in {{ dueInDays }}d</span>
+          <div class="w-full bg-stone-100 rounded-full h-1 overflow-hidden mt-1">
+            <div
+              class="h-1 rounded-full bg-garden-400 transition-all duration-700 ease-out"
+              :style="{ width: (progressPct ?? 0) + '%' }"
+            ></div>
+          </div>
         </div>
       </div>
       <span
@@ -165,7 +181,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { Pencil, Trash2, Search, Loader2 } from 'lucide-vue-next'
-import { vocabGrowthStage, isDue } from '../../lib/srs.js'
+import { vocabGrowthStage, isDue, daysUntilDue, intervalProgress } from '../../lib/srs.js'
 import { lookupWord } from '../../lib/dictLookup.js'
 import { gendersForLanguage, GENDER_LABELS } from '../../lib/grammaticalGender.js'
 import { WORD_TYPES, WORD_TYPE_LABELS, isNounlike } from '../../lib/wordType.js'
@@ -188,6 +204,10 @@ const props = defineProps({
   // When true, hide the inline edit/remove buttons. Used by the multi-
   // select mode in WordList — the parent owns the click/toggle instead.
   hideActions: { type: Boolean, default: false },
+  // 'md' (default, every deck) | 'lg' (the Mature deck's "album" treatment:
+  // a bigger glyph, a subtle ring on flourish words, and a quiet "back in
+  // Nd" caption + interval-progress hairline under the term).
+  size: { type: String, default: 'md' },
 })
 
 const emit = defineEmits(['update', 'remove', 'filter-tag'])
@@ -195,6 +215,11 @@ const emit = defineEmits(['update', 'remove', 'filter-tag'])
 const growth = computed(() => vocabGrowthStage(props.word))
 const due = computed(() => isDue(props.word))
 const availableGenders = computed(() => gendersForLanguage(props.languageName))
+
+const isLg = computed(() => props.size === 'lg')
+const glyphSize = computed(() => (isLg.value ? 30 : 20))
+const dueInDays = computed(() => (isLg.value ? daysUntilDue(props.word) : null))
+const progressPct = computed(() => (isLg.value ? intervalProgress(props.word) : null))
 
 const editing = ref(false)
 const draft = ref({ term: '', meaning: '', note: '', gender: '', wordType: '', tags: [] })

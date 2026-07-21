@@ -7,7 +7,8 @@
     :class="[
       'relative transition-all',
       selectMode ? 'cursor-pointer' : '',
-      selected ? 'ring-2 ring-garden-500 rounded-lg' : ''
+      selected ? 'ring-2 ring-garden-500 rounded-lg' : '',
+      justAdvanced ? 'animate-grow-in' : ''
     ]"
     @pointerdown="onPressStart"
     @pointerup="onPressEnd"
@@ -45,6 +46,7 @@
       :language-name="languageName"
       :source-title="sourceTitle"
       :hide-actions="selectMode"
+      :size="size"
       @update="$emit('update', $event)"
       @remove="$emit('remove', $event)"
       @filter-tag="$emit('filter-tag', $event)"
@@ -65,6 +67,12 @@ const props = defineProps({
   languageCode: { type: String, default: null },
   languageName: { type: String, default: null },
   sourceTitle: { type: String, default: null },
+  // Forwarded to WordCard — 'md' (default) or 'lg' (Mature deck's album row).
+  size: { type: String, default: 'md' },
+  // True for a word that just crossed a growth-stage glyph in the review
+  // session that closed moments ago — plays a one-time grow-in flash where
+  // it resurfaces (e.g. moving from "Needs water" into "Mature").
+  justAdvanced: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update', 'remove', 'toggle', 'enter-select', 'filter-tag'])

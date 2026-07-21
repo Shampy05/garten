@@ -1,8 +1,8 @@
 <template>
   <Teleport to="body">
     <div class="fixed inset-0 z-50 overflow-y-auto">
-      <div class="fixed inset-0 bg-stone-900/25 backdrop-blur-sm animate-fade-up" @click="$emit('close')"></div>
-      <div class="relative min-h-full flex items-start sm:items-center justify-center p-4 sm:py-12" @click.self="$emit('close')">
+      <div class="fixed inset-0 bg-stone-900/25 backdrop-blur-sm animate-fade-up" @click="closeSession"></div>
+      <div class="relative min-h-full flex items-start sm:items-center justify-center p-4 sm:py-12" @click.self="closeSession">
         <div class="relative gp-card shadow-hero w-full max-w-md p-5 sm:p-6 animate-grow-in">
           <!-- Header: progress + close -->
           <div class="flex items-center justify-between pb-3 border-b border-line">
@@ -13,7 +13,7 @@
             <div class="flex items-center gap-3">
               <span v-if="current" class="text-xs text-stone-400 tabular-nums">{{ completed }} of {{ total }}</span>
               <button
-                @click="$emit('close')"
+                @click="closeSession"
                 class="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors"
                 aria-label="Close"
               >
@@ -144,16 +144,29 @@
                 <RotateCcw :size="14" />
                 Review the {{ weakWordIds.length }} again{{ weakWordIds.length === 1 ? '' : 's' }}
               </button>
+              <!-- A scoped round (e.g. Quick water) that finished clean, with
+                   more still due elsewhere — offers to chain straight into
+                   the rest instead of making the gardener come back and tap
+                   Review again. Only when there's nothing weak to offer
+                   first (see the branch above). -->
               <button
-                v-if="weakWordIds.length"
-                @click="$emit('close')"
+                v-else-if="remainingDueCount > 0"
+                @click="keepGoing"
+                class="gp-btn-primary px-5 py-2 text-sm inline-flex items-center gap-1.5"
+              >
+                <Droplets :size="14" />
+                Keep going · {{ remainingDueCount }} left
+              </button>
+              <button
+                v-if="weakWordIds.length || remainingDueCount > 0"
+                @click="closeSession"
                 class="gp-btn-ghost px-4 py-2 text-sm"
               >
                 Back to the garden
               </button>
               <button
                 v-else
-                @click="$emit('close')"
+                @click="closeSession"
                 class="gp-btn-primary px-6 py-2 text-sm"
               >
                 Back to the garden
@@ -170,7 +183,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { X, Droplets, Sprout, RotateCcw, Volume2 } from 'lucide-vue-next'
 import { useVocab } from '../../composables/useVocab.js'
-import { dueWords, sessionSummary, reviewWord, SRS_INTERVALS } from '../../lib/srs.js'
+import { dueWords, sessionSummary, reviewWord, SRS_INTERVALS, vocabGrowthStage } from '../../lib/srs.js'
 import { localDateStr } from '../../lib/date.js'
 import { codeForName } from '../../lib/bookLanguages.js'
 import { GENDER_LABELS } from '../../lib/grammaticalGender.js'
@@ -183,7 +196,7 @@ const props = defineProps({
   forceIds: { type: Array, default: () => [] },
 })
 
-const emit = defineEmits(['close', 'review-weak'])
+const emit = defineEmits(['close', 'review-weak', 'keep-going'])
 
 const vocab = useVocab()
 
@@ -208,6 +221,14 @@ const gradedIds = new Set() // good/easy across session — closure-scoped, not 
 // Words graded 'again' this session — surfaced on the end-of-session summary
 // so the user can drill straight into another round on just those words.
 const weakWordIds = ref([])
+// Words whose growth-stage glyph (seed/sprout/bloom/flourish) actually
+// changed this session — not just any successful grade, since e.g. stage
+// 0→1 is still "seed" either way. Deliberately NOT cleared by resetSession
+// (unlike gradedIds/weakWordIds): a "keep going" or "review the agains"
+// chain stays inside the same modal session, and the post-review return
+// moment on the resting page wants everything that grew across the whole
+// visit, not just the final sub-round.
+const advancedWordIds = new Set()
 
 function buildInitialQueue() {
   if (isForcedRound.value) {
@@ -251,12 +272,16 @@ function resetSession() {
 
 onMounted(resetSession)
 
-// When the parent updates forceIds (the "review the agains" flow), reset
-// the session to scope to the new word list without unmounting the modal.
+// When the parent updates forceIds (the "review the agains" flow, or
+// "keep going" after a Quick water round), reset the session to scope to
+// the new word list without unmounting the modal. The component only
+// exists while the modal is open (WordGardenView mounts it behind
+// `v-if="showReview"`), so there's no separate "visible" gate to check here
+// — every change to forceIds while mounted means the parent wants a new
+// round.
 watch(
   () => (Array.isArray(props.forceIds) ? props.forceIds.join(',') : ''),
   () => {
-    if (!props.visible) return
     resetSession()
   }
 )
@@ -351,6 +376,9 @@ async function grade(g) {
   if (!word) return
   grades.value.push(g)
   revealed.value = false
+  const beforeStage = vocabGrowthStage(word)
+  const afterStage = vocabGrowthStage({ ...word, ...reviewWord(word, g) })
+  if (afterStage !== beforeStage) advancedWordIds.add(word.id)
   if (g === 'again') {
     // Keep the same in-memory object; its persisted dueDate stays today.
     queue.value = [...queue.value.slice(1), word]
@@ -363,6 +391,31 @@ async function grade(g) {
     totalCompleted.value += 1
   }
   await vocab.gradeWord(word.id, g)
+}
+
+// How many words are still due right now, beyond this round's own scope —
+// only meaningful for a forced (scoped) round, since a regular round's
+// initial queue already was the full due set (nothing "remains" except the
+// weak words already offered via "review the agains"). Live off the vocab
+// store, so it naturally reflects whatever this round already watered.
+const remainingDueCount = computed(() => {
+  if (!isForcedRound.value) return 0
+  return dueWords(vocab.words.value, localDateStr(new Date())).length
+})
+
+// "Keep going" — chains a small scoped round (e.g. Quick water) into the
+// rest of what's due, by simply re-scoping to the full remaining due set.
+// Reuses the same forceIds-swap mechanism as "review the agains".
+function keepGoing() {
+  const ids = dueWords(vocab.words.value, localDateStr(new Date())).map((w) => w.id)
+  emit('keep-going', ids)
+}
+
+// Every close path (backdrop, X, "Back to the garden") routes through here
+// so the parent always learns which words grew this visit, for the
+// post-review return moment on the resting page.
+function closeSession() {
+  emit('close', { advancedIds: [...advancedWordIds] })
 }
 
 const summaryLine = computed(() => {
